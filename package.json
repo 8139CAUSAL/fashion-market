@@ -1,0 +1,21 @@
+{
+  "name": "netlogor-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A season of fashion retail in one city: an agent-based model in R (webR + NetLogoR), running in the browser.",
+  "type": "module",
+  "scripts": {
+    "build:editor": "node tools/build-editor.mjs",
+    "test": "node --test tools/test-spec.mjs tools/test-frames.mjs tools/test-imports.mjs tools/test-share.mjs tools/test-sw.mjs && Rscript tools/test-shims.R && Rscript tools/test-engine.R && Rscript tools/check-templates.R && Rscript tools/test-fashion.R"
+  },
+  "comment": "Dev-only: the app itself is static files. vendor/codemirror.js is committed, so nothing here is needed to run or deploy the Workbench.",
+  "devDependencies": {
+    "@codemirror/commands": "6.8.1",
+    "@codemirror/language": "6.11.1",
+    "@codemirror/legacy-modes": "6.5.4",
+    "@codemirror/state": "6.5.2",
+    "@codemirror/view": "6.37.1",
+    "@lezer/highlight": "1.2.1",
+    "esbuild": "0.25.10"
+  }
+}

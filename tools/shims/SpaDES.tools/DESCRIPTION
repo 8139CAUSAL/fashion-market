@@ -1,0 +1,15 @@
+Package: SpaDES.tools
+Type: Package
+Title: Minimal 'SpaDES.tools' Stand-in for NetLogoR in webR
+Version: 2.1.1.9001
+Description: NetLogoR's neighbors(), diffuse() and torus wrapping call
+    SpaDES.tools::adj() and SpaDES.tools::wrap(); without them those
+    primitives stop with "Please install.packages('SpaDES.tools')". The real
+    package depends on 'terra', which cannot load in webR, so this package
+    ports just those two functions to plain R, matching SpaDES.tools 2.1.1
+    behaviour (column order, cell numbering and row order included).
+License: GPL-3
+Depends: R (>= 4.1)
+Imports: methods
+Suggests: data.table
+Encoding: UTF-8

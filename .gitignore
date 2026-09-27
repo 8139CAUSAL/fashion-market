@@ -1,0 +1,14 @@
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# R workspace artifacts
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Build caches: wasm package binaries, OSM download, local NetLogoR test library
+tools/.cache/
+node_modules/

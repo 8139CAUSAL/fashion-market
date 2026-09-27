@@ -1,0 +1,13 @@
+Package: quickPlot
+Type: Package
+Title: Minimal 'quickPlot' Stand-in for NetLogoR in webR
+Version: 1.0.4.9001
+Description: NetLogoR imports a handful of generics and one class from
+    'quickPlot', which in turn pulls in 'ggplot2', 'terra' and their
+    dependencies. The NetLogoR Workbench draws on an HTML canvas instead, so
+    this package defines only those generics and the class, with the same
+    signatures as 'quickPlot' 1.0.4, and no plotting.
+License: GPL-3
+Depends: R (>= 4.1)
+Imports: methods
+Encoding: UTF-8

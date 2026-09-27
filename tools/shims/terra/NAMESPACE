@@ -1,0 +1,4 @@
+import(methods)
+exportClasses(SpatExtent, SpatRaster)
+exportMethods(nrow, ncol, show)
+export(ext, xmin, xmax, ymin, ymax, distance, crs, rast, values, plot)

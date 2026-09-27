@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fashion Market Simulator</title>
+  <meta name="description" content="A season of fashion retail in a market you build: brands, stores, shoppers, stock and offers, as an agent-based model in R running in the browser.">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <!-- Must run first: on hosts without COOP/COEP headers it installs a
+       service worker that adds them, then reloads once. -->
+  <script src="coi-serviceworker.js"></script>
+  <link rel="stylesheet" href="css/fashion.css">
+  <script type="module" src="js/fashion/app.js"></script>
+</head>
+<body>
+  <header class="app-header" id="header">
+    <div class="brand-mark">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="var(--accent)"/>
+        <path d="M16 7.5c1.7 0 3 1.2 3 2.7 0 1.2-.9 1.9-1.9 2.4l-1.1.6v1.3l9 5.9c.9.6.5 2-.6 2H7.6c-1.1 0-1.5-1.4-.6-2l9-5.9" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div><b>Fashion Market</b><small>One season, a market you build, every shopper an agent · R in your browser</small></div>
+    </div>
+
+    <div class="run-controls" role="group" aria-label="Run">
+      <button type="button" class="btn" id="btn-setup" disabled title="Start the season from the settings on the Setup tab">Setup<span class="count" id="setup-changes" hidden></span></button>
+      <button type="button" class="btn primary" id="btn-run" disabled>Go</button>
+      <button type="button" class="btn" id="btn-step" disabled title="Advance one tick">Step</button>
+      <label class="visually-hidden" for="speed">Speed</label>
+      <select id="speed" title="How fast store time runs. The fastest runs a market day per tick, without drawing shoppers.">
+        <option value="1">Real time (1×)</option>
+        <option value="30">30× real time</option>
+        <option value="120">120× real time</option>
+        <option value="600" selected>600× real time</option>
+        <option value="3600">3,600× real time</option>
+        <option value="day">Fastest: a day per tick</option>
+      </select>
+    </div>
+
+    <div class="clock" aria-live="off">
+      <div class="clock-text" id="clock-text">Week 1 · Mon <span>10:00</span></div>
+      <div class="season-bar" title="Season progress"><span id="season-bar"></span></div>
+    </div>
+
+    <div class="headline" id="headline">
+      <div><div class="tile-label">Our share of sales</div><div class="tile-value" data-k="share">—</div></div>
+      <div><div class="tile-label">Our sales, season</div><div class="tile-value" data-k="sales">—</div></div>
+      <div><div class="tile-label">Our conversion</div><div class="tile-value" data-k="conversion">—</div></div>
+      <div><div class="tile-label">In stores · on the road</div><div class="tile-value" data-k="people">—</div></div>
+    </div>
+
+    <button type="button" class="btn" id="btn-code" aria-controls="code-drawer" aria-expanded="false">R code</button>
+  </header>
+
+  <nav class="tabbar" id="tabbar" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" id="tab-btn-setup" aria-controls="tab-setup" aria-selected="false" tabindex="-1">Setup</button>
+    <button class="tab" role="tab" id="tab-btn-market" aria-controls="tab-market" aria-selected="true">Market</button>
+    <button class="tab" role="tab" id="tab-btn-strategy" aria-controls="tab-strategy" aria-selected="false" tabindex="-1">Strategy</button>
+    <button class="tab" role="tab" id="tab-btn-offers" aria-controls="tab-offers" aria-selected="false" tabindex="-1">Offers</button>
+    <button class="tab" role="tab" id="tab-btn-funnel" aria-controls="tab-funnel" aria-selected="false" tabindex="-1">Funnel</button>
+    <button class="tab" role="tab" id="tab-btn-store" aria-controls="tab-store" aria-selected="false" tabindex="-1">Store</button>
+    <button class="tab" role="tab" id="tab-btn-assortment" aria-controls="tab-assortment" aria-selected="false" tabindex="-1">Assortment</button>
+    <button class="tab" role="tab" id="tab-btn-scorecard" aria-controls="tab-scorecard" aria-selected="false" tabindex="-1">Scorecard</button>
+  </nav>
+
+  <main>
+    <section class="tab-panel" id="tab-setup" role="tabpanel" aria-labelledby="tab-btn-setup" hidden></section>
+    <section class="tab-panel" id="tab-market" role="tabpanel" aria-labelledby="tab-btn-market"></section>
+    <section class="tab-panel" id="tab-strategy" role="tabpanel" aria-labelledby="tab-btn-strategy" hidden></section>
+    <section class="tab-panel" id="tab-offers" role="tabpanel" aria-labelledby="tab-btn-offers" hidden></section>
+    <section class="tab-panel" id="tab-funnel" role="tabpanel" aria-labelledby="tab-btn-funnel" hidden></section>
+    <section class="tab-panel" id="tab-store" role="tabpanel" aria-labelledby="tab-btn-store" hidden></section>
+    <section class="tab-panel" id="tab-assortment" role="tabpanel" aria-labelledby="tab-btn-assortment" hidden></section>
+    <section class="tab-panel" id="tab-scorecard" role="tabpanel" aria-labelledby="tab-btn-scorecard" hidden></section>
+  </main>
+
+  <aside class="code-drawer" id="code-drawer" aria-label="The model's R code" aria-hidden="true" inert>
+    <div class="code-head">
+      <div>
+        <h2>The model, in R</h2>
+        <p>These files run in your browser (webR, with NetLogoR). Every number on every tab comes from them.</p>
+      </div>
+      <button type="button" class="btn" id="btn-code-close" aria-label="Close the code">Close</button>
+    </div>
+    <div class="code-files" id="code-files" role="tablist" aria-label="Model files"></div>
+    <div class="code-body" id="code-body"></div>
+  </aside>
+
+  <div class="loading" id="loading" role="status" aria-live="polite">
+    <div class="loading-card">
+      <h2>Opening the market</h2>
+      <p id="loading-sub">Starting R in your browser, then building the market: its map, households and stores.</p>
+      <ol class="loading-steps">
+        <li data-step="runtime">R runtime (webR)</li>
+        <li data-step="library">NetLogoR library <small data-bytes></small></li>
+        <li data-step="netlogor">Loading NetLogoR</li>
+        <li data-step="model">Building the market and the season</li>
+      </ol>
+      <div class="loading-bar"><span id="loading-bar"></span></div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+</body>
+</html>

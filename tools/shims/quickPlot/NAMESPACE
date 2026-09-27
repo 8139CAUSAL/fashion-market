@@ -1,0 +1,5 @@
+import(methods)
+exportClasses(.quickPlotGrob)
+export(.identifyGrobToPlot, coordinates, extent, layerNames, numLayers, Plot)
+exportMethods(coordinates, extent, layerNames)
+S3method(numLayers, default)

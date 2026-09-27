@@ -1,0 +1,24 @@
+# Imports: a map and a table, each read by the model's own R code.
+# Test model for TOFIX item 3 (not in the preset menu); its files are in
+# tools/fixtures/imports.files/.
+
+panel data "Data"
+  import area "Area map (.geojson)" accept ".geojson,.json" w 5 {
+    map_world <<- read_area(area)
+  }
+  import revenue "Revenue (.csv)" accept ".csv" w 5 {
+    rev <- read.csv(revenue)
+    treatment <<- rev$revenue[rev$group == "treatment"]
+    control <<- rev$revenue[rev$group == "control"]
+  }
+end
+
+panel run "Run" .under(data)
+  button setup
+  button go forever .right()
+  slider walkers 10..300 = 80 step 10 w 5
+  monitor "treatment" { if (length(treatment)) mean(treatment) else NA } digits 1
+  monitor "control" { if (length(control)) mean(control) else NA } digits 1 .right()
+end
+
+view city "Imported area" world map_world colors area_colors shape dot w 10 h 7 .right(data)
