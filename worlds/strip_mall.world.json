@@ -1,0 +1,2957 @@
+{
+  "kind": "fashion-world",
+  "version": 6,
+  "name": "Strip Mall",
+  "seed": 1,
+  "season_days": 91,
+  "categories": [
+    {
+      "id": "apparel",
+      "name": "Core apparel",
+      "key": "A",
+      "colour": "#3b5bdb",
+      "try_on": true,
+      "price": 45
+    },
+    {
+      "id": "accessories",
+      "name": "Bags & accessories",
+      "key": "K",
+      "colour": "#c2255c",
+      "try_on": false,
+      "price": 32
+    },
+    {"id": "costumes", "name": "Costumes", "key": "C", "colour": "#f08c00", "try_on": true, "price": 32},
+    {
+      "id": "halloween_decor",
+      "name": "Halloween decor",
+      "key": "D",
+      "colour": "#6741d9",
+      "try_on": false,
+      "price": 75
+    },
+    {
+      "id": "holiday_decor",
+      "name": "Holiday decor",
+      "key": "H",
+      "colour": "#e03131",
+      "try_on": false,
+      "price": 24
+    },
+    {
+      "id": "christmas_trees",
+      "name": "Christmas trees",
+      "key": "T",
+      "colour": "#2b8a3e",
+      "try_on": false,
+      "price": 160
+    },
+    {
+      "id": "comics",
+      "name": "Comics & manga",
+      "key": "M",
+      "colour": "#74b816",
+      "try_on": false,
+      "price": 13
+    },
+    {
+      "id": "collectibles",
+      "name": "Collectibles",
+      "key": "G",
+      "colour": "#0b7285",
+      "try_on": false,
+      "price": 30
+    },
+    {"id": "hats", "name": "Headwear", "key": "E", "colour": "#8d5a2b", "try_on": true, "price": 42},
+    {
+      "id": "soaps",
+      "name": "Soap & bath bombs",
+      "key": "B",
+      "colour": "#15aabf",
+      "try_on": false,
+      "price": 7
+    },
+    {
+      "id": "body_care",
+      "name": "Body care & candles",
+      "key": "N",
+      "colour": "#e64980",
+      "try_on": false,
+      "price": 17
+    },
+    {
+      "id": "furniture",
+      "name": "Accent furniture",
+      "key": "U",
+      "colour": "#c9a400",
+      "try_on": false,
+      "price": 175
+    },
+    {
+      "id": "candy",
+      "name": "Candy & soda",
+      "key": "S",
+      "colour": "#d6336c",
+      "try_on": false,
+      "price": 3.5
+    },
+    {
+      "id": "chocolate",
+      "name": "Chocolate & treats",
+      "key": "P",
+      "colour": "#862e9c",
+      "try_on": false,
+      "price": 7
+    },
+    {
+      "id": "loungewear",
+      "name": "Loungewear",
+      "key": "L",
+      "colour": "#7048e8",
+      "try_on": true,
+      "price": 57
+    },
+    {
+      "id": "slippers",
+      "name": "Slippers",
+      "key": "Z",
+      "colour": "#fd7e14",
+      "try_on": false,
+      "price": 28
+    }
+  ],
+  "macro": {
+    "patch_m": 10,
+    "width": 160,
+    "height": 120,
+    "households": 12000,
+    "road_mps": 10,
+    "local_mps": 4,
+    "park_s": 180,
+    "wom_m": 200,
+    "tiles": [
+      "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=444444444=4444444=444444444=444444444=444444444=44444444=66666666=666666666=666666666=66666666=66666666=666666666=666666666=66666666=ppp",
+      "ppp=444444444=ppppppppp=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=ppppppppp=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=ppppppppp=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=pp~~~~~pp=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=pp~~~~~pp=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=pp~~~~~pp=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=pp~~~~~pp=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=ppppppppp=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=ppppppppp=66666666=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=555555555=555555555=555555555=55555555=88888888=888888888=888888888=88888888=88888888=888888666=666666666=66666666=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=444444444=444444444=445555555=5555555=ppppppppppppp.pppppppppppppppppppppppp.pppppppppppppppppppppppp.pppppppppppp=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..........................................................................p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..........................................................................p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p.......pp..........pp..........pp..........pp..........pp..........pp.....p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..........................................................................p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..........................................................................p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=======================================p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=======================================ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=............................................................................=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=............................................................................=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=..........p.............p.............p.............p.............p.........=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=....................................~~~~....................................=88888888=888888666=666666666=66666666=ppp",
+      "ppp=444444444=444444444=445555555=5555555=....................................~~~~....................................=88888888=888888666=666666666=66666666=ppp",
+      "ppp=======================================....................................~~~~....................................=======================================ppp",
+      "ppp=555555555=555555555=556666666=6666666=....................................~~~~....................................=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=..........p.............p.............p.............p.............p.........=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=............................................................................=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=............................................................................=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=======================================p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=======================================ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..........................................................................p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..........................................................................p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p.......pp..........pp..........pp..........pp..........pp..........pp.....p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..........................................................................p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=p..........................................................................p=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=ppppppppppppp.pppppppppppppppppppppppp.pppppppppppppppppppppppp.pppppppppppp=33333333=333333222=222222222=22222222=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=556666666=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=222222222=22222222=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp=555555555=555555555=ppppppppp=6666666=666666666=666666666=666666666=66666666=33333333=333333333=333333333=33333333=33333333=333333222=ppppppppp=22222222=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=ppppppppp=222222222=22222222=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp=555555555=555555555=555555555=5555555=555555555=555555555=555555555=55555555=22222222=222222222=222222222=22222222=22222222=222222222=222222222=22222222=ppp",
+      "ppp==========================================================================================================================================================ppp",
+      "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+    ],
+    "areas": [
+      {
+        "key": "m",
+        "id": "maple_heights",
+        "name": "Maple Heights",
+        "colour": "#f1e3c8",
+        "budget": 520,
+        "segment_mix": {
+          "bargain_hunters": 0.2,
+          "young_families": 0.45,
+          "collectors": 0.07,
+          "style_seekers": 0.15,
+          "home_nesters": 0.13
+        },
+        "size_mix": {"XS": 0.08, "S": 0.2, "M": 0.32, "L": 0.26, "XL": 0.14}
+      },
+      {
+        "key": "o",
+        "id": "old_mill_lofts",
+        "name": "Old Mill Lofts",
+        "colour": "#e6e0ef",
+        "budget": 430,
+        "segment_mix": {
+          "bargain_hunters": 0.2,
+          "young_families": 0.08,
+          "collectors": 0.34,
+          "style_seekers": 0.3,
+          "home_nesters": 0.08
+        },
+        "size_mix": {"XS": 0.16, "S": 0.3, "M": 0.3, "L": 0.16, "XL": 0.08}
+      },
+      {
+        "key": "b",
+        "id": "brookside",
+        "name": "Brookside",
+        "colour": "#dcead3",
+        "budget": 370,
+        "segment_mix": {
+          "bargain_hunters": 0.42,
+          "young_families": 0.26,
+          "collectors": 0.07,
+          "style_seekers": 0.1,
+          "home_nesters": 0.15
+        },
+        "size_mix": {"XS": 0.05, "S": 0.15, "M": 0.28, "L": 0.3, "XL": 0.22}
+      },
+      {
+        "key": "l",
+        "id": "linden_estates",
+        "name": "Linden Estates",
+        "colour": "#f3dcd6",
+        "budget": 780,
+        "segment_mix": {
+          "bargain_hunters": 0.06,
+          "young_families": 0.2,
+          "collectors": 0.1,
+          "style_seekers": 0.3,
+          "home_nesters": 0.34
+        },
+        "size_mix": {"XS": 0.08, "S": 0.2, "M": 0.34, "L": 0.26, "XL": 0.12}
+      }
+    ],
+    "area_tiles": [
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm..............................................................................ooooooooooooooooooooooooooooooooooooooooo",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..............................................................................lllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"
+    ],
+    "default_makeup": {
+      "budget": 530,
+      "segment_mix": {
+        "bargain_hunters": 0.22,
+        "young_families": 0.25,
+        "collectors": 0.14,
+        "style_seekers": 0.2,
+        "home_nesters": 0.19
+      },
+      "size_mix": {"XS": 0.09, "S": 0.21, "M": 0.31, "L": 0.25, "XL": 0.14}
+    }
+  },
+  "layouts": [
+    {
+      "id": "ours_boutique",
+      "name": "Ours boutique",
+      "draw": 0.3,
+      "rows": [
+        "############################################################",
+        "#XXXXXXXXX#.AAAAAAAAAAAAAAAAAAAAAAAA.....#FF#FF#FF#FF#FF#FF#",
+        "#XXXXXXXXX#..............................#FF#FF#FF#FF#FF#FF#",
+        "#XXXXXXXXX#..............................#FF#FF#FF#FF#FF#FF#",
+        "#XXXXXXXXX#..............................#.................#",
+        "#######x###..............................#.................#",
+        "#.............................wwwwwwwwwwwW.................#",
+        "#..........................................................#",
+        "#A........................................................K#",
+        "#A........................................................K#",
+        "#A.....AAAAAAAAAAAA.....AAAAAAAAAAAA......................K#",
+        "#A.....AAAAAAAAAAAA.....AAAAAAAAAAAA......................K#",
+        "#A........................................................K#",
+        "#A........................................................K#",
+        "#A........................................................K#",
+        "#A.....AAAAAAAAAAAA.....AAAAAAAAAAAA.....KKKKKKK..........K#",
+        "#A.....AAAAAAAAAAAA.....AAAAAAAAAAAA.....KKKKKKK..........K#",
+        "#A........................................................K#",
+        "#A........................................................K#",
+        "#A........................................................K#",
+        "#A.....AAAAAAAAAAAA.....AAAAAAAAAAAA......................K#",
+        "#A.....AAAAAAAAAAAA.....AAAAAAAAAAAA...........qqqqqqqqqQ..#",
+        "#A.........................................................#",
+        "#A..................................................########",
+        "#A..................................................$::::::#",
+        "#A.........AAAAAAAAA...............KKKKKKK..........$:c::::#",
+        "#A.........AAAAAAAAA...............KKKKKKK..........$::::::#",
+        "#...................................................$:c::::#",
+        "#...................................................$::::::#",
+        "#...................................................$:c::::#",
+        "#...................................................########",
+        "##########################========##########################"
+      ]
+    },
+    {
+      "id": "spook_popup",
+      "name": "Spook pop-up",
+      "draw": 0.15,
+      "rows": [
+        "################################################",
+        "#XXXXXXXX#.CCCCCCCCCCCCCCCCC.......#FF#FF#FF#FF#",
+        "#XXXXXXXX#.........................#FF#FF#FF#FF#",
+        "#XXXXXXXX#.........................#FF#FF#FF#FF#",
+        "#XXXXXXXX#.........................#...........#",
+        "######x###.........................#...........#",
+        "#.........................wwwwwwwwwW...........#",
+        "#C.............................................#",
+        "#C.............................................#",
+        "#C............................................D#",
+        "#C....CCCCCCCCCC....CCCCCCCCCC................D#",
+        "#C....CCCCCCCCCC....CCCCCCCCCC................D#",
+        "#C............................................D#",
+        "#C............................................D#",
+        "#C............................................D#",
+        "#C....CCCCCCCCCC....CCCCCCCCCC................D#",
+        "#C....CCCCCCCCCC....CCCCCCCCCC................D#",
+        "#C.............................................#",
+        "#C.............................................#",
+        "#C...............................qqqqqqqqqqqQ..#",
+        "#C....CCCCCCCCCC....CCCCCCCCCC.................#",
+        "#C....CCCCCCCCCC....CCCCCCCCCC..........########",
+        "#C......................................$::::::#",
+        "#C......................................$:c::::#",
+        "#C.........DDDDDDDDDDDDD................$::::::#",
+        "#..........DDDDDDDDDDDDD................$:c::::#",
+        "#.......................................$::::::#",
+        "#.......................................$:c::::#",
+        "#.......................................########",
+        "####################========####################"
+      ]
+    },
+    {
+      "id": "kringles_emporium",
+      "name": "Kringle's emporium",
+      "draw": 0.15,
+      "rows": [
+        "####################################################",
+        "#XXXXXXXX#.HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH....#FF#",
+        "#XXXXXXXX#......................................#FF#",
+        "#XXXXXXXX#......................................#FF#",
+        "#XXXXXXXX#......................................#..#",
+        "######x###......................................#..#",
+        "#..............................................wW..#",
+        "#H.................................................#",
+        "#H................................................T#",
+        "#H....HHHHHHHH....HHHHHHHH....TTTTTTTT............T#",
+        "#H....HHHHHHHH....HHHHHHHH....TTTTTTTT............T#",
+        "#H................................................T#",
+        "#H................................................T#",
+        "#H................................................T#",
+        "#H....HHHHHHHH....HHHHHHHH....TTTTTTTT............T#",
+        "#H....HHHHHHHH....HHHHHHHH....TTTTTTTT............T#",
+        "#H................................................T#",
+        "#H.................................................#",
+        "#H.................................................#",
+        "#H....HHHHHHHH....HHHHHHHH....HHHHHH.qqqqqqqqqqqQ..#",
+        "#H....HHHHHHHH....HHHHHHHH....HHHHHH...............#",
+        "#H..........................................########",
+        "#H..........................................$::::::#",
+        "#H..........................................$:c::::#",
+        "#H..........................................$::::::#",
+        "#...........................................$:c::::#",
+        "#...........................................$::::::#",
+        "#...........................................$:c::::#",
+        "#...........................................########",
+        "######################========######################"
+      ]
+    },
+    {
+      "id": "panel_pixel_shop",
+      "name": "Panel & Pixel shop",
+      "draw": 0.1,
+      "rows": [
+        "############################################",
+        "#XXXXXXX#.MMMMMMMMMMMMMMMMMMMMMMMMMMMMM.#FF#",
+        "#XXXXXXX#...............................#FF#",
+        "#XXXXXXX#...............................#FF#",
+        "#####x###...............................#..#",
+        "#.......................................#..#",
+        "#M.....................................wW..#",
+        "#M.........................................#",
+        "#M....MMMMMMM....MMMMMMM..................G#",
+        "#M....MMMMMMM....MMMMMMM..................G#",
+        "#M........................................G#",
+        "#M........................................G#",
+        "#M..........................GGGGG..........#",
+        "#M....MMMMMMM....GGGGGGG....GGGGG..........#",
+        "#M....MMMMMMM....GGGGGGG...................#",
+        "#M.........................................#",
+        "#M.........................................#",
+        "#M...............................qqqqqqqQ..#",
+        "#M....GGGGGGG....GGGGGGG...................#",
+        "#M....GGGGGGG....GGGGGGG............########",
+        "#M..................................$::::::#",
+        "#...................................$:c::::#",
+        "#...................................$::::::#",
+        "#...................................$:c::::#",
+        "#...................................########",
+        "###################======###################"
+      ]
+    },
+    {
+      "id": "haberdash_shop",
+      "name": "Haberdash shop",
+      "draw": 0,
+      "rows": [
+        "####################################",
+        "#XXXXXX#.EEEEEEEEEEEEEEEEEE..#FF#FF#",
+        "#XXXXXX#.....................#FF#FF#",
+        "#XXXXXX#.....................#FF#FF#",
+        "####x###.....................#.....#",
+        "#............................#.....#",
+        "#E......................wwwwwW.....#",
+        "#E.................................#",
+        "#E...EEEEEEE...EEEEEEE.............#",
+        "#E...EEEEEEE...EEEEEEE.............#",
+        "#E.................................#",
+        "#E.................................#",
+        "#E.................................#",
+        "#E...EEEEEEE...EEEEEEE...qqqqqqqQ..#",
+        "#E...EEEEEEE...EEEEEEE.............#",
+        "#E..........................########",
+        "#E..........................$::::::#",
+        "#...........................$:c::::#",
+        "#......EEEEEEEEE............$::::::#",
+        "#...........................$:c::::#",
+        "#...........................########",
+        "###############======###############"
+      ]
+    },
+    {
+      "id": "sud_scent_shop",
+      "name": "Sud & Scent shop",
+      "draw": 0,
+      "rows": [
+        "########################################",
+        "#XXXXXX#.BBBBBBBBBBBBBBBBBBBBBBBBB..#FF#",
+        "#XXXXXX#............................#FF#",
+        "#XXXXXX#............................#FF#",
+        "####x###............................#..#",
+        "#...................................#..#",
+        "#B.................................wW..#",
+        "#B.....................................#",
+        "#B...BBBBBBBB...NNNNNNNN...NNNNNNN....N#",
+        "#B...BBBBBBBB...NNNNNNNN...NNNNNNN....N#",
+        "#B....................................N#",
+        "#B....................................N#",
+        "#B...BBBBBBBB...NNNNNNNN...NNNNNNN....N#",
+        "#B...BBBBBBBB...NNNNNNNN...NNNNNNN....N#",
+        "#B.....................................#",
+        "#B.....................qqqqqqqqqqqqqQ..#",
+        "#B.....................................#",
+        "#B...BBBBBBBB...NNNNNNNN........########",
+        "#B...BBBBBBBB...NNNNNNNN........$::::::#",
+        "#B..............................$:c::::#",
+        "#B..............................$::::::#",
+        "#...............................$:c::::#",
+        "#...............................########",
+        "#################======#################"
+      ]
+    },
+    {
+      "id": "plush_timber_showroom",
+      "name": "Plush & Timber showroom",
+      "draw": 0.1,
+      "rows": [
+        "########################################################",
+        "#XXXXXXXXXX#.UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU..#FF#",
+        "#XXXXXXXXXX#........................................#FF#",
+        "#XXXXXXXXXX#........................................#FF#",
+        "#XXXXXXXXXX#........................................#..#",
+        "#XXXXXXXXXX#........................................#..#",
+        "########x###.......................................wW..#",
+        "#......................................................#",
+        "#......................................................#",
+        "#U....................................................U#",
+        "#U....................................................U#",
+        "#U......UUUUUUUU......UUUUUUUU......UUUUUUUU..........U#",
+        "#U......UUUUUUUU......UUUUUUUU......UUUUUUUU..........U#",
+        "#U......UUUUUUUU......UUUUUUUU......UUUUUUUU..........U#",
+        "#U....................................................U#",
+        "#U....................................................U#",
+        "#U....................................................U#",
+        "#U....................................................U#",
+        "#U....................................................U#",
+        "#U......UUUUUUUU......UUUUUUUU......UUUUUU............U#",
+        "#U......UUUUUUUU......UUUUUUUU......UUUUUU............U#",
+        "#U......UUUUUUUU......UUUUUUUU......UUUUUU............U#",
+        "#U.....................................................#",
+        "#U.....................................................#",
+        "#U.....................................................#",
+        "#U.............................................qqqqqQ..#",
+        "#U.........UUUUUUUUU...................................#",
+        "#U.........UUUUUUUUU............................########",
+        "#...............................................$::::::#",
+        "#...............................................$:c::::#",
+        "#...............................................########",
+        "#######################==========#######################"
+      ]
+    },
+    {
+      "id": "sugar_cask_shop",
+      "name": "Sugar Cask shop",
+      "draw": 0,
+      "rows": [
+        "########################################",
+        "#XXXXX#.SSSSSSSSSSSSSSSSSSSSSSSSSS..#FF#",
+        "#XXXXX#.............................#FF#",
+        "#XXXXX#.............................#FF#",
+        "###x###.............................#..#",
+        "#...................................#..#",
+        "#S.................................wW..#",
+        "#S.....................................#",
+        "#S...SSSSSSSS...SSSSSSSS...PPPPPPP....P#",
+        "#S...SSSSSSSS...SSSSSSSS...PPPPPPP....P#",
+        "#S....................................P#",
+        "#S....................................P#",
+        "#S...SSSSSSSS...SSSSSSSS...PPPPPPP....P#",
+        "#S...SSSSSSSS...SSSSSSSS...PPPPPPP....P#",
+        "#S.....................................#",
+        "#S...................qqqqqqqqqqqqqqqQ..#",
+        "#S.....................................#",
+        "#S...SSSSSSSS...PPPPPPPP........########",
+        "#S...SSSSSSSS...PPPPPPPP........$::::::#",
+        "#S..............................$:c::::#",
+        "#S..............................$::::::#",
+        "#...............................$:c::::#",
+        "#...............................########",
+        "#################======#################"
+      ]
+    },
+    {
+      "id": "retro_vault_shop",
+      "name": "Retro Vault shop",
+      "draw": 0,
+      "rows": [
+        "########################################",
+        "#XXXXXX#.AAAAAAAAAAAAAAAAAAAAAA..#FF#FF#",
+        "#XXXXXX#.........................#FF#FF#",
+        "#XXXXXX#.........................#FF#FF#",
+        "####x###.........................#.....#",
+        "#................................#.....#",
+        "#A..........................wwwwwW.....#",
+        "#A.....................................#",
+        "#A...AAAAAAA...AAAAAAA.................#",
+        "#A...AAAAAAA...AAAAAAA.................#",
+        "#A.....................................#",
+        "#A.....................................#",
+        "#A...AAAAAAA...GGGGGGG.................#",
+        "#A...AAAAAAA...GGGGGGG.................#",
+        "#A.....................................#",
+        "#A...........................qqqqqqqQ..#",
+        "#A...GGGGGGG...GGGGGGG.................#",
+        "#A...GGGGGGG...GGGGGGG..........########",
+        "#A..............................$::::::#",
+        "#...............................$:c::::#",
+        "#......GGGGGGG..................$::::::#",
+        "#...............................$:c::::#",
+        "#...............................########",
+        "#################======#################"
+      ]
+    },
+    {
+      "id": "midnight_lounge",
+      "name": "Midnight lounge",
+      "draw": 0,
+      "rows": [
+        "############################################",
+        "#XXXXXX#.LLLLLLLLLLLLLLLLLLLL..#FF#FF#FF#FF#",
+        "#XXXXXX#.......................#FF#FF#FF#FF#",
+        "#XXXXXX#.......................#FF#FF#FF#FF#",
+        "####x###.......................#...........#",
+        "#..............................#...........#",
+        "#L......................wwwwwwwW...........#",
+        "#L.........................................#",
+        "#L........................................Z#",
+        "#L...LLLLLLLL...LLLLLLLL...LLLLLLL........Z#",
+        "#L...LLLLLLLL...LLLLLLLL...LLLLLLL........Z#",
+        "#L........................................Z#",
+        "#L........................................Z#",
+        "#L...LLLLLLLL...LLLLLLLL...ZZZZZZZ........Z#",
+        "#L...LLLLLLLL...LLLLLLLL...ZZZZZZZ.........#",
+        "#L.............................qqqqqqqqqQ..#",
+        "#L.........................................#",
+        "#L..................................########",
+        "#L...LLLLLLLL...ZZZZZZZZ............$::::::#",
+        "#L...LLLLLLLL...ZZZZZZZZ............$:c::::#",
+        "#L..................................$::::::#",
+        "#...................................$:c::::#",
+        "#...................................########",
+        "###################======###################"
+      ]
+    }
+  ],
+  "stores": [
+    {
+      "id": "ours_anchor",
+      "name": "Ours Boutique & Lifestyle",
+      "short": "Ours",
+      "brand": "ours_retail",
+      "layout": "ours_boutique",
+      "x": 520,
+      "y": 655,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 2,
+        "fitting_rooms": 6,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "spook_halloween",
+      "name": "Spirit & Spook Pop-Up",
+      "short": "Spook",
+      "brand": "spook_halloween",
+      "layout": "spook_popup",
+      "x": 660,
+      "y": 655,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 10,
+        "try_s": 210,
+        "max_fr_q": 10,
+        "max_till_q": 12
+      }
+    },
+    {
+      "id": "kringles_xmas",
+      "name": "Kringle's Holiday Emporium",
+      "short": "Kringle's",
+      "brand": "kringles_holiday",
+      "layout": "kringles_emporium",
+      "x": 800,
+      "y": 655,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 2,
+        "fitting_rooms": 1,
+        "skill": 1,
+        "scan_s": 14,
+        "try_s": 30,
+        "max_fr_q": 1,
+        "max_till_q": 12
+      }
+    },
+    {
+      "id": "panel_pixel_comics",
+      "name": "Panel & Pixel Comics",
+      "short": "Panel & Pixel",
+      "brand": "panel_pixel",
+      "layout": "panel_pixel_shop",
+      "x": 940,
+      "y": 655,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 2,
+        "fitting_rooms": 1,
+        "skill": 1,
+        "scan_s": 15,
+        "try_s": 30,
+        "max_fr_q": 1,
+        "max_till_q": 8
+      }
+    },
+    {
+      "id": "haberdash_hats",
+      "name": "Haberdash & Brim",
+      "short": "Haberdash",
+      "brand": "haberdash_hats",
+      "layout": "haberdash_shop",
+      "x": 1080,
+      "y": 655,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 2,
+        "skill": 1,
+        "scan_s": 8,
+        "try_s": 90,
+        "max_fr_q": 6,
+        "max_till_q": 8
+      }
+    },
+    {
+      "id": "sud_scent_soap",
+      "name": "Sud & Scent Botanicals",
+      "short": "Sud & Scent",
+      "brand": "sud_scent",
+      "layout": "sud_scent_shop",
+      "x": 520,
+      "y": 545,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 1,
+        "fitting_rooms": 1,
+        "skill": 1,
+        "scan_s": 6,
+        "try_s": 30,
+        "max_fr_q": 1,
+        "max_till_q": 14
+      }
+    },
+    {
+      "id": "plush_timber_furn",
+      "name": "Plush & Timber Furniture",
+      "short": "Plush",
+      "brand": "plush_timber",
+      "layout": "plush_timber_showroom",
+      "x": 660,
+      "y": 545,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 2,
+        "fitting_rooms": 1,
+        "skill": 1,
+        "scan_s": 30,
+        "try_s": 30,
+        "max_fr_q": 1,
+        "max_till_q": 6
+      }
+    },
+    {
+      "id": "sugar_cask_candy",
+      "name": "The Sugar Cask Candy & Soda",
+      "short": "Sugar Cask",
+      "brand": "sugar_cask",
+      "layout": "sugar_cask_shop",
+      "x": 800,
+      "y": 545,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 0,
+        "fitting_rooms": 1,
+        "skill": 1,
+        "scan_s": 5,
+        "try_s": 30,
+        "max_fr_q": 1,
+        "max_till_q": 16
+      }
+    },
+    {
+      "id": "retro_vault_thrift",
+      "name": "Retro Vault Vintage & Curios",
+      "short": "Retro Vault",
+      "brand": "retro_vault",
+      "layout": "retro_vault_shop",
+      "x": 940,
+      "y": 545,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 2,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 160,
+        "max_fr_q": 6,
+        "max_till_q": 8
+      }
+    },
+    {
+      "id": "midnight_lounge",
+      "name": "Midnight Comfort Loungewear",
+      "short": "Midnight",
+      "brand": "midnight_comfort",
+      "layout": "midnight_lounge",
+      "x": 1080,
+      "y": 545,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    }
+  ],
+  "families": [
+    {"id": "ours", "name": "Our group", "ours": true},
+    {"id": "novelty_holdings", "name": "Novelty Holdings", "ours": false},
+    {"id": "collector_syndicate", "name": "Collector Syndicate", "ours": false},
+    {"id": "lifestyle_merchants", "name": "Lifestyle Merchants", "ours": false}
+  ],
+  "brands": [
+    {
+      "id": "ours_retail",
+      "name": "Ours",
+      "family": "ours",
+      "colour": "#3b5bdb",
+      "fit": {
+        "bargain_hunters": 0.2,
+        "young_families": 0.2,
+        "collectors": -0.3,
+        "style_seekers": 0.6,
+        "home_nesters": 0.2
+      },
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.3,
+        "cashiers": 2,
+        "assistants": 2,
+        "skill": 1,
+        "scan_s": 12
+      },
+      "stock": {
+        "allocation": "learned",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.2,
+        "plan": {"apparel": 145, "accessories": 759}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "none",
+            "name": "No loyalty",
+            "share": 0.65,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "low",
+            "name": "Low",
+            "share": 0.2,
+            "spend": 40,
+            "pull": 0.3,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "mid",
+            "name": "Mid",
+            "share": 0.1,
+            "spend": 80,
+            "pull": 0.7,
+            "price": 0.8,
+            "memory": 1,
+            "radius": 1.2,
+            "offers": 1
+          },
+          {
+            "id": "high",
+            "name": "High",
+            "share": 0.05,
+            "spend": 205,
+            "pull": 1.2,
+            "price": 0.6,
+            "memory": 1,
+            "radius": 1.5,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "straight_leg_jeans",
+          "name": "Straight-leg jeans",
+          "category": "apparel",
+          "price": 48,
+          "cost": 21.6,
+          "day": 1
+        },
+        {
+          "id": "cotton_crew_tee",
+          "name": "Cotton crew tee",
+          "category": "apparel",
+          "price": 24,
+          "cost": 10.8,
+          "day": 1
+        },
+        {
+          "id": "merino_wool_jumper",
+          "name": "Merino wool jumper",
+          "category": "apparel",
+          "price": 50,
+          "cost": 22.5,
+          "day": 29
+        },
+        {
+          "id": "structured_canvas_tote",
+          "name": "Structured canvas tote",
+          "category": "accessories",
+          "price": 32.5,
+          "cost": 14.6,
+          "day": 1
+        },
+        {
+          "id": "wide_leg_trousers",
+          "name": "Wide-leg trousers",
+          "category": "apparel",
+          "price": 52,
+          "cost": 23.4,
+          "day": 1
+        },
+        {
+          "id": "oxford_shirt",
+          "name": "Oxford shirt",
+          "category": "apparel",
+          "price": 42,
+          "cost": 18.9,
+          "day": 1
+        },
+        {
+          "id": "quilted_vest",
+          "name": "Quilted vest",
+          "category": "apparel",
+          "price": 58,
+          "cost": 26.1,
+          "day": 29
+        },
+        {
+          "id": "cable_knit_cardigan",
+          "name": "Cable-knit cardigan",
+          "category": "apparel",
+          "price": 56,
+          "cost": 25.2,
+          "day": 43
+        },
+        {
+          "id": "leather_belt",
+          "name": "Leather belt",
+          "category": "accessories",
+          "price": 30,
+          "cost": 13.5,
+          "day": 1
+        },
+        {
+          "id": "wool_scarf",
+          "name": "Wool scarf",
+          "category": "accessories",
+          "price": 28,
+          "cost": 12.6,
+          "day": 29
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "black_friday_weekend",
+            "name": "Black Friday weekend",
+            "on": "range",
+            "items": [],
+            "from": 61,
+            "to": 63,
+            "depth": 0.25,
+            "tiers": ["none", "low", "mid", "high"],
+            "areas": []
+          }
+        ],
+        "offers": [
+          {
+            "id": "fall_launch_email",
+            "name": "Fall launch email",
+            "from": 8,
+            "to": 21,
+            "depth": 0.15,
+            "send_cost": 0.02,
+            "audience": 0.5,
+            "holdout": 0.1,
+            "tiers": ["none", "low", "mid", "high"],
+            "areas": [],
+            "also_at": []
+          },
+          {
+            "id": "holiday_vip_mailer",
+            "name": "Holiday VIP mailer",
+            "from": 57,
+            "to": 70,
+            "depth": 0.2,
+            "send_cost": 0.85,
+            "audience": 1,
+            "holdout": 0.15,
+            "tiers": ["mid", "high"],
+            "areas": [],
+            "also_at": []
+          }
+        ],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_clearance",
+            "name": "Final clearance",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "spook_halloween",
+      "name": "Spirit & Spook",
+      "family": "novelty_holdings",
+      "colour": "#f76707",
+      "fit": {
+        "bargain_hunters": 0.3,
+        "young_families": 0.8,
+        "collectors": 0.3,
+        "style_seekers": -0.3,
+        "home_nesters": -0.3
+      },
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.4,
+        "cashiers": 2,
+        "assistants": 1,
+        "skill": 1,
+        "scan_s": 10
+      },
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 0.5,
+        "lead_days": 5,
+        "opening_weeks": 4,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.3,
+        "plan": {"costumes": 187, "halloween_decor": 333}
+      },
+      "pricing": {"promos_on_markdowns": false, "md_target": 0.95},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 35,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 160,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "deluxe_vampire_cloak",
+          "name": "Deluxe vampire cloak",
+          "category": "costumes",
+          "price": 42,
+          "cost": 14,
+          "day": 1
+        },
+        {
+          "id": "full_skeleton_bodysuit",
+          "name": "Full skeleton bodysuit",
+          "category": "costumes",
+          "price": 35,
+          "cost": 12,
+          "day": 1
+        },
+        {
+          "id": "witch_hat_wand_kit",
+          "name": "Witch hat & wand kit",
+          "category": "costumes",
+          "price": 22,
+          "cost": 6.5,
+          "day": 1
+        },
+        {
+          "id": "latex_creature_mask",
+          "name": "Latex creature mask",
+          "category": "costumes",
+          "price": 25,
+          "cost": 8,
+          "day": 15
+        },
+        {
+          "id": "animated_yard_prop",
+          "name": "Animated yard prop",
+          "category": "halloween_decor",
+          "price": 79,
+          "cost": 28,
+          "day": 15
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "costume_countdown",
+            "name": "Costume countdown",
+            "on": "range",
+            "items": [],
+            "from": 22,
+            "to": 34,
+            "depth": 0.1,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [
+          {
+            "id": "treats_after_halloween",
+            "name": "Treats after Halloween",
+            "from": 35,
+            "to": 48,
+            "depth": 0.2,
+            "send_cost": 0.02,
+            "audience": 0.4,
+            "holdout": 0.2,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": [],
+            "also_at": ["kringles_holiday", "sugar_cask"]
+          }
+        ],
+        "markdowns": [
+          {
+            "id": "post_halloween_liquidation",
+            "name": "Post-Halloween liquidation",
+            "on": "range",
+            "items": [],
+            "from": 35,
+            "to": 35,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.7,
+            "max": 0.9
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 29,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "kringles_holiday",
+      "name": "Kringle's",
+      "family": "novelty_holdings",
+      "colour": "#e03131",
+      "fit": {
+        "bargain_hunters": 0.1,
+        "young_families": 0.6,
+        "collectors": -0.2,
+        "style_seekers": 0.1,
+        "home_nesters": 0.6
+      },
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.3,
+        "cashiers": 2,
+        "assistants": 2,
+        "skill": 1,
+        "scan_s": 14
+      },
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1.1,
+        "lead_days": 4,
+        "opening_weeks": 3,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.5,
+        "plan": {"holiday_decor": 164, "christmas_trees": 200}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.85},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 15,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 170,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "6ft_pre_lit_fir_tree",
+          "name": "6ft pre-lit fir tree",
+          "category": "christmas_trees",
+          "price": 165,
+          "cost": 65,
+          "day": 29
+        },
+        {
+          "id": "blown_glass_ornament_box",
+          "name": "Blown glass ornament box",
+          "category": "holiday_decor",
+          "price": 28,
+          "cost": 9.5,
+          "day": 1
+        },
+        {
+          "id": "warm_led_string_lights",
+          "name": "Warm LED string lights",
+          "category": "holiday_decor",
+          "price": 16,
+          "cost": 5,
+          "day": 1
+        },
+        {
+          "id": "velvet_mantle_stocking",
+          "name": "Velvet mantle stocking",
+          "category": "holiday_decor",
+          "price": 14,
+          "cost": 4.5,
+          "day": 29
+        },
+        {
+          "id": "handcrafted_nutcracker",
+          "name": "Handcrafted nutcracker",
+          "category": "holiday_decor",
+          "price": 38,
+          "cost": 13.5,
+          "day": 43
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "black_friday_doorbusters",
+            "name": "Black Friday doorbusters",
+            "on": "range",
+            "items": [],
+            "from": 61,
+            "to": 63,
+            "depth": 0.3,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          },
+          {
+            "id": "twelve_days_of_christmas",
+            "name": "Twelve days of Christmas",
+            "on": "range",
+            "items": [],
+            "from": 77,
+            "to": 88,
+            "depth": 0.15,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [],
+        "markdowns": [
+          {
+            "id": "after_christmas_sale",
+            "name": "After-Christmas sale",
+            "on": "range",
+            "items": [],
+            "from": 89,
+            "to": 89,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 56,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          },
+          {
+            "id": "holiday_rush_replenishment",
+            "name": "Holiday rush replenishment",
+            "on": "range",
+            "items": [],
+            "from": 57,
+            "to": 84,
+            "weekdays": ["Mon", "Thu"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "panel_pixel",
+      "name": "Panel & Pixel",
+      "family": "collector_syndicate",
+      "colour": "#2f9e44",
+      "fit": {
+        "bargain_hunters": -0.3,
+        "young_families": 0.1,
+        "collectors": 1,
+        "style_seekers": -0.2,
+        "home_nesters": -0.4
+      },
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.15,
+        "cashiers": 1,
+        "assistants": 2,
+        "skill": 1,
+        "scan_s": 15
+      },
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.4,
+        "plan": {"comics": 297, "collectibles": 186}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "browser",
+            "name": "Browser",
+            "share": 0.75,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "pull_list",
+            "name": "Pull list",
+            "share": 0.18,
+            "spend": 25,
+            "pull": 0.6,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "whale",
+            "name": "Whale",
+            "share": 0.07,
+            "spend": 55,
+            "pull": 1.4,
+            "price": 0.4,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "monthly_single_issue_comic",
+          "name": "Monthly single-issue comic",
+          "category": "comics",
+          "price": 4.99,
+          "cost": 1.8,
+          "day": 1
+        },
+        {
+          "id": "shonen_manga_volume",
+          "name": "Shonen manga volume",
+          "category": "comics",
+          "price": 12.99,
+          "cost": 4.8,
+          "day": 1
+        },
+        {
+          "id": "hardcover_graphic_novel",
+          "name": "Hardcover graphic novel",
+          "category": "comics",
+          "price": 29.99,
+          "cost": 11,
+          "day": 15
+        },
+        {
+          "id": "articulated_action_figure",
+          "name": "Articulated action figure",
+          "category": "collectibles",
+          "price": 24.99,
+          "cost": 9,
+          "day": 1
+        },
+        {
+          "id": "resin_collector_statue",
+          "name": "Resin collector statue",
+          "category": "collectibles",
+          "price": 149.99,
+          "cost": 55,
+          "day": 29
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "collector_con_weekend",
+            "name": "Collector con weekend",
+            "on": "categories",
+            "items": ["collectibles"],
+            "from": 47,
+            "to": 49,
+            "depth": 0.1,
+            "tiers": ["browser", "pull_list", "whale"],
+            "areas": []
+          }
+        ],
+        "offers": [],
+        "markdowns": [
+          {
+            "id": "back_issue_bin",
+            "name": "Back-issue bin",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.3,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "new_comics_wednesday",
+            "name": "New comics Wednesday",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Wed"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "haberdash_hats",
+      "name": "Haberdash & Brim",
+      "family": "lifestyle_merchants",
+      "colour": "#8d5a2b",
+      "fit": {
+        "bargain_hunters": -0.4,
+        "young_families": -0.2,
+        "collectors": 0.1,
+        "style_seekers": 0.8,
+        "home_nesters": 0.1
+      },
+      "levers": {"price": 1, "promo_depth": 0.2, "ad": 0.1, "cashiers": 1, "assistants": 1, "skill": 1, "scan_s": 8},
+      "stock": {
+        "allocation": "learned",
+        "season_buy": 1.1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.3,
+        "plan": {"hats": 239}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 20,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 45,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "felt_wide_brim_fedora",
+          "name": "Felt wide-brim fedora",
+          "category": "hats",
+          "price": 58,
+          "cost": 22,
+          "day": 1
+        },
+        {
+          "id": "heritage_flat_cap",
+          "name": "Heritage flat cap",
+          "category": "hats",
+          "price": 36,
+          "cost": 14,
+          "day": 1
+        },
+        {
+          "id": "ribbed_wool_beanie",
+          "name": "Ribbed wool beanie",
+          "category": "hats",
+          "price": 22,
+          "cost": 7.5,
+          "day": 1
+        },
+        {
+          "id": "woven_panama_hat",
+          "name": "Woven panama hat",
+          "category": "hats",
+          "price": 44,
+          "cost": 16,
+          "day": 29
+        },
+        {
+          "id": "structured_snapback",
+          "name": "Structured snapback",
+          "category": "hats",
+          "price": 28,
+          "cost": 10,
+          "day": 1
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "winter_hats_week",
+            "name": "Winter hats week",
+            "on": "products",
+            "items": ["ribbed_wool_beanie", "heritage_flat_cap"],
+            "from": 50,
+            "to": 56,
+            "depth": 0.15,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_clearance",
+            "name": "Final clearance",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "sud_scent",
+      "name": "Sud & Scent",
+      "family": "lifestyle_merchants",
+      "colour": "#15aabf",
+      "fit": {
+        "bargain_hunters": 0.1,
+        "young_families": 0.1,
+        "collectors": -0.3,
+        "style_seekers": 0.5,
+        "home_nesters": 0.6
+      },
+      "levers": {"price": 1, "promo_depth": 0.2, "ad": 0.1, "cashiers": 2, "assistants": 1, "skill": 1, "scan_s": 6},
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1.3,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.1,
+        "salvage": 0.5,
+        "plan": {"soaps": 293, "body_care": 310}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 15,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 65,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "cold_pressed_olive_bar_soap",
+          "name": "Cold-pressed olive bar soap",
+          "category": "soaps",
+          "price": 7.5,
+          "cost": 2.1,
+          "day": 1
+        },
+        {
+          "id": "lavender_bath_bomb",
+          "name": "Lavender bath bomb",
+          "category": "soaps",
+          "price": 6,
+          "cost": 1.8,
+          "day": 1
+        },
+        {
+          "id": "whipped_sugar_scrub",
+          "name": "Whipped sugar scrub",
+          "category": "body_care",
+          "price": 16,
+          "cost": 4.5,
+          "day": 1
+        },
+        {
+          "id": "shea_butter_hand_salve",
+          "name": "Shea butter hand salve",
+          "category": "body_care",
+          "price": 14,
+          "cost": 3.8,
+          "day": 15
+        },
+        {
+          "id": "soy_amber_candle",
+          "name": "Soy amber candle",
+          "category": "body_care",
+          "price": 22,
+          "cost": 6.2,
+          "day": 1
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "gift_season",
+            "name": "Gift season",
+            "on": "range",
+            "items": [],
+            "from": 75,
+            "to": 88,
+            "depth": 0.1,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [],
+        "markdowns": [
+          {
+            "id": "post_holiday_clearance",
+            "name": "Post-holiday clearance",
+            "on": "range",
+            "items": [],
+            "from": 89,
+            "to": 89,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "twice_weekly_replenishment",
+            "name": "Twice-weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon", "Thu"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "plush_timber",
+      "name": "Plush & Timber",
+      "family": "lifestyle_merchants",
+      "colour": "#c9a400",
+      "fit": {
+        "bargain_hunters": -0.5,
+        "young_families": 0,
+        "collectors": -0.3,
+        "style_seekers": 0.3,
+        "home_nesters": 0.9
+      },
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.2,
+        "cashiers": 1,
+        "assistants": 2,
+        "skill": 1,
+        "scan_s": 30
+      },
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 0.9,
+        "lead_days": 10,
+        "opening_weeks": 2,
+        "delivery_fee": 400,
+        "unit_fee": 10,
+        "salvage": 0.6,
+        "plan": {"furniture": 151}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.7},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 115,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 235,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "mid_century_velvet_armchair",
+          "name": "Mid-century velvet armchair",
+          "category": "furniture",
+          "price": 260,
+          "cost": 98,
+          "day": 1
+        },
+        {
+          "id": "solid_oak_accent_table",
+          "name": "Solid oak accent table",
+          "category": "furniture",
+          "price": 175,
+          "cost": 65,
+          "day": 1
+        },
+        {
+          "id": "minimalist_floor_lamp",
+          "name": "Minimalist floor lamp",
+          "category": "furniture",
+          "price": 89,
+          "cost": 32,
+          "day": 1
+        },
+        {
+          "id": "geometric_wool_area_rug",
+          "name": "Geometric wool area rug",
+          "category": "furniture",
+          "price": 145,
+          "cost": 52,
+          "day": 15
+        },
+        {
+          "id": "3_tier_walnut_bookshelf",
+          "name": "3-tier walnut bookshelf",
+          "category": "furniture",
+          "price": 195,
+          "cost": 70,
+          "day": 29
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "holiday_hosting_sale",
+            "name": "Holiday hosting sale",
+            "on": "range",
+            "items": [],
+            "from": 57,
+            "to": 70,
+            "depth": 0.2,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [],
+        "markdowns": [
+          {
+            "id": "floor_model_clearance",
+            "name": "Floor model clearance",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.3,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 2,
+            "reorder": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "sugar_cask",
+      "name": "Sugar Cask",
+      "family": "novelty_holdings",
+      "colour": "#d6336c",
+      "fit": {
+        "bargain_hunters": 0.4,
+        "young_families": 0.8,
+        "collectors": 0.3,
+        "style_seekers": -0.1,
+        "home_nesters": 0
+      },
+      "levers": {"price": 1, "promo_depth": 0.2, "ad": 0.1, "cashiers": 1, "assistants": 0, "skill": 1, "scan_s": 5},
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1.3,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.05,
+        "salvage": 0.2,
+        "plan": {"candy": 220, "chocolate": 383}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 5,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 25,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "half_pound_pick_mix_gummies",
+          "name": "Half-pound pick & mix gummies",
+          "category": "candy",
+          "price": 4.5,
+          "cost": 1.2,
+          "day": 1
+        },
+        {
+          "id": "bottled_pure_cane_soda",
+          "name": "Bottled pure cane soda",
+          "category": "candy",
+          "price": 3.25,
+          "cost": 0.9,
+          "day": 1
+        },
+        {
+          "id": "sea_salt_dark_chocolate_bar",
+          "name": "Sea-salt dark chocolate bar",
+          "category": "chocolate",
+          "price": 7,
+          "cost": 2.4,
+          "day": 1
+        },
+        {
+          "id": "freeze_dried_candy_crunch",
+          "name": "Freeze-dried candy crunch",
+          "category": "chocolate",
+          "price": 6.5,
+          "cost": 2,
+          "day": 15
+        },
+        {
+          "id": "sour_fruit_chews",
+          "name": "Sour fruit chews",
+          "category": "candy",
+          "price": 2.5,
+          "cost": 0.7,
+          "day": 1
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "trick_or_treat_bags",
+            "name": "Trick-or-treat bags",
+            "on": "products",
+            "items": ["half_pound_pick_mix_gummies", "sour_fruit_chews"],
+            "from": 29,
+            "to": 34,
+            "depth": 0.15,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [],
+        "markdowns": [],
+        "replenishment": [
+          {
+            "id": "twice_weekly_replenishment",
+            "name": "Twice-weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon", "Thu"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "retro_vault",
+      "name": "Retro Vault",
+      "family": "collector_syndicate",
+      "colour": "#868e96",
+      "fit": {
+        "bargain_hunters": 0.3,
+        "young_families": -0.2,
+        "collectors": 0.5,
+        "style_seekers": 0.2,
+        "home_nesters": -0.3
+      },
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.1,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 1,
+        "scan_s": 12
+      },
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.5,
+        "plan": {"apparel": 188, "collectibles": 472}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.7},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 20,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 120,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "distressed_leather_jacket",
+          "name": "Distressed leather jacket",
+          "category": "apparel",
+          "price": 98,
+          "cost": 38,
+          "day": 1
+        },
+        {
+          "id": "90s_band_graphic_tee",
+          "name": "90s band graphic tee",
+          "category": "apparel",
+          "price": 32,
+          "cost": 11,
+          "day": 1
+        },
+        {
+          "id": "vintage_vinyl_lp",
+          "name": "Vintage vinyl LP",
+          "category": "collectibles",
+          "price": 18,
+          "cost": 6,
+          "day": 1
+        },
+        {
+          "id": "denim_overalls",
+          "name": "Denim overalls",
+          "category": "apparel",
+          "price": 48,
+          "cost": 18,
+          "day": 29
+        },
+        {
+          "id": "brass_vanity_clock",
+          "name": "Brass vanity clock",
+          "category": "collectibles",
+          "price": 26,
+          "cost": 9,
+          "day": 1
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "fill_a_bag_weekend",
+            "name": "Fill-a-bag weekend",
+            "on": "range",
+            "items": [],
+            "from": 12,
+            "to": 14,
+            "depth": 0.2,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [],
+        "markdowns": [
+          {
+            "id": "weekly_tag_review",
+            "name": "Weekly tag review",
+            "on": "range",
+            "items": [],
+            "from": 15,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 7,
+            "mode": "deeper",
+            "depth": 0.1,
+            "max": 0.5
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "midnight_comfort",
+      "name": "Midnight Comfort",
+      "family": "lifestyle_merchants",
+      "colour": "#7048e8",
+      "fit": {
+        "bargain_hunters": 0.1,
+        "young_families": 0.2,
+        "collectors": -0.2,
+        "style_seekers": 0.5,
+        "home_nesters": 0.4
+      },
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.15,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 1,
+        "scan_s": 12
+      },
+      "stock": {
+        "allocation": "learned",
+        "season_buy": 1.2,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.2,
+        "plan": {"loungewear": 111, "slippers": 478}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "walk_in",
+            "name": "Walk-in",
+            "share": 0.8,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "regular",
+            "name": "Regular",
+            "share": 0.15,
+            "spend": 30,
+            "pull": 0.4,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1.1,
+            "offers": 1
+          },
+          {
+            "id": "fan",
+            "name": "Fan",
+            "share": 0.05,
+            "spend": 130,
+            "pull": 1,
+            "price": 0.7,
+            "memory": 1,
+            "radius": 1.3,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "modal_lounge_jogger",
+          "name": "Modal lounge jogger",
+          "category": "loungewear",
+          "price": 46,
+          "cost": 16,
+          "day": 1
+        },
+        {
+          "id": "waffle_knit_robe",
+          "name": "Waffle-knit robe",
+          "category": "loungewear",
+          "price": 62,
+          "cost": 22,
+          "day": 1
+        },
+        {
+          "id": "silk_pajama_cami_set",
+          "name": "Silk pajama cami set",
+          "category": "loungewear",
+          "price": 68,
+          "cost": 24,
+          "day": 15
+        },
+        {
+          "id": "shearling_memory_foam_slippers",
+          "name": "Shearling memory foam slippers",
+          "category": "slippers",
+          "price": 28,
+          "cost": 9.5,
+          "day": 1
+        },
+        {
+          "id": "oversized_plush_hoodie",
+          "name": "Oversized plush hoodie",
+          "category": "loungewear",
+          "price": 54,
+          "cost": 20,
+          "day": 29
+        }
+      ],
+      "calendar": {
+        "promotions": [
+          {
+            "id": "black_friday",
+            "name": "Black Friday",
+            "on": "range",
+            "items": [],
+            "from": 61,
+            "to": 63,
+            "depth": 0.25,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": []
+          }
+        ],
+        "offers": [
+          {
+            "id": "cozy_season_email",
+            "name": "Cozy season email",
+            "from": 50,
+            "to": 63,
+            "depth": 0.15,
+            "send_cost": 0.02,
+            "audience": 0.5,
+            "holdout": 0.2,
+            "tiers": ["walk_in", "regular", "fan"],
+            "areas": [],
+            "also_at": []
+          }
+        ],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_clearance",
+            "name": "Final clearance",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ]
+      }
+    }
+  ],
+  "segments": [
+    {
+      "id": "bargain_hunters",
+      "name": "Bargain hunters",
+      "colour": "#1971c2",
+      "shop": 0.14,
+      "price": 2,
+      "promo": 2,
+      "km": 1.2,
+      "radius_km": 4,
+      "zones": 2.2,
+      "browse": 200,
+      "patience": 360,
+      "max_ahead": 8,
+      "budget": 0.75,
+      "category_taste": {
+        "apparel": 3,
+        "accessories": 1,
+        "costumes": 2.5,
+        "halloween_decor": 1.5,
+        "holiday_decor": 2,
+        "christmas_trees": 1,
+        "comics": 0.5,
+        "collectibles": 0.5,
+        "hats": 1,
+        "soaps": 2,
+        "body_care": 1.5,
+        "furniture": 0.5,
+        "candy": 3,
+        "chocolate": 1.5,
+        "loungewear": 2,
+        "slippers": 1.5
+      },
+      "offer_response": {"shop": 0.9, "appeal": 0.9}
+    },
+    {
+      "id": "young_families",
+      "name": "Young families",
+      "colour": "#f08c00",
+      "shop": 0.16,
+      "price": 1.2,
+      "promo": 1.4,
+      "km": 1,
+      "radius_km": 4,
+      "zones": 2.6,
+      "browse": 180,
+      "patience": 240,
+      "max_ahead": 6,
+      "budget": 1,
+      "category_taste": {
+        "apparel": 2,
+        "accessories": 0.8,
+        "costumes": 4.5,
+        "halloween_decor": 3,
+        "holiday_decor": 4,
+        "christmas_trees": 3,
+        "comics": 1,
+        "collectibles": 0.5,
+        "hats": 0.5,
+        "soaps": 2,
+        "body_care": 1,
+        "furniture": 1,
+        "candy": 4.5,
+        "chocolate": 3,
+        "loungewear": 2,
+        "slippers": 2
+      },
+      "offer_response": {"shop": 0.4, "appeal": 0.5}
+    },
+    {
+      "id": "collectors",
+      "name": "Collectors & hobbyists",
+      "colour": "#2f9e44",
+      "shop": 0.12,
+      "price": 0.3,
+      "promo": 0.4,
+      "km": 0.6,
+      "radius_km": 5,
+      "zones": 2,
+      "browse": 420,
+      "patience": 600,
+      "max_ahead": 10,
+      "budget": 1.1,
+      "category_taste": {
+        "apparel": 1,
+        "accessories": 0.3,
+        "costumes": 1.5,
+        "halloween_decor": 1,
+        "holiday_decor": 0.5,
+        "christmas_trees": 0.2,
+        "comics": 5,
+        "collectibles": 5,
+        "hats": 0.5,
+        "soaps": 0.5,
+        "body_care": 0.3,
+        "furniture": 0.3,
+        "candy": 1.5,
+        "chocolate": 1,
+        "loungewear": 0.5,
+        "slippers": 0.5
+      },
+      "offer_response": {"shop": 0.1, "appeal": 0.2}
+    },
+    {
+      "id": "style_seekers",
+      "name": "Style seekers",
+      "colour": "#ae3ec9",
+      "shop": 0.13,
+      "price": 0.9,
+      "promo": 0.9,
+      "km": 0.9,
+      "radius_km": 4,
+      "zones": 2.8,
+      "browse": 260,
+      "patience": 300,
+      "max_ahead": 6,
+      "budget": 1.2,
+      "category_taste": {
+        "apparel": 4.5,
+        "accessories": 2,
+        "costumes": 0.5,
+        "halloween_decor": 0.5,
+        "holiday_decor": 1.5,
+        "christmas_trees": 1,
+        "comics": 0.5,
+        "collectibles": 1,
+        "hats": 3.5,
+        "soaps": 2,
+        "body_care": 2.5,
+        "furniture": 1,
+        "candy": 1,
+        "chocolate": 1.5,
+        "loungewear": 3.5,
+        "slippers": 2
+      },
+      "offer_response": {"shop": 0.35, "appeal": 0.4}
+    },
+    {
+      "id": "home_nesters",
+      "name": "Home nesters",
+      "colour": "#a07c4e",
+      "shop": 0.09,
+      "price": 0.7,
+      "promo": 0.9,
+      "km": 1,
+      "radius_km": 4,
+      "zones": 2,
+      "browse": 300,
+      "patience": 420,
+      "max_ahead": 6,
+      "budget": 1.6,
+      "category_taste": {
+        "apparel": 1.5,
+        "accessories": 0.8,
+        "costumes": 0.5,
+        "halloween_decor": 1,
+        "holiday_decor": 3.5,
+        "christmas_trees": 3.5,
+        "comics": 0.5,
+        "collectibles": 1,
+        "hats": 0.5,
+        "soaps": 3,
+        "body_care": 3.5,
+        "furniture": 3.5,
+        "candy": 1.5,
+        "chocolate": 2,
+        "loungewear": 2.5,
+        "slippers": 3
+      },
+      "offer_response": {"shop": 0.3, "appeal": 0.35}
+    }
+  ],
+  "market": {
+    "taste_w": 1.2,
+    "price_w": 1.5,
+    "km_w": 0.22,
+    "memory": 0.97,
+    "grudge_w": 0.8,
+    "wom": 0.35,
+    "outside": 1,
+    "promo_days": 7,
+    "range_w": 1
+  }
+}
