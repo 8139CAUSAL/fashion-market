@@ -2,13 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "workbench",
+      "name": "fashion-market",
       "runtimeExecutable": "Rscript",
       "runtimeArgs": ["tools/serve.R", "--port=8123"],
       "port": 8123
     },
     {
-      "name": "workbench-no-coi",
+      "name": "fashion-market-no-coi",
       "runtimeExecutable": "Rscript",
       "runtimeArgs": ["tools/serve.R", "--port=8124", "--no-coi"],
       "port": 8124

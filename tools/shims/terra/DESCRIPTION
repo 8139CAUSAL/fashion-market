@@ -3,7 +3,7 @@ Type: Package
 Title: Minimal 'terra' Stand-in for NetLogoR in webR
 Version: 1.9.27.9001
 Description: NetLogoR imports 'terra', but the webR build of 'terra' cannot
-    currently be loaded, and the NetLogoR Workbench only uses NetLogoR's
+    currently be loaded, and Fashion Market only uses NetLogoR's
     matrix-based worlds. This package supplies the small part of the 'terra'
     API those code paths use (extents, planar point distances, and the
     nrow/ncol generics) in plain R. Raster conversions and plotting stop with

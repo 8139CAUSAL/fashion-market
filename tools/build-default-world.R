@@ -29,7 +29,7 @@
 #   Rscript tools/build-default-world.R
 #
 # Needs NetLogoR installed against the shims in tools/.cache/rlib (see
-# tools/check-templates.R), to run the season the plans are measured from.
+# tools/test-fashion.R), to run the season the plans are measured from.
 
 script_path <- normalizePath(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE)[1]))
 root <- normalizePath(file.path(dirname(script_path), ".."))

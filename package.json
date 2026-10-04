@@ -1,14 +1,14 @@
 {
-  "name": "netlogor-workbench",
+  "name": "fashion-market",
   "version": "0.1.0",
   "private": true,
-  "description": "A season of fashion retail in one city: an agent-based model in R (webR + NetLogoR), running in the browser.",
+  "description": "Fashion Market: a season of fashion retail in a market you build, simulated one shopper at a time as an agent-based model in R (webR + NetLogoR), running in the browser.",
   "type": "module",
   "scripts": {
     "build:editor": "node tools/build-editor.mjs",
-    "test": "node --test tools/test-spec.mjs tools/test-frames.mjs tools/test-imports.mjs tools/test-share.mjs tools/test-sw.mjs && Rscript tools/test-shims.R && Rscript tools/test-engine.R && Rscript tools/check-templates.R && Rscript tools/test-fashion.R"
+    "test": "node --test tools/test-sw.mjs && Rscript tools/test-shims.R && Rscript tools/test-fashion.R"
   },
-  "comment": "Dev-only: the app itself is static files. vendor/codemirror.js is committed, so nothing here is needed to run or deploy the Workbench.",
+  "comment": "Dev-only: the app itself is static files. vendor/codemirror.js is committed, so nothing here is needed to run or deploy the app.",
   "devDependencies": {
     "@codemirror/commands": "6.8.1",
     "@codemirror/language": "6.11.1",

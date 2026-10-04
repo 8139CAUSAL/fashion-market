@@ -4,7 +4,7 @@
 
 unsupported <- function(what) {
   stop(what, " needs the full 'terra' package, which is not available in the ",
-       "NetLogoR Workbench. Use worldMatrix/worldArray objects instead.", call. = FALSE)
+       "Fashion Market. Use worldMatrix/worldArray objects instead.", call. = FALSE)
 }
 
 # ---- Extents -----------------------------------------------------------

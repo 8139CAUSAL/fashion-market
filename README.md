@@ -488,10 +488,18 @@ Rscript tools/test-fashion.R 91 5     # a whole season
 The test runs the model headless in local R and checks its accounting (every
 visit ends in one outcome, every unit is accounted for every day, sales equal
 receipts), its determinism (the same seed gives identical days at season
-pace and at watch pace), and every rule a world can break. It needs
-NetLogoR installed against the shims in `tools/.cache/rlib` (see
-`tools/check-templates.R`). `npm test` runs it along with the rest of the
-repository's tests.
+pace and at watch pace), and every rule a world can break. It needs R with
+`jsonlite`, and NetLogoR 1.0.6 installed into `tools/.cache/rlib` against the
+shims in `tools/shims/` (the stand-ins for `terra`, `quickPlot` and
+`SpaDES.tools` that the browser's library uses too):
+
+```bash
+for p in terra quickPlot SpaDES.tools; do R CMD INSTALL -l tools/.cache/rlib tools/shims/$p; done
+R CMD INSTALL -l tools/.cache/rlib NetLogoR_1.0.6.tar.gz   # the CRAN source tarball
+```
+
+`npm test` runs it after the service worker's test (`tools/test-sw.mjs`) and
+the shims' (`tools/test-shims.R`).
 
 <details>
 <summary><b>Everything the test checks</b></summary>
@@ -589,12 +597,10 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `worlds/default.world.json` | the world the app opens with |
 | `layouts/` | the four prefab layouts (`index.json` lists them) |
 | `vfs/` | the pre-built NetLogoR library image for webR (`tools/build-vfs.R`) |
+| `tools/shims/` | stand-ins for the parts of `terra`, `quickPlot` and `SpaDES.tools` NetLogoR calls, in plain R (`tools/test-shims.R` tests them) |
+| `vendor/codemirror.js` | the R code drawer's viewer (`tools/build-editor.mjs` bundles it) |
 | `tools/serve.R` | the local server |
 | `tools/build-default-world.R` | how the default world was made from the city the model used to generate |
 | `tools/test-fashion.R` | the headless test, with its older worlds in `tools/fixtures/` |
+| `tools/test-sw.mjs` | the service worker's test |
 | `screenshots/` | the images in this README |
-
-The earlier NetLogoR Workbench (the interface language, its editor and its
-presets) is still in the repository (`js/main.js` and the modules it loads,
-`workers/engine.worker.js`, `r/workbench.R`, `templates/`), but it isn't
-part of this app.

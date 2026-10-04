@@ -29,8 +29,10 @@
 #   Rscript tools/test-fashion.R            # 14 season days, 3 watched days
 #   Rscript tools/test-fashion.R 91 5       # a whole season, 5 watched days
 #
-# Needs NetLogoR installed against the shims in tools/.cache/rlib (see
-# tools/check-templates.R).
+# Needs R with jsonlite, and NetLogoR 1.0.6 installed against the shims in
+# tools/shims/, into tools/.cache/rlib:
+#   for p in terra quickPlot SpaDES.tools; do R CMD INSTALL -l tools/.cache/rlib tools/shims/$p; done
+#   R CMD INSTALL -l tools/.cache/rlib NetLogoR_1.0.6.tar.gz   # the CRAN source tarball
 
 args <- as.integer(commandArgs(trailingOnly = TRUE))
 n_season <- if (length(args) >= 1) args[1] else 14L

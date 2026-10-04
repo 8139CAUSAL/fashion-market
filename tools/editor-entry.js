@@ -1,6 +1,6 @@
 // Entry point for the vendored editor bundle (tools/build-editor.mjs).
 //
-// Only the pieces the Workbench actually uses: no autocomplete, search or
+// Only the pieces the R code drawer uses: no autocomplete, search or
 // lint. Bundling them together guarantees one copy of @codemirror/state and
 // @codemirror/view, which is what CodeMirror's extension system requires.
 

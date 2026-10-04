@@ -100,6 +100,6 @@ test("serves the library image from cache and refreshes it in the background", a
 test("leaves range requests and non-GET requests alone", async () => {
   const sw = serviceWorkerScope();
   await sw.request("/vfs/netlogor-lib.data.gz", { headers: { range: "bytes=0-99" } });
-  await sw.request("/templates/data/gottingen.rds", { method: "POST", body: "x" });
+  await sw.request("/vendor/codemirror.js", { method: "POST", body: "x" });
   assert.equal(sw.store.size, 0);
 });
