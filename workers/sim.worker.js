@@ -209,7 +209,7 @@ async function sendGeometry() {
 const view = {
   tab: "market", store: 1, brand: 1, heat: false, homesMode: "brand", homesBrand: 1, mapOn: true,
   offers: { brand: 1, offer: 0 },
-  funnel: { brand: 0, area: 0, store: 0, scope: "season" },
+  funnel: { brand: 0, area: 0, store: 0, scope: "season", channel: "store" },
 };
 const homes_ = { version: -1, mode: null, brand: null };
 const reports = { at: 0, slowAt: 0 };
@@ -223,7 +223,7 @@ function reportExpr() {
     case "offers": return `report_offers(${rNumber(view.offers.brand)}, ${rNumber(view.offers.offer)})`;
     case "funnel": {
       const f = view.funnel;
-      return `report_funnel(${rNumber(f.brand)}, ${rNumber(f.area)}, ${rNumber(f.store)}, ${rString(f.scope)})`;
+      return `report_funnel(${rNumber(f.brand)}, ${rNumber(f.area)}, ${rNumber(f.store)}, ${rString(f.scope)}, ${rString(f.channel)})`;
     }
     case "store": return `report_store(${rNumber(view.store)}, heat = ${view.heat ? "TRUE" : "FALSE"})`;
     case "assortment": return `report_assortment(${rNumber(view.brand)})`;

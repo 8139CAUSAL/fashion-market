@@ -20,7 +20,17 @@
 # day it goes, broken offers and tiers are refused, and a version 5 file
 # (tiers by visits, an offers programme) upgrades and runs; a version 6
 # file (a promotion depth and length for the Market tab's old promotion
-# buttons) upgrades and runs the season the version 6 model ran; and drawn
+# buttons, no online stores, no returns) upgrades and runs the season the
+# version 6 model ran, with no online orders and no returns; online stores
+# and returns: every unit sold has one ledger line, the ledger reconciles
+# (every unit is where its line says, every return came once, after
+# delivery and within its window, to a store of the selling brand or by
+# post, refunds are what was paid, net sales are gross sales less refunds
+# by day and outlet, budgets and loyalty spend follow from the lines), a
+# cashier's refunds never overlap their other work, a trip to return items
+# runs from the home to the store, an offer's lift is net of returns made
+# after it ended, a brand with no stores sells online and takes returns by
+# post, and broken online and return settings are refused; and drawn
 # floors: a fetch walks to the stockroom door and back, a shopper tries on
 # in the cubicle, a cubicle is never a corridor, every door is a way in and
 # out, every block of racks has a place to stand, and rack space is the
@@ -54,45 +64,132 @@ check <- function(ok, what) {
 
 # What each day must satisfy, checked straight after it ends.
 check_day <- function() {
-  ended <- d$outcome
-  ok_outcome <- all(ended >= 1 & ended <= N_OUTCOMES)
+  shop <- !d$ret
+  ok_outcome <- all(d$outcome[shop & !d$online] >= 1 & d$outcome[shop & !d$online] <= N_OUTCOMES) &&
+    all(d$outcome[d$online] >= 1 & d$outcome[d$online] <= 4) && all(d$outcome[d$ret] == OUT_RETURNED)
   m <- legs$m[seq_len(legs$n), , drop = FALSE]
   ok_legs <- all(m[, "t1"] >= m[, "t0"] - 1e-9)
   # No server serves two shoppers at once: a till's or a cubicle's service
-  # legs never overlap, and neither do an assistant's jobs.
-  serve <- m[m[, "kind"] %in% c(TRY, PAY), , drop = FALSE]
+  # legs (selling, or taking returns back) never overlap, and neither do
+  # an assistant's jobs, or a cashier's refunds.
+  serve <- m[m[, "kind"] %in% c(TRY, PAY, REFUND), , drop = FALSE]
   key <- serve[, "store"] * 1e4 + serve[, "a"]
   o <- order(key, serve[, "t0"])
   serve <- serve[o, , drop = FALSE]; key <- key[o]
   same <- key[-1] == key[-length(key)]
   ok_servers <- all(serve[-1, "t0"][same] >= serve[-nrow(serve), "t1"][same] - 1e-6)
   sm <- staff$m[seq_len(staff$n), , drop = FALSE]
-  sk <- sm[, "store"] * 100 + sm[, "server"]; o <- order(sk, sm[, "t0"]); sm <- sm[o, , drop = FALSE]; sk <- sk[o]
+  sk <- sm[, "store"] * 100 + sm[, "server"] + 1e4 * (sm[, "job"] == JOB_REFUND); o <- order(sk, sm[, "t0"]); sm <- sm[o, , drop = FALSE]; sk <- sk[o]
   same <- sk[-1] == sk[-length(sk)]
   ok_staff <- all(sm[-1, "t0"][same] >= sm[-nrow(sm), "t1"][same] - 1e-6) && all(sm[, "server"] >= 1)
-  ok_sales <- abs(sum(tally$sales[day, , ]) - sum(d$sales[d$outcome == 1L])) < 1e-6 &&
-    all(d$sales[d$outcome != 1L] == 0)
-  ok_stock <- all(stock_balance() == 0) && all(stock$rack >= 0) && all(stock$room >= 0) && all(stock$dc >= 0)
+  # Each refund job is a cashier at their till for the whole of the refund leg.
+  rj <- sm[sm[, "job"] == JOB_REFUND, , drop = FALSE]
+  rl <- m[m[, "kind"] == REFUND, , drop = FALSE]
+  ok_refund_jobs <- nrow(rj) == nrow(rl) && nrow(rj) == sum(d$ret) &&
+    all(paste(rj[, "visit"], rj[, "t0"], rj[, "t1"], fl$till_first[STORES$format[rj[, "store"]]] + rj[, "server"] - 1) %in%
+        paste(rl[, "visit"], rl[, "t0"], rl[, "t1"], rl[, "a"]))
+  paid <- d$outcome == 1L
+  today_lines <- if (ledger$today > ledger$today_was) seq.int(ledger$today_was, ledger$today - 1L) else integer()
+  ok_sales <- abs(sum(tally$sales[day, , ]) - sum(d$sales[paid])) < 1e-6 && all(d$sales[!paid] == 0) &&
+    length(today_lines) == sum(d$units[paid]) && abs(sum(ledger$m[today_lines, "paid"]) - sum(d$sales[paid])) < 1e-6
+  # Today's returns: each line once, refunded what was paid for it, booked
+  # against the outlet that sold it.
+  r <- today$returned
+  ro <- ifelse_int(ledger$i[r, "store"] == 0L, N_STORES + ledger$i[r, "brand"], ledger$i[r, "store"])
+  ok_refunds <- !anyDuplicated(r) && all(ledger$i[r, "ret_day"] == day) &&
+    max(abs(tally$refunds[day, ] - bin_sum(ro, ledger$m[r, "paid"], N_OUTLETS))) < 1e-6 &&
+    all(tally$ret_units[day, ] == tabulate(ro, N_OUTLETS))
+  ok_stock <- all(stock_balance(TRUE) == 0) && all(stock$rack >= 0) && all(stock$room >= 0) && all(stock$dc >= 0)
   ok_tiers <- all(mk$tier >= 1L & mk$tier <= matrix(TIER_N, mk$hh$n, N_BRANDS, byrow = TRUE))
-  ok_reach <- all(mk$km[cbind(d$hh, d$store)] <= SEGMENTS$radius_km[d$seg] * TIER_RADIUS[cbind(d$brand, d$tier)] + 1e-9)
-  c(outcome = ok_outcome, legs = ok_legs, servers = ok_servers, staff = ok_staff, sales = ok_sales, stock = ok_stock,
-    tiers = ok_tiers, reach = ok_reach)
+  s <- shop & !d$online
+  ok_reach <- all(mk$km[cbind(d$hh[s], d$store[s])] <= SEGMENTS$radius_km[d$seg[s]] * TIER_RADIUS[cbind(d$brand[s], d$tier[s])] + 1e-9) &&
+    all(STORES$brand[d$store[d$ret]] == d$brand[d$ret])
+  c(outcome = ok_outcome, legs = ok_legs, servers = ok_servers, staff = ok_staff, refund_jobs = ok_refund_jobs, sales = ok_sales,
+    refunds = ok_refunds, stock = ok_stock, tiers = ok_tiers, reach = ok_reach)
 }
 
-run_season_days <- function(n) {
-  ok <- TRUE; times <- numeric()
+# The ledger against everything that adds up from it, at the end of a day:
+# every unit sold has one line, and every unit is where its line says;
+# every return came once, after delivery and within its window, to a store
+# of the selling brand (or by post, only where none was in reach); net
+# sales are gross sales less refunds, by day, outlet, brand and channel;
+# and each household's budget and loyalty spend follow from its lines.
+check_ledger <- function() {
+  L <- ledger_view()
+  dd <- seq_len(day)
+  units <- sum(tally$units[dd, , ])
+  window <- RETURNS$window_days[L$brand]
+  r <- L$returned
+  ok_lines <- ledger$n == units && abs(sum(L$paid) - sum(tally$sales[dd, , ])) < 1e-6
+  ok_when <- all(L$ret_day[r] >= L$in_hand[r] + 1L & L$ret_day[r] <= L$in_hand[r] + window[r]) && all(L$ret_day[!r] == 0L)
+  rs <- L$ret_store[r]
+  near <- mk$near_store[cbind(L$hh[r], L$brand[r])]
+  ok_where <- all(rs == 0L | STORES$brand[pmax(rs, 1L)] == L$brand[r]) && all(rs > 0L | near == 0L |
+    mk$km[cbind(L$hh[r], pmax(near, 1L))] > SEGMENTS$radius_km[mk$hh$segment[L$hh[r]]] * TIER_RADIUS[cbind(L$brand[r], mk$tier[cbind(L$hh[r], L$brand[r])])])
+  # Net = gross - refunds, by day and outlet: the tallies against the lines.
+  gross <- apply(tally$sales[dd, , , drop = FALSE], c(1, 3), sum)
+  lg <- matrix(bin_sum((L$outlet - 1L) * day + L$day, L$paid, day * N_OUTLETS), day)
+  lr <- matrix(bin_sum((L$outlet[r] - 1L) * day + L$ret_day[r], L$paid[r], day * N_OUTLETS), day)
+  ok_net <- max(abs(gross - lg)) < 1e-6 && max(abs(tally$refunds[dd, , drop = FALSE] - lr)) < 1e-6
+  # Every unit sold is somewhere: with a household, back in stock, or written off.
+  sku <- (L$brand - 1L) * N_SKU + L$sku
+  per <- function(sel) matrix(tabulate(sku[sel], N_BRANDS * N_SKU), N_BRANDS, N_SKU, byrow = TRUE)
+  same <- function(a, b) max(abs(a - b)) == 0
+  ok_units <- same(per(!L$online), stores_to_brands(stock$sold)) && same(per(L$online), stock$online) &&
+    same(per(r & L$fate == FATE_RESTOCK & L$ret_store > 0L), stores_to_brands(stock$restocked)) &&
+    same(per(r & L$fate == FATE_RESTOCK & L$ret_store == 0L), stock$restocked_dc) && same(per(r & L$fate == FATE_WRITE_OFF), stock$written_off)
+  # Households: budget left = budget - paid - delivery charges + refunds;
+  # loyalty spend = paid - refunds, with each brand.
+  hb <- (L$hh - 1L) * N_BRANDS + L$brand
+  net <- matrix(bin_sum(hb, L$paid - L$refund, mk$hh$n * N_BRANDS), mk$hh$n, byrow = TRUE)
+  orders <- !duplicated(cbind(L$hh, L$day)) & L$online
+  charges <- bin_sum(L$hh[orders], ONLINE$delivery_charge[L$brand[orders]], mk$hh$n)
+  ok_budget <- max(abs(mk$hh$budget - .rowSums(net, mk$hh$n, N_BRANDS) - charges - mk$budget_left)) < 1e-6
+  ok_spend <- max(abs(net - mk$spend)) < 1e-6 && all(mk$spend_max >= mk$spend - 1e-9)
+  c(lines = ok_lines, when = ok_when, where = ok_where, net = ok_net, units = ok_units, budget = ok_budget, spend = ok_spend)
+}
+
+# Offer k's lift, worked out from its log and the ledger: each purchase
+# less the refunds (and the margin taken back) of what came back of it,
+# whenever it came back. Returns what offer_results() should say, and how
+# many items came back after the offer ended.
+offer_net <- function(k) {
+  Lg <- ledger_view()
+  sent <- ofr$sent[[k]]; m <- length(sent)
+  L <- ofr$buys[seq_len(ofr$n_buys), , drop = FALSE]; L <- L[L[, "offer"] == k, , drop = FALSE]
+  line_of <- purchase_key(Lg$hh, Lg$day); key <- purchase_key(ofr$members[[k]][L[, "member"]], L[, "day"])
+  mi <- match(line_of, key); hit <- !is.na(mi)
+  cost <- PROD_COST[cbind(Lg$brand, Lg$product)] * (Lg$fate == FATE_RESTOCK)
+  refund <- bin_sum(mi[hit], Lg$refund[hit], nrow(L))
+  took <- bin_sum(mi[hit], ifelse(Lg$returned, Lg$paid - cost, 0)[hit], nrow(L))
+  own <- OFFER_GOOD[k, ][L[, "brand"]]
+  list(spend = diff_ci(bin_sum(L[own, "member"], L[own, "sales"] - refund[own], m), sent, !sent),
+       margin = diff_ci(bin_sum(L[own, "member"], L[own, "margin"] - took[own], m), sent, !sent),
+       gross = diff_ci(bin_sum(L[own, "member"], L[own, "sales"], m), sent, !sent),
+       refunds = sum(refund[own]), late = sum(hit & Lg$returned & Lg$ret_day > OFFERS$to[k]))
+}
+
+run_season_days <- function(n, ledger_days = 0L) {
+  ok <- TRUE; ok_ledger <- TRUE; times <- numeric()
   for (i in seq_len(n)) {
     s0 <- proc.time()[["elapsed"]]
+    ledger$today_was <<- ledger$today
     advance(Inf); end_day()
     res <- check_day()
+    t_ledger <- proc.time()[["elapsed"]]
+    if (i %in% ledger_days) {
+      rl <- check_ledger()
+      if (!all(rl)) { ok_ledger <- FALSE; cat("    day", day, "ledger failed:", names(rl)[!rl], "\n") }
+    }
+    t_ledger <- proc.time()[["elapsed"]] - t_ledger
     if (!all(res)) { ok <- FALSE; cat("    day", day, "failed:", names(res)[!res], "\n") }
     prev <<- list(d = d, legs = legs, staff = staff, today = today, vlog = vlog, day = day)
     homes_version <<- homes_version + 1L
     if (day >= SEASON_DAYS) { season_over <<- TRUE; break }
     start_day()
-    times <- c(times, proc.time()[["elapsed"]] - s0)
+    times <- c(times, proc.time()[["elapsed"]] - s0 - t_ledger)      # the day and its daily checks (as before the ledger)
   }
-  list(ok = ok, times = times)
+  list(ok = ok, ok_ledger = ok_ledger, times = times)
 }
 
 # ---- Season pace ------------------------------------------------------------
@@ -100,10 +197,17 @@ run_season_days <- function(n) {
 cat(sprintf("Season pace: %d days\n", n_season))
 P$pace <- "season"
 setup(7)
-r <- run_season_days(n_season)
-check(r$ok, "every day: each visit ends in one outcome, no negative waits, no server or assistant serves two at once, sales = receipts, every unit accounted for, tiers on their ladders, every visit within reach")
+r <- run_season_days(n_season, ledger_days = unique(c(seq_len(n_season %/% 7) * 7L, n_season)))
+check(r$ok, "every day: each visit ends in one outcome, no negative waits, no server, assistant or cashier serves two at once (a refund included), sales = receipts, every unit sold has one ledger line, today's refunds are what was paid, every unit accounted for, tiers on their ladders, every visit within reach")
+check(r$ok_ledger, sprintf("every week: the ledger reconciles: every unit sold is where its line says (with a shopper, back in stock, or written off), every return came once, after delivery and within its window, to a store of the selling brand (or by post), net sales = gross sales - refunds by day and outlet, and each household's budget and loyalty spend follow from its lines (%s lines, %s returned)",
+                    format(ledger$n, big.mark = ","), format(sum(ledger$i[seq_len(ledger$n), "ret_day"] > 0), big.mark = ",")))
 check(sum(tally$late) == 0, "every decision taken in time order")
-check(abs(sum(season_log$sales[seq_len(season_log$n)]) - sum(tally$sales)) < 1e-6, "the season's visit log adds up to the season's sales")
+check(abs(sum(season_log$sales[seq_len(season_log$n)]) - sum(tally$sales)) < 1e-6, "the season's visit log adds up to the season's sales (gross, in the stores and online)")
+Lg <- ledger_view()
+on_share <- sum(Lg$paid[Lg$online]) / sum(Lg$paid)
+cat(sprintf("    online: %.0f%% of gross sales; returned: %.1f%% of units bought online, %.1f%% in the stores (%.1f%% of those tried on); %s return trips, %s parcels\n",
+            100 * on_share, 100 * mean(Lg$returned[Lg$online]), 100 * mean(Lg$returned[!Lg$online]), 100 * mean(Lg$returned[Lg$kind == KIND_TRIED]),
+            format(sum(tally$trips), big.mark = ","), format(sum(tally$post_parcels), big.mark = ",")))
 cat(sprintf("    %.0f ms per market day (median), %d visits a day\n", 1000 * median(r$times), round(sum(tally$visits) / max(1, days_complete()))))
 
 # Every report builds and serialises.
@@ -117,19 +221,32 @@ for (b in seq_len(N_BRANDS)) {
   j <- tryCatch(to_json(report_offers(b)), error = identity)
   check(!inherits(j, "error"), paste("offers report, brand", b, if (inherits(j, "error")) conditionMessage(j) else ""))
 }
-for (flt in list(c(0, 0, 0), c(1, 0, 0), c(0, 2, 0), c(0, 0, 5), c(0, N_AREAS + 1, 0))) for (scope in c("season", "day")) {
-  j <- tryCatch(report_funnel(flt[1], flt[2], flt[3], scope), error = identity)
-  ok_f <- !inherits(j, "error") && all(diff(vapply(j$stages, function(s) s$n, 0)) <= 1e-9)
-  check(ok_f, sprintf("funnel (brand %d, area %d, store %d, %s): each stage no bigger than the last", flt[1], flt[2], flt[3], scope))
+for (flt in list(c(0, 0, 0), c(1, 0, 0), c(0, 2, 0), c(0, 0, 5), c(0, N_AREAS + 1, 0))) for (scope in c("season", "day")) for (ch in c("store", "online")) {
+  if (ch == "online" && flt[3] > 0) next
+  j <- tryCatch(report_funnel(flt[1], flt[2], flt[3], scope, ch), error = identity)
+  ok_f <- !inherits(j, "error") && all(diff(vapply(j$stages, function(s) s$n, 0)) <= 1e-9) &&
+    j$returns$items == sum(vapply(j$returns$returned, `[[`, 0, "n")) + j$returns$on_the_way + j$returns$returnable + j$returns$kept
+  check(ok_f, sprintf("funnel (brand %d, area %d, store %d, %s, %s): each stage no bigger than the last; after paying, every item bought is returned, on its way, returnable or kept",
+                      flt[1], flt[2], flt[3], scope, ch))
 }
+# Net sales in the reports are gross sales less refunds, by brand and channel.
+rm_ <- report_market(); rs_ <- report_strategy(); csv <- utils::read.csv(text = export_csv())
+by_brand_net <- function(online) vapply(seq_len(N_BRANDS), function(b) sum(Lg$paid[Lg$brand == b & Lg$online %in% online]) - sum(Lg$refund[Lg$brand == b & Lg$online %in% online]), 0)
+contrib <- report_scorecard()$contribution
+check(max(abs(rm_$revenue - by_brand_net(c(TRUE, FALSE)))) < 1e-6 && max(abs(rm_$revenue_online - by_brand_net(TRUE))) < 1e-6 &&
+      max(abs(rs_$revenue$by_brand - rm_$revenue)) < 1e-6 && max(abs(csv$net_sales - (csv$gross_sales - csv$returns_value))) < 0.011 &&
+      abs(sum(csv$net_sales) - sum(by_brand_net(c(TRUE, FALSE)))) < 1 &&
+      max(abs(vapply(contrib, function(x) x$sales - (x$gross - x$refunds), 0))) < 1e-6,
+      "net sales on every tab (Market, Strategy, Scorecard, the CSV export) are gross sales less refunds, matching the ledger, by brand and channel")
 pick_household(); check(!is.null(report_market()$shopper), "a random shopper's panel")
 follow_visit(1); check(!inherits(tryCatch(to_json(report_store(1, heat = TRUE)), error = identity), "error"), "store report with heat map and a followed shopper")
 # Loyalty by spend: every household stands in the highest tier its spend
 # this season has reached, or the one it started in if that's higher.
-reached <- vapply(seq_len(N_BRANDS), function(b) spend_tier(mk$spend[, b], b), integer(mk$hh$n))
+reached <- vapply(seq_len(N_BRANDS), function(b) spend_tier(mk$spend_max[, b], b), integer(mk$hh$n))
+fell <- sum(vapply(seq_len(N_BRANDS), function(b) sum(spend_tier(mk$spend[, b], b) < mk$tier[, b] & mk$tier[, b] > mk$tier0[, b]), 0))
 check(identical(mk$tier, pmax(mk$tier0, matrix(reached, mk$hh$n))) && sum(mk$tier > mk$tier0) > 0,
-      sprintf("a household's tier is the highest its season's spend has reached, never below where it started (%s moves up in %d days)",
-              format(sum(mk$tier > mk$tier0), big.mark = ","), days_complete()))
+      sprintf("a household's tier is the highest its season's net spend has reached, never below where it started (%s moves up in %d days; %s kept a tier their refunds have taken them back below)",
+              format(sum(mk$tier > mk$tier0), big.mark = ","), days_complete(), format(fell, big.mark = ",")))
 # An offer: its audience and holdout are the shares asked for, no one held
 # out gets a coupon, a coupon comes off one purchase, and sending is charged
 # the day it goes.
@@ -149,6 +266,14 @@ if (!is.na(k)) {
   check(r$sent == sum(sent) && length(r$sources$rows) == N_BRANDS && is.finite(r$spend$diff) && length(r$sent_curve) == length(r$days),
         sprintf("%s measured against its holdout: %s more per household sent (%s to %s)", OFFERS$name[k],
                 sprintf("$%.2f", r$spend$diff), sprintf("$%.2f", r$spend$lo), sprintf("$%.2f", r$spend$hi)))
+  # Its lift is net: spend per household and margin, each purchase less the
+  # refunds and margin of what came back of it, whenever it came back.
+  if (days_complete() > OFFERS$to[k]) {
+    want <- offer_net(k)
+    check(want$late > 0 && abs(r$spend$diff - want$spend$diff) < 1e-9 && abs(r$margin$diff - want$margin$diff) < 1e-9 && abs(r$refunds - want$refunds) < 1e-6,
+          sprintf("%s's lift is net of returns: %s of refunds on its purchases come off spend and margin, %d items returned after it ended among them (net lift %s per household, gross %s)",
+                  OFFERS$name[k], sprintf("$%.0f", want$refunds), want$late, sprintf("$%.2f", r$spend$diff), sprintf("$%.2f", want$gross$diff)))
+  }
 } else check(FALSE, "an offer has gone out in the season run")
 check(nchar(export_csv()) > 100, "CSV export")
 
@@ -198,24 +323,33 @@ run_days <- function(pace, n) {
     }
   }
   list(visits = tally$visits, sales = tally$sales, stock = tally$stock, offers = ofr$buys[seq_len(ofr$n_buys), ],
-       rack = stock$rack, tier = mk$tier, frames = frames)
+       rack = stock$rack, tier = mk$tier, frames = frames, refunds = tally$refunds,
+       ledger = list(ledger$i[seq_len(ledger$n), ], ledger$m[seq_len(ledger$n), ]))
 }
 a <- run_days("season", n_watch)
 b <- run_days("watch", n_watch)
 same <- identical(a$visits, b$visits) && identical(a$sales, b$sales) && identical(a$stock, b$stock) &&
-  identical(a$offers, b$offers) && identical(a$rack, b$rack) && identical(a$tier, b$tier)
-check(same && b$frames > 100, sprintf("season pace and watch pace (%d frames drawn) give identical days", b$frames))
+  identical(a$offers, b$offers) && identical(a$rack, b$rack) && identical(a$tier, b$tier) &&
+  identical(a$refunds, b$refunds) && identical(a$ledger, b$ledger)
+check(same && b$frames > 100 && sum(a$ledger[[1]][, "store"] == 0L) > 0 && sum(a$ledger[[1]][, "ret_day"] > 0L) > 0,
+      sprintf("season pace and watch pace (%d frames drawn) give identical days, with online orders and returns on (%d online units, %d returned): visits, sales, refunds, stock and the ledger, line by line",
+              b$frames, sum(a$ledger[[1]][, "store"] == 0L), sum(a$ledger[[1]][, "ret_day"] > 0L)))
 
-# Drivers on the map follow their routes: out of the home, into the store.
-setup(5); P$pace <- "watch"
+# Drivers on the map follow their routes: out of the home, into the store,
+# on a sixth day (with returns due).
+setup(5); P$pace <- "season"
+for (i in 1:5) { advance(Inf); finish_day() }
+P$pace <- "watch"
 advance(3 * 3600)
 tr <- travellers_at(clock)
 check(length(tr$x) > 0 && all(tr$x >= 0 & tr$x <= MACRO$width_m & tr$y >= 0 & tr$y <= MACRO$height_m),
       sprintf("shoppers on the road stay on the map (%d now)", length(tr$x)))
 build_trips()
-check(max(abs(route_of(seq_len(d$v), rep(0, d$v)) - cbind(mk$hh$x[d$hh], mk$hh$y[d$hh]))) < 1e-6 &&
-      max(abs(route_of(seq_len(d$v), rep(Inf, d$v)) - cbind(STORES$x[d$store], STORES$y[d$store]))) < 1e-6,
-      "every trip starts at the home and ends at the store")
+drive <- which(d$store > 0L)                                        # visits to a store, to shop or return items; online ones make no trip
+check(max(abs(route_of(drive, rep(0, length(drive))) - cbind(mk$hh$x[d$hh[drive]], mk$hh$y[d$hh[drive]]))) < 1e-6 &&
+      max(abs(route_of(drive, rep(Inf, length(drive))) - cbind(STORES$x[d$store[drive]], STORES$y[d$store[drive]]))) < 1e-6 &&
+      sum(d$ret) > 0 && all(!d$online[tr$visit]),
+      sprintf("every trip starts at the home and ends at the store, trips to return items too (%d today); online shoppers make none", sum(d$ret)))
 
 # A change made mid-day acts from that moment: a cashier added at 14:00
 # shortens the till queue from 14:00, and not before.
@@ -354,7 +488,7 @@ check(identical(msgs, "stores[3]: not on the map yet: place it on the Macro worl
 
 # ---- A bigger world: 16 brands on a drawn map, with a drawn layout -------------------------
 
-cat("A 16-brand world on a drawn map\n")
+cat("A 16-brand world on a drawn map, with online stores\n")
 big_world <- function(W) {
   # The map: 120 x 90 tiles of 60 m, a road every 8 tiles, a lake crossed
   # by bridges, homes denser towards two town centres, three areas.
@@ -400,9 +534,10 @@ big_world <- function(W) {
     "#......................................#",
     "#################==#####################")
   W$layouts[[length(W$layouts) + 1L]] <- list(id = "corner", name = "Corner shop", draw = 0.05, rows = as.list(pic))
-  # Sixteen brands in five families (ours has three), two stores each: the
-  # default world's brands over and over, each on the layouts that have
-  # racks for what it sells.
+  # Sixteen brands in five families (ours has three), two stores each but
+  # the last, which sells only online: the default world's brands over and
+  # over, each on the layouts that have racks for what it sells. Every
+  # other brand has an online store too, and every brand takes returns.
   fams <- c("ours", "value_co", "premium_co", "fast_co", "indie_co")
   W$families <- lapply(seq_along(fams), function(k) list(id = fams[k], name = paste("Family", k), ours = k == 1))
   base <- W$brands
@@ -415,12 +550,15 @@ big_world <- function(W) {
     b$levers$price <- round(runif(1, 0.6, 1.6), 2)
     b$calendar$offers <- if (k <= 5) list(list(id = "email", name = "Email", from = 2L, to = 6L, depth = 0.15, send_cost = 0.02, audience = 0.3, holdout = 0.1,
                                               tiers = lapply(b$loyalty$tiers, `[[`, "id"), areas = list(), also_at = if (k == 1) list("brand_02") else list())) else list()
+    b$online$on <- k %% 2 == 1 || k == 16
+    if (k == 16) b$online$plan_stores <- 4
+    b$returns$window_days <- 14L + 2L * k
     b
   })
   keys <- vapply(W$categories, `[[`, "", "key")
   on_intimates <- unlist(strsplit(unlist(W$layouts[[match("intimates", vapply(W$layouts, `[[`, "", "id"))]]$rows), ""))
   intimates <- vapply(W$categories, `[[`, "", "id")[keys %in% on_intimates]       # the categories the Intimates plan has racks for
-  W$stores <- lapply(seq_len(32), function(s) {
+  W$stores <- lapply(seq_len(30), function(s) {
     k <- (s - 1) %/% 2 + 1
     st <- W$stores[[1]]
     st$id <- sprintf("store_%02d", s); st$name <- sprintf("Brand %d store %d", k, (s - 1) %% 2 + 1); st$short <- sprintf("B%d-%d", k, (s - 1) %% 2 + 1)
@@ -446,8 +584,11 @@ if (!length(problems)) {
   t_setup <- proc.time()[["elapsed"]] - t0
   r <- run_season_days(7)
   t_week <- sum(r$times)
-  check(r$ok && sum(tally$late) == 0, sprintf("the 16-brand world runs a week (setup %.1f s, a week %.1f s, %d visits a day, 32 stores, 30,000 households)",
-                                             t_setup, t_week, round(sum(tally$visits) / 7)))
+  posted <- ledger$i[seq_len(ledger$n), , drop = FALSE]
+  posted <- posted[posted[, "ret_day"] > 0L & posted[, "brand"] == 16L, , drop = FALSE]
+  check(r$ok && sum(tally$late) == 0 && sum(stock$online[16, ]) > 0 && nrow(posted) > 0 && all(posted[, "ret_store"] == 0L) && sum(tally$post_parcels[, 16]) > 0,
+        sprintf("the 16-brand world runs a week, 9 brands selling online, one with no stores (setup %.1f s, a week %.1f s, %d visits a day, %d online orders a day, 30 stores, 30,000 households); the brand with no stores takes its returns by post (%d items in %d parcels)",
+                t_setup, t_week, round(sum(tally$visits) / 7), round(sum(tally$orders) / 7), nrow(posted), sum(tally$post_parcels[, 16])))
   j <- tryCatch({ for (b in c(1, 2, 16)) to_json(report_offers(b)); to_json(report_market()); to_json(report_strategy()); TRUE }, error = function(e) conditionMessage(e))
   check(isTRUE(j), paste("its reports build", if (!isTRUE(j)) j else ""))
   src <- offer_results(1, detail = TRUE)$sources
@@ -625,7 +766,7 @@ if (!length(msgs)) {
   # every unit shipped is charged, and each store pays once for each day
   # stock arrives, whatever it carries.
   advance(Inf); end_day()                                       # day 18 tallied
-  shipped <- sum(stock$bought) - sum(stock$dc)
+  shipped <- sum(stock$bought) - sum(stock$dc) - sum(stock$online) + sum(stock$restocked_dc)   # to the stores (online orders leave the DC too)
   stops <- sum(tally$deliveries)
   fees <- sum(tally$deliveries %*% diag(P_STOCK$delivery_fee[STORES$brand]) + tally$shipped %*% diag(P_STOCK$unit_fee[STORES$brand]))
   ours_orders <- sum(cal$orders$units[ours[cal$orders$entry]] > 0)
@@ -669,7 +810,7 @@ if (!length(msgs)) {
   world_install(W); P$pace <- "season"; setup(12)
   while (day < 28) one_day()
   advance(Inf); end_day()
-  st <- prod_totals(stock$sold)[1, ] / pmax(prod_totals(stock$bought, by_brand = TRUE)[1, ], 1)
+  st <- net_sold()[1, ] / pmax(prod_totals(stock$bought, by_brand = TRUE)[1, ], 1)          # sold, net of returns
   judged <- launched[1, ] & 29 - PROD_DAY[1, ] >= 14
   behind <- judged & st < P_PRICE$md_target[1] * planned_by(28)[1, ] - 0.05
   prev <- list(d = d, legs = legs, staff = staff, today = today, vlog = vlog, day = day); start_day()
@@ -741,6 +882,56 @@ world_install(U); P$pace <- "season"; setup(3)
 r <- run_season_days(7)
 check(r$ok && sum(tally$visits) > 0 && sum(tally$offer_cost) > 0, "the upgraded version 5 world runs a week, its offers sent")
 
+# ---- Online stores and returns ----------------------------------------------------------------
+
+cat("Online stores and returns\n")
+# Broken online and return settings are refused, each where it is.
+W <- default_world()
+W$brands[[1]]$online$delivery_days <- 0
+W$brands[[1]]$online$on <- "yes"
+W$brands[[2]]$online$shipping_cost <- -1
+W$brands[[2]]$returns$window_days <- 400
+W$brands[[3]]$returns$post_cost <- "free"
+W$brands[[4]]$online <- NULL
+W$brands[[5]]$returns$extra <- 1
+W$segments[[1]]$online <- 5
+msgs <- problem_text(W)
+want <- c("brands[1].online.delivery_days: 0 is outside 1 to 14", "brands[1].online.on: must be true or false",
+          "brands[2].online.shipping_cost: -1 is outside 0 to 50", "brands[2].returns.window_days: 400 is outside 0 to 365",
+          "brands[3].returns.post_cost: must be a number", "brands[4].online: missing", "brands[5].returns.extra: not a setting the world file has",
+          "segments[1].online: 5 is outside -3 to 3")
+check(all(want %in% msgs), sprintf("broken online and return settings are refused, each where it is (%d problems)%s", length(msgs),
+                                   if (all(want %in% msgs)) "" else paste(": missing", paste(setdiff(want, msgs), collapse = "; "))))
+# A brand with no stores needs an online store that plans to sell something.
+W <- default_world()
+fast <- brand_no(W, "fast")
+W$stores <- Filter(function(st) st$brand != "fast", W$stores)
+W$brands[[fast]]$online$on <- FALSE
+msgs <- problem_text(W)
+W$brands[[fast]]$online$on <- TRUE; W$brands[[fast]]$online$plan_stores <- 0
+msgs2 <- problem_text(W)
+check(sprintf("brands[%d]: Fast runs no stores and has no online store: it needs one or the other", fast) %in% msgs &&
+      sprintf("brands[%d].online.plan_stores: Fast runs no stores, and its online store plans to sell nothing, so it buys nothing to sell", fast) %in% msgs2,
+      "a brand with no stores and no online store is refused, and so is one with no stores whose online store plans to sell nothing")
+
+# An offer's lift is measured net of returns, a return counted against the
+# purchase it reverses even when it comes after the offer has ended: a
+# three-day email from Ours, measured nine days after it ends.
+W <- default_world()
+W$brands[[1]]$calendar$offers <- list(list(id = "flash", name = "Flash email", from = 2L, to = 4L, depth = 0.2, send_cost = 0.02, audience = 0.8,
+                                          holdout = 0.2, tiers = list("none", "low", "mid", "high"), areas = list(), also_at = list()))
+msgs <- problem_text(W)
+if (!length(msgs)) {
+  world_install(W); P$pace <- "season"; setup(5)
+  for (i in 1:13) { advance(Inf); finish_day() }
+  k <- which(OFFERS$id == "flash")
+  r <- offer_results(k, detail = TRUE); want <- offer_net(k)
+  check(want$late > 0 && abs(r$spend$diff - want$spend$diff) < 1e-9 && abs(r$margin$diff - want$margin$diff) < 1e-9 &&
+        abs(r$refunds - want$refunds) < 1e-6,
+        sprintf("an offer's lift is net of returns, including those made after it ended: the Flash email (days 2 to 4) %s per household sent, net (%s gross), %s refunded on its purchases, %d items of them returned after day 4",
+                sprintf("$%.2f", r$spend$diff), sprintf("$%.2f", want$gross$diff), sprintf("$%.0f", want$refunds), want$late))
+} else check(FALSE, paste("the flash-offer world checks clean:", msgs[1]))
+
 # ---- A version 6 world ------------------------------------------------------------------
 
 # A version 6 world upgrades: the settings of the Market tab's old promotion
@@ -758,12 +949,14 @@ rec <- jsonlite::fromJSON(file.path(root, "tools", "fixtures", "v6-season.json")
 world_install(U); P$pace <- "season"; setup(rec$seed)
 n6 <- min(n_season, rec$days)
 r <- run_season_days(n6)
-by_brand <- function(what) t(vapply(seq_len(n6), function(i) as.vector(rowsum(colSums(tally[[what]][i, , ]), STORES$brand, reorder = TRUE)), numeric(N_BRANDS)))
+by_brand <- function(what) t(vapply(seq_len(n6), function(i) brand_of_stores(colSums(tally[[what]][i, , ])), numeric(N_BRANDS)))
 visits6 <- t(vapply(seq_len(n6), function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
 same6 <- identical(visits6, rec$visits[seq_len(n6), , drop = FALSE]) && max(abs(by_brand("sales") - rec$sales[seq_len(n6), , drop = FALSE])) < 0.006 &&
   identical(round(by_brand("units")), rec$units[seq_len(n6), , drop = FALSE] + 0)
-check(r$ok && same6, sprintf("the upgraded version 6 world runs the season the version 6 model ran: %d days, %s visits, identical by day and outcome, and sales and units by brand",
-                             n6, format(sum(visits6), big.mark = ",")))
+none6 <- !any(ONLINE$on) && all(RETURNS$window_days == 0) && sum(stock$online) == 0 && sum(tally$refunds) == 0 && sum(tally$trips) == 0 &&
+  all(ledger$i[seq_len(ledger$n), "store"] > 0L) && all(ledger$i[seq_len(ledger$n), "due"] == 0L)
+check(r$ok && same6 && none6, sprintf("the upgraded version 6 world runs the season the version 6 model ran, with no online orders and no returns: %d days, %s visits, identical by day and outcome, and sales and units by brand",
+                                      n6, format(sum(visits6), big.mark = ",")))
 
 # ---- A version 1 world ------------------------------------------------------------------
 

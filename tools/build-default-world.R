@@ -4,8 +4,9 @@
 # world file, again when the world file gained categories and each brand's
 # range and calendar (version 2), again when replenishment and markdowns
 # became calendar entries (version 3), again when the brands got ranges
-# of their own (version 5), and again when loyalty tiers came to be earned
-# by spend and offers became named entries on the calendar (version 6);
+# of their own (version 5), again when loyalty tiers came to be earned
+# by spend and offers became named entries on the calendar (version 6),
+# and again when brands could sell online and take returns (version 7);
 # kept as the record of where the default world's numbers came from. They were the constants in model/params.R and the
 # pictures in model/floors.R: the world is built as the version 1 file it
 # was, then upgraded (model/world.R, world_upgrade: the fixed catalogue
@@ -539,6 +540,35 @@ for (b in seq_len(N_BRANDS)) {
   cat(sprintf("  %-15s %s  (%.0f%% of households bought from it)\n", BRANDS$name[b],
               paste(sprintf("%s $%s", TIER_NAMES[[b]], c(0, spend)), collapse = ", "), 100 * mean(mk$spend[, b] > 0)))
 }
+
+# ---- Online stores and returns -------------------------------------------------------------
+
+# Since version 7 a brand may have an online store, and takes returns. The
+# numbers are illustrative, not any company's: four of the five brands sell
+# online (Value doesn't), each with its own delivery days, delivery charge
+# and costs an order, planning its online sales as some standard stores'
+# worth (added to its season's buy); every brand takes returns, Value for
+# 14 days, Premium for 60 and the rest for 30, and a parcel posted back
+# costs the brand $6. Each segment has a taste for shopping online:
+# convenience shoppers like it most, value seekers least. The plans and
+# tiers above were measured without them.
+online_store <- function(on, days, charge, fulfilment, shipping, plan) {
+  list(on = on, delivery_days = days, delivery_charge = charge, fulfilment_cost = fulfilment, shipping_cost = shipping, plan_stores = plan)
+}
+ONLINE_OF <- list(
+  ours = online_store(TRUE, 3L, 3.95, 3.5, 6, 2),
+  ours_intimates = online_store(TRUE, 3L, 2.95, 3, 4.5, 1),
+  value = online_store(FALSE, 4L, 4.95, 2.5, 5, 1),
+  premium = online_store(TRUE, 2L, 0, 4.5, 7.5, 1.5),
+  fast = online_store(TRUE, 4L, 2.95, 2.5, 5, 2))
+RETURNS_OF <- list(ours = 30L, ours_intimates = 30L, value = 14L, premium = 60L, fast = 30L)
+ONLINE_TASTE <- list(value_seekers = -1.4, trend_followers = -0.2, quality_loyalists = -0.8, convenience = 0.2)
+for (b in seq_along(W$brands)) {
+  id <- W$brands[[b]]$id
+  W$brands[[b]]$online <- ONLINE_OF[[id]]
+  W$brands[[b]]$returns <- list(window_days = RETURNS_OF[[id]], post_cost = 6)
+}
+for (g in seq_along(W$segments)) W$segments[[g]]$online <- ONLINE_TASTE[[W$segments[[g]]$id]]
 
 # ---- Write --------------------------------------------------------------------------------
 

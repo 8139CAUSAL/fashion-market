@@ -5,7 +5,8 @@
 // against the offer, never from the simulation's hidden response: extra
 // spend and margin per household, by tier, and where the extra spend came
 // from (the brand itself, the other brands the coupon is good at, its
-// sister brands, its competitors). Below, the brand's loyalty tiers: who
+// sister brands, its competitors). All net of returns: a return counts
+// against the purchase it reverses, even if it comes after the offer. Below, the brand's loyalty tiers: who
 // has kept theirs this season, moved up, or not re-qualified yet.
 
 import { el, fmt, select, card, stats, brandVar } from "../ui.js";
@@ -20,7 +21,7 @@ export class OffersTab {
   constructor(root, app) {
     this.app = app; this.brand = 1; this.pick = 0;
     root.append(el("div", { class: "tab-intro" }, el("h1", { text: "Offers" }),
-      el("p", { text: "Each brand's offers: named coupons on its calendar (Setup, Offers). An offer is sent to a random share of the households it reaches, and a random share of those is held out and sent nothing. What an offer earned is what the households sent it spent beyond those held out, over its days, measured from their purchases alone. Below, the brand's loyalty tiers, earned by spend: who has kept theirs this season, who moved up, and who hasn't re-qualified yet." })));
+      el("p", { text: "Each brand's offers: named coupons on its calendar (Setup, Offers). An offer is sent to a random share of the households it reaches, and a random share of those is held out and sent nothing. What an offer earned is what the households sent it spent beyond those held out, over its days, measured from their purchases alone, net of returns: an item bought during the offer and returned later, even after the offer ended, comes off the purchase it was part of, its refund off spend and the margin it made off margin. So an offer's lift can fall after it closes. Below, the brand's loyalty tiers, earned by spend net of refunds: who has kept theirs this season, who moved up, and who hasn't re-qualified yet." })));
 
     this.brandSel = select({ label: "Brand", value: 1, options: [], onChange: (v) => { this.brand = Number(v); this.chosen = true; this.pick = 0; this.#view(); } });
     this.offerSel = select({ label: "Offer", value: 0, options: [], onChange: (v) => { this.pick = Number(v); this.#view(); } });
@@ -33,13 +34,14 @@ export class OffersTab {
       { key: "run", label: "Offers sent" }, { key: "sent", label: "Coupons sent", title: "One per household in each offer it was sent: a household sent two offers counts twice" },
       { key: "used", label: "Coupons used" }, { key: "send", label: "Cost of sending" },
       { key: "discount", label: "Discount given", title: "What the coupons took off purchases: already out of sales and margin" },
+      { key: "refunds", label: "Refunded", title: "Refunds on the purchases made at the brands its coupons are good at during its offers, so far: they come off the spend and margin measured" },
       { key: "extra_sales", label: "Extra sales", title: "Spend per household sent, less spend per household held out, times the households sent" },
       { key: "extra_margin", label: "Extra margin", title: "Margin (sales less cost of goods) per household sent, less per household held out, times the households sent, less the cost of sending" },
     ]);
     this.kpiNote = el("p", { class: "note" });
     this.kpiCard.body.append(kpis, this.kpiNote);
 
-    this.curveCard = card("Spend per household, sent against held out");
+    this.curveCard = card("Spend per household, sent against held out, net of returns");
     this.curve = new LineChart(this.curveCard.body, { height: 220, format: fmt.money2, legend: true, xFormat: (x) => `day ${x}`, tipTitle: (x) => `By the end of day ${x}`,
       emptyText: "Once the offer has been sent" });
     this.curveNote = el("p", { class: "note" });
@@ -48,7 +50,7 @@ export class OffersTab {
 
     const list = card("Every offer, sent against held out", { sub: "per household over each offer's days, at the brands its coupon is good at · click an offer to see it in detail" });
     this.listBox = el("div", { class: "table-scroll" });
-    list.body.append(this.listBox, el("p", { class: "note", text: "Extra per household is what a household sent the coupon spent, beyond one held out, with its 95% interval: an interval across zero can't tell the offer from chance. Spend lift is that extra as a share of what a household held out spent. Extra margin counts margin (sales less cost of goods, so the discount is already in it) and takes off the cost of sending." }));
+    list.body.append(this.listBox, el("p", { class: "note", text: "Spend is net of returns: what a household paid during the offer, less the refunds on those items so far, whenever they came back. Extra per household is what a household sent the coupon spent, beyond one held out, with its 95% interval: an interval across zero can't tell the offer from chance. Spend lift is that extra as a share of what a household held out spent. Extra margin counts margin (sales less cost of goods, so the discount is already in it; a return takes back its refund, less the cost of the unit if it goes back in stock) and takes off the cost of sending." }));
     root.append(top, el("div", { class: "grid" }, list.root));
 
     const mid = el("div", { class: "grid offers-mid" });
@@ -113,7 +115,7 @@ export class OffersTab {
       run: { value: fmt.int(t.run), sub: t.planned ? `${fmt.int(t.planned)} still to come` : r.offers.length ? "none still to come" : "none on its calendar" },
       sent: { value: fmt.int(t.sent), sub: `${fmt.int(t.held_out)} held out` },
       used: { value: fmt.int(t.used), sub: t.sent ? `${fmt.pct(t.used / t.sent, 1)} of those sent` : "" },
-      send: fmt.money(t.send_total), discount: fmt.money(t.discount),
+      send: fmt.money(t.send_total), discount: fmt.money(t.discount), refunds: fmt.money(t.refunds),
       extra_sales: fmt.money(t.extra_sales), extra_margin: { value: fmt.money(t.extra_margin), sub: t.measured < t.run ? `${fmt.int(t.run - t.measured)} offer${t.run - t.measured === 1 ? "" : "s"} can't be measured yet` : "after the cost of sending" },
     });
     this.kpiNote.textContent = r.offers.length ? "" : `${name} has no offers on its calendar: add them on the Setup tab (Offers), and they start at the next Setup.`;
@@ -125,7 +127,7 @@ export class OffersTab {
 
   // Every offer, a row each; a click shows it below.
   #list(r) {
-    const cols = ["Offer", "Days", "State", "Sent", "Held out", "Used", "Bought (sent / held out)", "Spend per household (sent / held out)", "Spend lift","Extra per household sent", "Extra sales", "Extra margin"];
+    const cols = ["Offer", "Days", "State", "Sent", "Held out", "Used", "Bought (sent / held out)", "Net spend per household (sent / held out)", "Spend lift", "Extra per household sent", "Extra sales", "Extra margin"];
     const num = (i) => i >= 3;
     const rows = r.offers.map((o) => {
       const on = o.offer === r.selected;

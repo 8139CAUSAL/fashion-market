@@ -228,11 +228,10 @@ markdowns_today <- function() {
   }
 }
 
-# Brand x product: each product's sell-through (sold of what was bought)
-# and its planned sell-through, by last night.
+# Brand x product: each product's sell-through (sold, net of returns, of
+# what was bought) and its planned sell-through, by last night.
 sell_through_now <- function() {
-  sold <- prod_totals(stock$sold)
   bought <- prod_totals(stock$bought, by_brand = TRUE)
-  list(st = sold / pmax(bought, 1), plan = planned_by(day - 1L))
+  list(st = net_sold() / pmax(bought, 1), plan = planned_by(day - 1L))
 }
 

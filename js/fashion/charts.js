@@ -423,8 +423,9 @@ export class Waterfall extends Chart {
     const lo = Math.min(0, ...bars.map((b) => Math.min(b.from, b.to)));
     const hi = Math.max(0, ...bars.map((b) => Math.max(b.from, b.to)));
     const ticks = niceTicks(lo, hi, 4);
+    const y0 = Math.min(lo, ticks[0]); const y1 = Math.max(hi, ticks.at(-1));     // the bars, not just the ticks, fit
     const left = 8 + Math.max(...ticks.map((t) => f(t).length)) * 6.2; const top = 16; const bottom = 34; const right = 6;
-    const Y = (v) => top + (1 - (v - ticks[0]) / (ticks.at(-1) - ticks[0] || 1)) * (H - top - bottom);
+    const Y = (v) => top + (1 - (v - y0) / (y1 - y0 || 1)) * (H - top - bottom);
     for (const t of ticks) { s("line", { x1: left, x2: W - right, y1: Y(t), y2: Y(t), class: t === 0 ? "axis-line" : "grid-line" }, this.svg); text(this.svg, left - 6, Y(t) + 4, f(t), { "text-anchor": "end" }); }
     const band = (W - left - right) / bars.length; const bw = Math.min(28, band * 0.6);
     bars.forEach((b, i) => {

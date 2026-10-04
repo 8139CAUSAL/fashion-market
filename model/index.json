@@ -1,3 +1,3 @@
 {
-  "files": ["params.R", "util.R", "grid.R", "world.R", "city.R", "floors.R", "loyalty.R", "store.R", "events.R", "market.R", "stock.R", "calendar.R", "offers.R", "tally.R", "frames.R", "reports.R", "main.R"]
+  "files": ["params.R", "util.R", "grid.R", "world.R", "city.R", "floors.R", "loyalty.R", "store.R", "events.R", "market.R", "stock.R", "calendar.R", "offers.R", "online.R", "returns.R", "tally.R", "frames.R", "reports.R", "main.R"]
 }

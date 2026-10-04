@@ -1124,7 +1124,16 @@
             "also_at": []
           }
         ]
-      }
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 3,
+        "delivery_charge": 3.95,
+        "fulfilment_cost": 3.5,
+        "shipping_cost": 6,
+        "plan_stores": 2
+      },
+      "returns": {"window_days": 30, "post_cost": 6}
     },
     {
       "id": "ours_intimates",
@@ -1433,7 +1442,16 @@
             "also_at": ["ours"]
           }
         ]
-      }
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 3,
+        "delivery_charge": 2.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 4.5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 30, "post_cost": 6}
     },
     {
       "id": "value",
@@ -1734,7 +1752,16 @@
           }
         ],
         "offers": []
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 4,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 2.5,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 14, "post_cost": 6}
     },
     {
       "id": "premium",
@@ -1977,7 +2004,16 @@
           }
         ],
         "offers": []
-      }
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 2,
+        "delivery_charge": 0,
+        "fulfilment_cost": 4.5,
+        "shipping_cost": 7.5,
+        "plan_stores": 1.5
+      },
+      "returns": {"window_days": 60, "post_cost": 6}
     },
     {
       "id": "fast",
@@ -2344,7 +2380,16 @@
           }
         ],
         "offers": []
-      }
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 4,
+        "delivery_charge": 2.95,
+        "fulfilment_cost": 2.5,
+        "shipping_cost": 5,
+        "plan_stores": 2
+      },
+      "returns": {"window_days": 30, "post_cost": 6}
     }
   ],
   "segments": [
@@ -2375,7 +2420,8 @@
         "sleepwear": 1,
         "loungewear": 1
       },
-      "offer_response": {"shop": 0.9, "appeal": 0.9}
+      "offer_response": {"shop": 0.9, "appeal": 0.9},
+      "online": -1.4
     },
     {
       "id": "trend_followers",
@@ -2404,7 +2450,8 @@
         "sleepwear": 0.5,
         "loungewear": 1.5
       },
-      "offer_response": {"shop": 0.3, "appeal": 0.4}
+      "offer_response": {"shop": 0.3, "appeal": 0.4},
+      "online": -0.2
     },
     {
       "id": "quality_loyalists",
@@ -2433,7 +2480,8 @@
         "sleepwear": 1,
         "loungewear": 1
       },
-      "offer_response": {"shop": 0.05, "appeal": 0.1}
+      "offer_response": {"shop": 0.05, "appeal": 0.1},
+      "online": -0.8
     },
     {
       "id": "convenience",
@@ -2462,7 +2510,8 @@
         "sleepwear": 0.5,
         "loungewear": 1
       },
-      "offer_response": {"shop": 0.35, "appeal": 0.4}
+      "offer_response": {"shop": 0.35, "appeal": 0.4},
+      "online": 0.2
     }
   ],
   "market": {

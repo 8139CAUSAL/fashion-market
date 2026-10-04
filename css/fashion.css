@@ -36,7 +36,7 @@
   --seg-1: #2a78d6; --seg-2: #eb6834; --seg-3: #1baf7a; --seg-4: #eda100;
   /* Shoppers on the floor. */
   --look-1: #52514e; --look-2: #2a78d6; --look-3: #eda100; --look-4: #e87ba4;
-  --look-5: #008300; --look-6: #e34948; --look-7: #1baf7a;
+  --look-5: #008300; --look-6: #e34948; --look-7: #1baf7a; --look-8: #8a5cd6;
   /* Funnel stages (an ordinal blue ramp). */
   --stage-1: #86b6ef; --stage-2: #6da7ec; --stage-3: #5598e7; --stage-4: #3987e5; --stage-5: #2a78d6; --stage-6: #1c5cab;
 
@@ -64,7 +64,7 @@
     --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9; --fitting: #d55181;
     --offer-0: #898781; --offer-1: #3987e5; --offer-2: #199e70; --tier-up: #199e70; --tier-kept: #3987e5; --tier-down: #e0764a;
     --seg-1: #3987e5; --seg-2: #d95926; --seg-3: #199e70; --seg-4: #c98500;
-    --look-1: #c3c2b7; --look-2: #3987e5; --look-3: #c98500; --look-4: #d55181; --look-5: #0ca30c; --look-6: #e66767; --look-7: #199e70;
+    --look-1: #c3c2b7; --look-2: #3987e5; --look-3: #c98500; --look-4: #d55181; --look-5: #0ca30c; --look-6: #e66767; --look-7: #199e70; --look-8: #a37ef0;
     --stage-1: #184f95; --stage-2: #1c5cab; --stage-3: #256abf; --stage-4: #2a78d6; --stage-5: #3987e5; --stage-6: #5598e7;
     --map-land: #1f1f1d; --map-water: #1b3246; --map-park: #1f3321; --map-shops: #3a2f24;
     --map-road: #3a3a37; --map-road-edge: #2a2a28; --map-street: rgba(255, 255, 255, 0.07); --map-label: #e8e6dc; --map-homes: #7a6243; --map-road-paint: #77756d; --map-homes: #7a6243; --map-road-paint: #77756d;
@@ -82,7 +82,7 @@
   --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9; --fitting: #d55181;
   --offer-0: #898781; --offer-1: #3987e5; --offer-2: #199e70; --tier-up: #199e70; --tier-kept: #3987e5; --tier-down: #e0764a;
   --seg-1: #3987e5; --seg-2: #d95926; --seg-3: #199e70; --seg-4: #c98500;
-  --look-1: #c3c2b7; --look-2: #3987e5; --look-3: #c98500; --look-4: #d55181; --look-5: #0ca30c; --look-6: #e66767; --look-7: #199e70;
+  --look-1: #c3c2b7; --look-2: #3987e5; --look-3: #c98500; --look-4: #d55181; --look-5: #0ca30c; --look-6: #e66767; --look-7: #199e70; --look-8: #a37ef0;
   --stage-1: #184f95; --stage-2: #1c5cab; --stage-3: #256abf; --stage-4: #2a78d6; --stage-5: #3987e5; --stage-6: #5598e7;
   --map-land: #1f1f1d; --map-water: #1b3246; --map-park: #1f3321; --map-shops: #3a2f24;
   --map-road: #3a3a37; --map-road-edge: #2a2a28; --map-street: rgba(255, 255, 255, 0.07); --map-label: #e8e6dc; --map-homes: #7a6243; --map-road-paint: #77756d;
@@ -536,6 +536,15 @@ table.tier-matrix td.down { background: color-mix(in srgb, var(--tier-down) 12%,
 .anchor-grid { display: grid; grid-template-columns: repeat(3, 14px); gap: 2px; }
 .anchor-grid button { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--hairline); background: var(--surface-2); padding: 0; cursor: pointer; }
 .anchor-grid button[aria-checked="true"] { background: var(--focus); border-color: var(--focus); }
+
+/* A household's ledger (the Market tab, and the inspector). */
+.ledger { display: grid; gap: 8px; }
+.ledger table.data { font-size: 12px; }
+.ledger .ledger-scroll { max-height: 300px; }
+.ledger-lines tr.returned td { color: var(--muted); }
+.ledger-lines td:nth-child(3), .ledger-lines td:nth-child(7) { min-width: 140px; }
+.ledger.compact ul { font-size: 12px; max-height: 220px; overflow: auto; margin: 0; }
+.ledger.compact li.returned { color: var(--muted); }
 
 /* The Market tab: the promotions running today, brand by brand. */
 .promo-today { display: grid; gap: 8px; }

@@ -1246,7 +1246,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "spook_halloween",
@@ -1412,7 +1421,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "kringles_holiday",
@@ -1587,7 +1605,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "panel_pixel",
@@ -1739,7 +1766,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "haberdash_hats",
@@ -1923,7 +1959,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "sud_scent",
@@ -2075,7 +2120,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "plush_timber",
@@ -2227,7 +2281,16 @@
             "reorder": 1
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "sugar_cask",
@@ -2362,7 +2425,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "retro_vault",
@@ -2514,7 +2586,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     },
     {
       "id": "midnight_comfort",
@@ -2712,7 +2793,16 @@
             "reorder": 1.25
           }
         ]
-      }
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 3,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 0, "post_cost": 6}
     }
   ],
   "segments": [
@@ -2748,7 +2838,8 @@
         "loungewear": 2,
         "slippers": 1.5
       },
-      "offer_response": {"shop": 0.9, "appeal": 0.9}
+      "offer_response": {"shop": 0.9, "appeal": 0.9},
+      "online": 0
     },
     {
       "id": "young_families",
@@ -2782,7 +2873,8 @@
         "loungewear": 2,
         "slippers": 2
       },
-      "offer_response": {"shop": 0.4, "appeal": 0.5}
+      "offer_response": {"shop": 0.4, "appeal": 0.5},
+      "online": 0
     },
     {
       "id": "collectors",
@@ -2816,7 +2908,8 @@
         "loungewear": 0.5,
         "slippers": 0.5
       },
-      "offer_response": {"shop": 0.1, "appeal": 0.2}
+      "offer_response": {"shop": 0.1, "appeal": 0.2},
+      "online": 0
     },
     {
       "id": "style_seekers",
@@ -2850,7 +2943,8 @@
         "loungewear": 3.5,
         "slippers": 2
       },
-      "offer_response": {"shop": 0.35, "appeal": 0.4}
+      "offer_response": {"shop": 0.35, "appeal": 0.4},
+      "online": 0
     },
     {
       "id": "home_nesters",
@@ -2884,7 +2978,8 @@
         "loungewear": 2.5,
         "slippers": 3
       },
-      "offer_response": {"shop": 0.3, "appeal": 0.35}
+      "offer_response": {"shop": 0.3, "appeal": 0.35},
+      "online": 0
     }
   ],
   "market": {

@@ -3,11 +3,12 @@
 # A household is in the market today with a chance that depends on its
 # segment, the day of the week, the point in the season, how much of its
 # season budget is left, promotions and marketing it has heard of, and any
-# offers it holds, as long as some store is within its reach. In the
-# market, it weighs every store within its radius against staying home (a
-# multinomial logit, as households do in the digital twin preset). The
-# radius is its segment's, stretched brand by brand by its loyalty tier
-# with the brand (a loyal shopper goes further). A store's appeal adds up:
+# offers it holds, as long as some store is within its reach, or some brand
+# has an online store. In the market, it weighs every store within its
+# radius, and every online store, against staying home (a multinomial
+# logit). The radius is its segment's, stretched brand by brand by its
+# loyalty tier with the brand (a loyal shopper goes further). A store's
+# appeal adds up:
 #
 #   the household's own taste for the brand (drawn once, kept all season)
 #   what the brand sells: the racks it has for the categories the
@@ -21,8 +22,17 @@
 #   word of mouth from its neighbourhood
 #   the store's layout (a flagship draws more than a small shop)
 #   offers it holds that are good at the brand
+#   the brand's return window (the share of the returns it might want that
+#     the window covers, returns.R)
 #
-# It then drives there along the fastest route, and back.
+# It then drives there along the fastest route, and back. An online store
+# has no trip and no layout: in their place, the segment's taste for
+# shopping online, the wait for delivery, and any delivery charge (weighed
+# with the prices, as a share of a typical order). Its return window pulls
+# harder, since the shopper can't try anything on (online.R).
+#
+# A household with returns due today makes a trip of its own to return
+# them (returns.R), beside any shopping it does.
 
 dow_of <- function(day) (day - 1L) %% 7L + 1L
 week_of <- function(day) (day - 1L) %/% 7L + 1L
@@ -68,6 +78,7 @@ start_day <- function() {
   morning()                              # stock lands and arrives, the calendar orders and marks down (stock.R)
   prices_today()                         # the promotions running today (calendar.R)
   offers_morning()                       # today's offers go out (offers.R)
+  back <- returns_morning()              # returns due today: posted now, or a trip to a store (returns.R)
   hh <- mk$hh
   n <- hh$n
   seg <- hh$segment
@@ -75,8 +86,9 @@ start_day <- function() {
   reach <- promo_reach(all_h)
   pr <- promo_heard(reach)
   heard <- .rowSums(pr$heard, n, N_BRANDS) / N_BRANDS   # share of brands with a promotion reaching the household
-  # Some store within reach: of each brand, the nearest against the radius.
-  reach_any <- .rowSums(mk$near_km <= radius_km(all_h), n, N_BRANDS) > 0
+  # Some store within reach (of each brand, the nearest against the
+  # radius), or any online store.
+  reach_any <- .rowSums(mk$near_km <= radius_km(all_h), n, N_BRANDS) > 0 | any(ONLINE$on)
   ad <- LEVERS$ad$value
   shop <- SEGMENTS$shop[seg] * DOW_TRAFFIC[dow] * season_curve(day) *
     sqrt(pmax(0, mk$budget_left / hh$budget)) *
@@ -95,29 +107,122 @@ start_day <- function() {
   price <- price_position()[b] * (1 - pr$off[hb]) * (1 - mk$at$coupon[hb])
   sg <- seg[hi]
   km <- mk$km[cbind(hi, s)]
+  cover <- window_cover()
   V <- P$taste_w * hh$taste[hb] + range_value(sg, b) + TIER_PULL[bt] - P$price_w * SEGMENTS$price[sg] * TIER_PRICE[bt] * log(price) +
     PROMO_W * SEGMENTS$promo[sg] * pa + AD_W * ad[b] -
     P$km_w * SEGMENTS$km[sg] * km -
     P$grudge_w * TIER_MEMORY[bt] * mk$grudge[hb] + P$wom * mk$buzz[cbind(hh$cell[hi], b)] +
-    FORMAT_APPEAL[STORES$format[s]] + mk$at$util[hb] + gumbel(m * N_STORES)
+    FORMAT_APPEAL[STORES$format[s]] + mk$at$util[hb] + RETURN_PULL[["store"]] * cover[b] + gumbel(m * N_STORES)
   V[km > SEGMENTS$radius_km[sg] * TIER_RADIUS[bt]] <- -Inf
   dim(V) <- c(m, N_STORES)
-  pick <- row_max(cbind(P$outside + gumbel(m), V))$k - 1L
+  home <- P$outside + gumbel(m)
+  # Every online store, in reach of everyone.
+  bo <- which(ONLINE$on)
+  Vo <- NULL
+  if (length(bo)) {
+    k <- length(bo)
+    b <- rep(bo, each = m)
+    hi <- rep(i, times = k)
+    hb <- cbind(hi, b)
+    bt <- cbind(b, mk$tier[hb])
+    sg <- seg[hi]
+    price <- price_position()[b] * (1 - pr$off[hb]) * (1 - mk$at$coupon[hb]) * (1 + delivery_share()[b])
+    Vo <- P$taste_w * hh$taste[hb] + range_value(sg, b) + TIER_PULL[bt] - P$price_w * SEGMENTS$price[sg] * TIER_PRICE[bt] * log(price) +
+      PROMO_W * SEGMENTS$promo[sg] * pr$heard[hb] + AD_W * ad[b] -
+      P$grudge_w * TIER_MEMORY[bt] * mk$grudge[hb] + P$wom * mk$buzz[cbind(hh$cell[hi], b)] + mk$at$util[hb] +
+      SEGMENTS$online[sg] - DELIVERY_W * ONLINE$delivery_days[b] + RETURN_PULL[["online"]] * cover[b] + gumbel(m * k)
+    dim(Vo) <- c(m, k)
+  }
+  pick <- row_max(cbind(home, V, Vo))$k - 1L
   went <- pick > 0
+  store <- went & pick <= N_STORES
+  online <- pick > N_STORES
   today$in_market <<- tabulate(hh$bin[i], AREA_BINS)
   today$stayed_home <<- tabulate(hh$bin[i[!went]], AREA_BINS)
   today$in_market_hh <<- i
-  new_visits(i[went], pick[went], reach[i[went], , drop = FALSE])
+  new_visits(i[store], pick[store], reach[i[store], , drop = FALSE],
+             i[online], bo[pick[online] - N_STORES], reach[i[online], , drop = FALSE], back, reach[back$hh, , drop = FALSE])
 }
 
-# Today's visits: who, where, when they arrive, which racks they'll browse
-# (their segment's favourite of the categories the brand sells, in a
-# random order), and what comes off their prices (the promotions reaching
-# them, and a coupon: its depth, and the offer it's from).
-new_visits <- function(h, store, reach) {
+# Today's visits: the shoppers in the stores, the online shoppers, and the
+# households returning items to a store. Who, where, when they arrive (or
+# order), which racks they'll browse (their segment's favourite of the
+# categories the brand sells, in a random order), and what comes off their
+# prices (the promotions reaching them, and a coupon: its depth, and the
+# offer it's from). The store shoppers' draws come first, in the order
+# they always have, so a world with no online stores and no returns runs
+# as it did.
+new_visits <- function(h, store, reach, h_on = integer(), b_on = integer(), reach_on = reach[0, , drop = FALSE], back = NULL,
+                       reach_back = reach[0, , drop = FALSE]) {
   hh <- mk$hh
-  v <- length(h); seg <- hh$segment[h]
   brand <- STORES$brand[store]; fmt <- STORES$format[store]
+  S <- browse_plan(h, brand)
+  speed <- runif(length(h), WALK_MPS[1], WALK_MPS[2])
+  at <- fl$entrance[fmt]
+  # In a store with several doors, each shopper comes in by one of them (a
+  # draw made only where there's a choice).
+  many <- which(fl$n_doors[fmt] > 1L)
+  if (length(many)) at[many] <- door_in(fmt[many])
+  O <- browse_plan(h_on, b_on)
+  # Returning: a trip to the store, straight to the tills.
+  r <- back$hh %||% integer(); rs <- back$store %||% integer(); nr <- length(r)
+  r_fmt <- STORES$format[rs]; r_at <- fl$entrance[r_fmt]; r_arrive <- numeric(); r_speed <- numeric()
+  if (nr) {
+    hour <- sample.int(length(HOURLY), nr, replace = TRUE, prob = HOURLY)
+    r_arrive <- pmin(LAST_ENTRY_S, (hour - 1) * 3600 + runif(nr, 0, 3600))
+    r_speed <- runif(nr, WALK_MPS[1], WALK_MPS[2])
+    many <- which(fl$n_doors[r_fmt] > 1L)
+    if (length(many)) r_at[many] <- door_in(r_fmt[many])
+  }
+
+  vs <- length(h); vo <- length(h_on); v <- vs + vo + nr
+  H <- c(h, h_on, r); B <- c(brand, b_on, STORES$brand[rs]); ST <- c(store, integer(vo), rs)
+  online <- rep(c(FALSE, TRUE, FALSE), c(vs, vo, nr)); ret <- rep(c(FALSE, FALSE, TRUE), c(vs, vo, nr))
+  hb <- cbind(H, B)
+  arrive <- c(S$arrive, O$arrive, r_arrive)
+  coupon <- mk$at$coupon[hb]; coupon[ret] <- 0
+  coupon_from <- mk$at$coupon_from[hb]; coupon_from[ret] <- 0L
+  reached <- rbind(reach, reach_on, reach_back)
+  promos <- promo_rows(B, reached)
+  floor <- which(!online)
+
+  d <<- list(
+    v = v, hh = H, seg = hh$segment[H], size = hh$size[H], area = hh$area[H], bin = hh$bin[H],
+    store = ST, outlet = ifelse_int(online, N_STORES + B, ST), brand = B, format = c(fmt, integer(vo), r_fmt), tier = mk$tier[hb],
+    online = online, ret = ret, ret_lines = c(vector("list", vs + vo), back$lines),   # returning: the ledger lines they bring back
+    arrive = arrive, travel = c(mk$drive_s[cbind(h, store)], numeric(vo), mk$drive_s[cbind(r, rs)]) + MACRO$park_s * !online,
+    speed = c(speed, numeric(vo), r_speed),
+    zone = rbind(S$zone, O$zone, matrix(0L, nr, MAX_ITEMS + 1L)), n_zones = c(S$n_zones, O$n_zones, integer(nr)), zi = integer(v),
+    at = c(at, integer(vo), r_at),             # the anchor they're at, or last left (online: none)
+    ev_at = arrive, ev_kind = rep(EV_MOVE, v), # their next decision: when, and what
+    items = c(integer(vs + vo), lengths(back$lines)), n_try = integer(v),    # carried (or brought back), and of those to try on
+    basket = matrix(0L, v, MAX_ITEMS), paid_for = matrix(0, v, MAX_ITEMS), full_for = matrix(0, v, MAX_ITEMS),
+    md_for = matrix(0, v, MAX_ITEMS), off_for = matrix(0, v, MAX_ITEMS),     # each item's markdown, and promotion, when taken
+    promos = today_promos$k, promo_row = promos$row, promo_off = promos$off, reached = reached, coupon = coupon, coupon_from = coupon_from, coupon_saved = numeric(v),
+    budget = mk$budget_left[H], spent = numeric(v), advised = numeric(v), tried = logical(v),
+    missed_size = logical(v), too_dear = logical(v), wait = numeric(v),
+    outcome = integer(v), outcome_at = rep(NA_real_, v), gone = rep(Inf, v),
+    sales = numeric(v), full_value = numeric(v), units = integer(v), cogs = numeric(v), delivery = numeric(v),
+    events = 0L, late = 0L,
+    by_arrival = floor[order(arrive[floor])], next_in = 1L, active = integer(),   # visits on a store floor
+    on_order = which(online)[order(arrive[online])], on_next = 1L                 # online visits
+  )
+  legs <<- new_legs(12L * v)
+  staff <<- new_staff_log()
+  vlog <<- list(n = 0L, m = matrix(0, 12L * v, VLOG_COLS))
+  queues <<- new_queues()
+  exits <<- list(v = integer(), t0 = numeric(), outcome = integer())
+  trips <<- NULL
+  next_step <<- 0; clock <<- 0
+}
+
+# Shoppers h at brands `brand`: when they come (draws: an hour, then a
+# moment in it), and the racks they'll browse (draws: the day's taste for
+# each category, then how many).
+browse_plan <- function(h, brand) {
+  v <- length(h)
+  if (!v) return(list(arrive = numeric(), zone = matrix(0L, 0, MAX_ITEMS + 1L), n_zones = integer()))
+  seg <- mk$hh$segment[h]
   hour <- sample.int(length(HOURLY), v, replace = TRUE, prob = HOURLY)
   CT <- log(CATEGORY_TASTE[seg, , drop = FALSE]) + matrix(gumbel(v * N_CATS), v)
   CT[!CARRIES[brand, , drop = FALSE]] <- -Inf
@@ -127,42 +232,9 @@ new_visits <- function(h, store, reach) {
     CT[cbind(seq_len(v), zone[, k])] <- -Inf
   }
   arrive <- pmin(LAST_ENTRY_S, (hour - 1) * 3600 + runif(v, 0, 3600))
-  hb <- cbind(h, brand)
-  travel <- mk$drive_s[cbind(h, store)] + MACRO$park_s
-  coupon <- mk$at$coupon[hb]
   n_zones <- pmin(MAX_ITEMS + 1L, 1L + rpois(v, SEGMENTS$zones[seg] - 1),
                   .rowSums(CARRIES[brand, , drop = FALSE] & CATEGORY_TASTE[seg, , drop = FALSE] > 0, v, N_CATS))
-  promos <- promo_rows(brand, reach)
-
-  d <<- list(
-    v = v, hh = h, seg = seg, size = hh$size[h], area = hh$area[h], bin = hh$bin[h],
-    store = store, brand = brand, format = fmt, tier = mk$tier[hb],
-    arrive = arrive, travel = travel, speed = runif(v, WALK_MPS[1], WALK_MPS[2]),
-    zone = zone, n_zones = n_zones, zi = integer(v),
-    at = fl$entrance[fmt],                     # the anchor they're at, or last left (a store with several doors: below)
-    ev_at = arrive, ev_kind = rep(EV_MOVE, v), # their next decision: when, and what
-    items = integer(v), n_try = integer(v),    # carried, and of those to try on
-    basket = matrix(0L, v, MAX_ITEMS), paid_for = matrix(0, v, MAX_ITEMS), full_for = matrix(0, v, MAX_ITEMS),
-    md_for = matrix(0, v, MAX_ITEMS), off_for = matrix(0, v, MAX_ITEMS),     # each item's markdown, and promotion, when taken
-    promos = today_promos$k, promo_row = promos$row, promo_off = promos$off, reached = reach, coupon = coupon, coupon_from = mk$at$coupon_from[hb], coupon_saved = numeric(v),
-    budget = mk$budget_left[h], spent = numeric(v), advised = numeric(v), tried = logical(v),
-    missed_size = logical(v), too_dear = logical(v), wait = numeric(v),
-    outcome = integer(v), outcome_at = rep(NA_real_, v), gone = rep(Inf, v),
-    sales = numeric(v), full_value = numeric(v), units = integer(v), cogs = numeric(v),
-    events = 0L, late = 0L,
-    by_arrival = order(arrive), next_in = 1L, active = integer()
-  )
-  # In a store with several doors, each shopper comes in by one of them (a
-  # draw made only where there's a choice).
-  many <- which(fl$n_doors[fmt] > 1L)
-  if (length(many)) d$at[many] <<- door_in(fmt[many])
-  legs <<- new_legs(12L * v)
-  staff <<- new_staff_log()
-  vlog <<- list(n = 0L, m = matrix(0, 12L * v, VLOG_COLS))
-  queues <<- new_queues()
-  exits <<- list(v = integer(), t0 = numeric(), outcome = integer())
-  trips <<- NULL
-  next_step <<- 0; clock <<- 0
+  list(arrive = arrive, zone = zone, n_zones = n_zones)
 }
 
 # The store clock runs to `to`, taking every simulation step that begins by
@@ -176,11 +248,12 @@ advance <- function(to) {
   clock <<- if (is.finite(to)) to else next_step
 }
 
-day_over <- function() next_step >= DAY_S && d$next_in > d$v && !any(is.finite(d$ev_at[d$active]))
+day_over <- function() next_step >= DAY_S && d$next_in > length(d$by_arrival) && d$on_next > length(d$on_order) && !any(is.finite(d$ev_at[d$active]))
 
 # After closing: what the day did to each household (the brand it last
-# bought from, its budget, its loyalty tiers, bad visits it remembers), and
-# word of mouth.
+# bought from, its budget, less what it paid and plus its refunds, its
+# loyalty tiers, bad visits it remembers), word of mouth, and the fate of
+# the day's sales (returns.R).
 end_day <- function() {
   hh <- mk$hh
   paid <- d$outcome == 1L
@@ -188,22 +261,31 @@ end_day <- function() {
   mk$last_brand[d$hh[paid]] <<- d$brand[paid]
   mk$customer[cbind(d$hh[paid], d$brand[paid])] <<- TRUE
   season_log_add()
-  mk$budget_left[d$hh[paid]] <<- mk$budget_left[d$hh[paid]] - d$sales[paid]
+  mk$budget_left[d$hh[paid]] <<- mk$budget_left[d$hh[paid]] - d$sales[paid] - d$delivery[paid]
+  rf <- refunds_today()
+  if (length(rf$hh)) {
+    back <- rowsum(rf$refund, rf$hh)
+    mk$budget_left[as.integer(rownames(back))] <<- mk$budget_left[as.integer(rownames(back))] + back[, 1]
+  }
   g <- cbind(d$hh[bad], d$brand[bad])
   mk$grudge <<- mk$grudge * P$memory
   mk$grudge[g] <<- mk$grudge[g] + 1
-  tiers_evening()
+  tiers_evening(rf)
 
   # Word of mouth: each neighbourhood's feeling about each brand follows
-  # how its households' visits went, good (paid) against bad.
-  cell <- hh$cell[d$hh]
-  key <- (d$brand - 1L) * N_WOM_CELLS + cell
+  # how its households' shopping went, in its stores and online, good
+  # (paid) against bad.
+  shop <- !d$ret
+  paid <- paid[shop]; bad <- bad[shop]
+  cell <- hh$cell[d$hh[shop]]
+  key <- (d$brand[shop] - 1L) * N_WOM_CELLS + cell
   n <- tabulate(key, N_WOM_CELLS * N_BRANDS)
   net <- tabulate(key[paid], N_WOM_CELLS * N_BRANDS) - 2 * tabulate(key[bad], N_WOM_CELLS * N_BRANDS)
   heard <- n > 0
   mk$buzz[heard] <<- 0.9 * mk$buzz[heard] + 0.1 * (net[heard] / (n[heard] + 3))
 
   offers_evening()
+  returns_evening()
   tally_day()
 }
 

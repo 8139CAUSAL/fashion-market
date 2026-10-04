@@ -258,7 +258,7 @@ export class CityView {
       { colour: this.geo.brands[st.brand - 1]?.colour, value: this.geo.brands[st.brand - 1]?.name, name: `${st.format} layout · ${st.area ? this.geo.areas[st.area - 1]?.name : "outside every area"}` },
       { value: fmt.int(stat?.visits), name: "visits today" },
       { value: fmt.int(stat?.inside), name: "in the store now" },
-      { value: fmt.money(stat?.sales), name: "sales this season" },
+      { value: fmt.money(stat?.sales), name: "net sales this season (after refunds)" },
       { value: "Click", name: "to open its floor" },
     ]);
   }

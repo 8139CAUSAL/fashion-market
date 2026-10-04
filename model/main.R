@@ -23,7 +23,7 @@
 
 fl <- NULL; city <- NULL; hh_cache <- NULL; km_cache <- NULL
 mk <- NULL; d <- NULL; legs <- NULL; staff <- NULL; vlog <- NULL; queues <- NULL; exits <- NULL
-stock <- NULL; tally <- NULL; today <- NULL; ofr <- NULL; cal <- NULL; prev <- NULL; season_log <- NULL
+stock <- NULL; tally <- NULL; today <- NULL; ofr <- NULL; cal <- NULL; prev <- NULL; season_log <- NULL; ledger <- NULL
 cat_price <- NULL; markdown <- NULL; marked_on <- NULL; pop <- NULL; launched <- NULL; today_promos <- NULL
 day <- 0L; clock <- 0; next_step <- 0; season_over <- FALSE
 P <- DEFAULTS
@@ -45,20 +45,26 @@ setup <- function(seed = P$seed) {
     world_version <<- world_version + 1L
   }
   n <- hh_cache$n
-  near <- vapply(seq_len(N_BRANDS), function(b) {             # each household's nearest store of each brand, km
+  # Each household's nearest store of each brand by route (0: the brand has
+  # none), and how far, km.
+  near_store <- matrix(0L, n, N_BRANDS); near <- matrix(Inf, n, N_BRANDS)
+  for (b in seq_len(N_BRANDS)) {
     s <- which(STORES$brand == b)
-    do.call(pmin, c(lapply(s, function(k) km_cache$km[, k]), Inf))
-  }, numeric(n))
-  mk <<- list(hh = hh_cache, km = km_cache$km, drive_s = km_cache$drive_s, near_km = matrix(near, n),
+    if (!length(s)) next
+    best <- row_max(-km_cache$km[, s, drop = FALSE])
+    near_store[, b] <- s[best$k]; near[, b] <- -best$max
+  }
+  mk <<- list(hh = hh_cache, km = km_cache$km, drive_s = km_cache$drive_s, near_km = near, near_store = near_store,
               grudge = matrix(0, n, N_BRANDS), last_brand = integer(n),
               budget_left = hh_cache$budget, buzz = matrix(0.3, N_WOM_CELLS, N_BRANDS), customer = matrix(FALSE, n, N_BRANDS),
-              tier = hh_cache$tier0, tier0 = hh_cache$tier0, spend = matrix(0, n, N_BRANDS), spend_day = 0L)
+              tier = hh_cache$tier0, tier0 = hh_cache$tier0, spend = matrix(0, n, N_BRANDS), spend_max = matrix(0, n, N_BRANDS), spend_day = 0L)
   prev <<- NULL
-  season_log <<- list(n = 0L, m = matrix(0L, 3500L * SEASON_DAYS, 4), sales = numeric(3500L * SEASON_DAYS))
+  season_log <<- list(n = 0L, m = matrix(0L, 3500L * SEASON_DAYS, 5), sales = numeric(3500L * SEASON_DAYS))
   day <<- 0L; season_over <<- FALSE; trips <<- NULL
   selected <<- list(household = NA_integer_, visit = NA_integer_, visit_day = NA_integer_, inspect = NULL)
   init_catalogue()
   init_tally()
+  init_ledger()
   new_today()
   init_stock()
   init_calendar()

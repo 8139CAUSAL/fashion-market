@@ -3,7 +3,9 @@
 // with fixtures by category and shoppers on it, a footfall heat map, the
 // process flow with live counts, and its KPIs. Click a shopper or a worker
 // on the floor and the inspector shows inside their head. Its settings are
-// on the Setup tab.
+// on the Setup tab. Households bring returns back to the tills here, from
+// any of the brand's stores or its online store. A brand's online store has
+// no floor, so it isn't in the picker.
 
 import { el, fmt, select, segmented, card, stats, brandVar } from "../ui.js";
 import { LineChart, BarChart } from "../charts.js";
@@ -18,7 +20,7 @@ export class StoreTab {
   constructor(root, app) {
     this.app = app; this.store = 1; this.mode = "floor"; this.lastFollow = null;
     root.append(el("div", { class: "tab-intro" }, el("h1", { text: "Store" }),
-      el("p", { text: "Any store's floor, live. This is the same simulation the market numbers come from: every dot is one visit from a household on the map, and every figure on the other tabs adds up visits like these. The clock runs at the speed set at the top; click a shopper or a worker to see inside their head." })));
+      el("p", { text: "Any store's floor, live. This is the same simulation the market numbers come from: every dot is one visit from a household on the map, and every figure on the other tabs adds up visits like these. Some come only to return something, straight to the tills. The clock runs at the speed set at the top; click a shopper or a worker to see inside their head." })));
 
     // Picker and view switch.
     this.distSel = select({ label: "Area", hideLabel: true, value: 0, options: [{ value: 0, label: "Every area" }], onChange: () => this.#fillStores() });
@@ -52,7 +54,7 @@ export class StoreTab {
 
     // The inspector, KPIs and the followed shopper.
     const right = el("div", { class: "grid" });
-    this.inspector = new Inspector({ onClose: () => app.action("close_inspector"), onHousehold: (h) => app.openHousehold(h) });
+    this.inspector = new Inspector({ onClose: () => app.action("close_inspector"), onHousehold: (h) => app.openHousehold(h), app });
     right.append(this.inspector.root);
     const k = card("Today", { sub: "" });
     this.kpiCard = k;
@@ -60,10 +62,13 @@ export class StoreTab {
     this.kpi = stats(kbox, [
       { key: "traffic", label: "Traffic" }, { key: "inside", label: "In the store now" },
       { key: "receipts", label: "Receipts" }, { key: "conversion", label: "Conversion" },
-      { key: "sales", label: "Sales" }, { key: "avg_receipt", label: "Average receipt" },
+      { key: "sales", label: "Sales", title: "Rung up today, before refunds" }, { key: "net", label: "Net sales", title: "Sales less today's refunds of this store's sales, wherever they were returned" },
+      { key: "avg_receipt", label: "Average receipt" },
       { key: "upr", label: "Units per receipt" }, { key: "fr_wait", label: "Fitting-room wait" },
       { key: "till_wait", label: "Till wait" }, { key: "lost_fr", label: "Lost at fitting rooms" },
       { key: "lost_till", label: "Walked out at tills" }, { key: "staff", label: "Staff cost" },
+      { key: "returns", label: "Returns taken back", title: "Items brought back to this store's tills today, from any of the brand's stores or its online store" },
+      { key: "refund_s", label: "Till time on returns" },
     ]);
     k.body.append(kbox);
     const fol = card("Follow a shopper", { sub: "click one on the floor" });
@@ -75,13 +80,13 @@ export class StoreTab {
     const bottom = el("div", { class: "grid store-bottom" });
     const q = card("Queues over the day", { sub: "people waiting, every 5 minutes" });
     this.queues = new LineChart(q.body, { height: 170, format: fmt.int, legend: true, xFormat: (x) => x, tipTitle: (x) => x, emptyText: "The day hasn't started" });
-    const u = card("Staff utilisation", { sub: "share of each hour busy" });
+    const u = card("Staff utilisation", { sub: "share of each hour busy · tills: selling, and taking returns back" });
     this.util = new LineChart(u.body, { height: 170, format: (v) => fmt.pct(v), legend: true, yMax: 1, xFormat: (x) => x, tipTitle: (x) => `${x} to the next hour` });
     const sh = card("Sales by hour");
     this.byHour = new BarChart(sh.body, { height: 170, format: fmt.money, catFormat: (c) => c.replace(":00", "") });
     const sc = card("Stock by category", { sub: "units in the store after closing" });
     this.stock = new LineChart(sc.body, { height: 170, format: fmt.compact, legend: true, xFormat: (x) => `day ${x}`, tipTitle: (x) => `Day ${x}`, emptyText: "After the first day" });
-    const se = card("This store's season", { sub: "visits, receipts and walk-outs by day" });
+    const se = card("This store's season", { sub: "visits, receipts, walk-outs and items returned here, by day" });
     this.season = new LineChart(se.body, { height: 170, format: fmt.int, legend: true, xFormat: (x) => `day ${x}`, tipTitle: (x) => `Day ${x}`, emptyText: "After the first day" });
     const oc = card("How visits ended", { sub: "" });
     this.outCard = oc;
@@ -150,7 +155,9 @@ export class StoreTab {
     this.kpiCard.setSub(r.day_label);
     this.kpi.update({
       traffic: fmt.int(k.traffic), inside: r.live ? fmt.int(k.inside) : "—", receipts: fmt.int(k.receipts),
-      conversion: fmt.pct(k.conversion, 0), sales: fmt.money(k.sales), avg_receipt: fmt.money2(k.avg_receipt),
+      conversion: fmt.pct(k.conversion, 0), sales: fmt.money(k.sales), net: { value: fmt.money(k.net_sales), sub: k.refunds ? `${fmt.money(k.refunds)} refunded` : "" },
+      returns: { value: fmt.int(k.taken_back), sub: `${fmt.int(k.return_trips)} trip${k.return_trips === 1 ? "" : "s"}` }, refund_s: fmt.mins(k.refund_s),
+      avg_receipt: fmt.money2(k.avg_receipt),
       upr: fmt.num2(k.units_per_receipt), fr_wait: fmt.mins(k.fr_wait), till_wait: fmt.mins(k.till_wait),
       lost_fr: fmt.int(k.lost_fr), lost_till: fmt.int(k.lost_till), staff: fmt.money(k.staff_cost),
     });
@@ -172,6 +179,7 @@ export class StoreTab {
     this.util.update({ x: HOURS.slice(0, hrs), series: [
       { name: "Fitting rooms", colour: "var(--look-4)", values: r.util.fitting.slice(0, hrs) },
       { name: "Tills", colour: "var(--look-3)", values: r.util.tills.slice(0, hrs) },
+      { name: "Tills: returns", colour: "var(--look-8)", values: r.util.refunds.slice(0, hrs) },
       ...(r.util.assistants ? [{ name: "Assistants", colour: "var(--accent)", values: r.util.assistants.slice(0, hrs) }] : [])] });
     this.byHour.update({ categories: HOURS, series: [{ name: "Sales", colour: brandVar(r.brand), values: r.sales_by_hour }] });
     const se = r.season;
@@ -181,7 +189,8 @@ export class StoreTab {
       this.stock.update({ x, series: this.app.categories.map((c, j) => ({ name: c.name, colour: `var(--cat-${j + 1})`, values: se.stock.map((row) => row[j]) })).filter((_, j) => sells.has(j + 1)) });
       this.season.update({ x, series: [
         { name: "Visits", colour: "var(--ink-2)", values: se.traffic }, { name: "Receipts", colour: brandVar(r.brand), values: se.paid },
-        { name: "Walk-outs at queues", colour: "var(--critical)", values: se.walkouts }] });
+        { name: "Walk-outs at queues", colour: "var(--critical)", values: se.walkouts },
+        { name: "Items returned here", colour: "var(--look-8)", values: se.returns }] });
     } else { this.stock.update(null); this.season.update(null); }
     this.outCard.setSub(r.day_label);
     this.outcomes.update({ categories: OUTCOMES, series: [{ name: "Visits", colours: OUTCOMES.map((_, i) => (i === 0 ? "var(--good)" : i >= 3 ? "var(--critical)" : "var(--ink-2)")), values: r.outcomes }] });
@@ -191,9 +200,10 @@ export class StoreTab {
     if (!f) { if (this.lastFollow !== null) { this.story.replaceChildren(el("p", { class: "empty", text: "No one followed yet." })); this.lastFollow = null; } return; }
     this.lastFollow = f.visit;
     this.story.replaceChildren(...[
-      el("div", { class: "stat-sub" }, `Visit #${f.visit} · household #${f.household} · ${f.segment}, size ${f.size}, from ${f.area}`),
+      el("div", { class: "stat-sub" }, `Visit #${f.visit} · household #${f.household} · ${f.segment}, size ${f.size}, from ${f.area}${f.returning?.length ? " · came to return" : ""}`),
       el("div", { class: "stat-sub" }, `Drove ${fmt.num1(f.travel_min)} min · arrived ${f.arrive} · budget ${fmt.money(f.budget)}${f.promotions?.length ? ` · ${f.promotions.join(", ")}` : ""}${f.coupon ? ` · ${fmt.pct(f.coupon)} coupon${f.coupon_from ? ` from ${f.coupon_from}` : ""}` : ""}`),
       f.basket?.length ? el("div", { class: "stat-sub" }, `Carrying: ${f.basket.map((b) => `${b.item} ($${Math.round(b.price)})`).join(", ")}`) : null,
+      f.returning?.length ? el("div", { class: "stat-sub" }, `Returning: ${f.returning.map((b) => `${b.item} (${fmt.money2(b.price)}, bought ${b.bought} on day ${b.day}: ${b.reason})`).join("; ")}`) : null,
       el("div", { class: "story" }, ...f.log.map((l) => el("div", {}, el("time", { text: l.t }), l.text)))].filter(Boolean));
   }
 
@@ -210,7 +220,7 @@ export class StoreTab {
       { label: "Entrance", lines: [`${fmt.int(f.entered)} came in`] },
       { label: "On the floor", lines: [`${fmt.int(f.browsing)} browsing now`] },
       { label: "Fitting rooms", lines: [`${fmt.int(f.fr_busy)} of ${fmt.int(f.fr_open)} busy`, `${fmt.pct(f.fr_util, 0)} used today`], queue: f.fr_queue, colour: "var(--look-4)" },
-      { label: "Tills", lines: [`${fmt.int(f.till_busy)} of ${fmt.int(f.till_open)} busy`, `${fmt.pct(f.till_util, 0)} used today`], queue: f.till_queue, colour: "var(--look-3)" },
+      { label: "Tills", lines: [`${fmt.int(f.till_busy)} of ${fmt.int(f.till_open)} busy`, `${fmt.pct(f.till_util, 0)} used today`, `${fmt.int(f.returned)} returns taken back`], queue: f.till_queue, colour: "var(--look-3)" },
       { label: "Paid", lines: [`${fmt.int(f.paid)} receipts`] },
     ];
     const flows = [f.entered, f.to_fr, f.to_till, f.paid];

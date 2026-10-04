@@ -2,9 +2,9 @@
 
 **A season of fashion retail, simulated one shopper at a time, in your browser.**
 
-Test staffing, size allocation, replenishment, markdowns, promotions and
-offers against a market you build, and see what each is worth in sales,
-margin and share.
+Test staffing, size allocation, replenishment, markdowns, promotions,
+offers, online stores and return policies against a market you build, and
+see what each is worth in net sales, margin and share.
 
 **[Open the app](https://8139causal.github.io/fashion-market/)** · no
 install, no account, no server · [What it answers](#what-it-answers) ·
@@ -40,7 +40,8 @@ button shows the files that are running, and the world they run in.
 | Replenishment | Weekly or twice a week? Top up to cover, or replace what sold? What does each cost in deliveries and leftover stock, against what it wins in sizes found? | replenishment entries on the calendar, opening allocation, lead time, logistics fees, salvage value | Assortment, Scorecard |
 | Markdowns | When to mark down, how deep, and everything or only what's behind plan? Should promotions also come off marked-down prices? | markdown entries on the calendar, sell-through target, price rules | Assortment, Scorecard |
 | Promotions and price | A category or the whole range? Members or everyone? One area or the whole market? Whose share does it take, and what does it do to margin? | promotions on the calendar, a brand's price change and marketing | Market, Strategy, Scorecard |
-| Offers and loyalty | What did a coupon add, against the households held out? When it's also good at a sister brand, where does the extra spend go? Who kept their tier, who moved up, who dropped? | offers on the calendar (audience, holdout, tiers and areas reached, where it's good); each tier's starting share and qualifying spend | Offers |
+| Offers and loyalty | What did a coupon add, against the households held out, net of what came back? When it's also good at a sister brand, where does the extra spend go? Who kept their tier, who moved up, who dropped? | offers on the calendar (audience, holdout, tiers and areas reached, where it's good); each tier's starting share and qualifying spend | Offers |
+| Online store and returns | Does an online store win new spend, or take it from our own stores? What do delivery days and a delivery charge do to it? Does a longer return window win more than it costs in refunds, write-offs and cashier time? | a brand's online store (on or off, delivery days, delivery charge, picking and packing, shipping, its plan), its return window and return postage; each segment's taste for shopping online | Market, Strategy, Funnel, Assortment, Scorecard |
 | Competition | What do a rival's prices, categories and launch dates do to us? | a brand's range: products, prices, costs, the day each lands | Market, Strategy, Assortment |
 | Store network | Where should the next store go? Which households have no store in reach? | where stores stand on the map, its areas, each segment's travel radius | Setup (Macro world) |
 | Floor plan | What does a different layout do to queues, walks and sales? | a layout (Micro world) | Store, Scorecard |
@@ -53,8 +54,8 @@ button shows the files that are running, and the world they run in.
 1. **[Open the app](https://8139causal.github.io/fashion-market/).** The
    first visit downloads about 17 MB (R and the NetLogoR library), which the
    browser then caches. It opens on the default world: five brands in four
-   families running 19 stores across a city of four areas and 24,000
-   households, over a 13-week season.
+   families running 19 stores and four online stores across a city of four
+   areas and 24,000 households, over a 13-week season.
 2. **Press Go.** The speed menu runs store time from real time to 3,600×,
    or *Fastest*: a market day per tick, without drawing.
 3. **Click any store** on the map to watch its floor, then **click a
@@ -75,11 +76,15 @@ button shows the files that are running, and the world they run in.
 
 The whole market at once (above): households coloured by the brand they last
 bought from (or by segment, offer held, or area), stores in their brand's
-colour, and shoppers driving the fastest route there and back. Beside the
-map, the promotions running today, brand by brand; each brand's calendar
-sets them (Setup → Range and calendar). Click a home to see that
-household's latent preference: its tier with each brand, the stores in its
-reach, the offers it holds.
+colour, and shoppers driving the fastest route there and back (online
+stores aren't on the map). Beside the map, the promotions running today,
+brand by brand; each brand's calendar sets them (Setup → Range and
+calendar). Below, each brand's share of net sales, its net revenue split
+into its stores and online, and weekly net revenue. Click a home to see that
+household's latent preference (its tier with each brand, the stores and
+online stores in its reach, the offers it holds) and its ledger: every item
+it has bought this season, where and for how much, and what it returned,
+with gross, refunds and net by brand.
 
 ### Store
 
@@ -88,19 +93,24 @@ reach, the offers it holds.
 Any store's floor, live, as the floor, a footfall heat map or the process
 flow with counts. Click a shopper to see what they're doing, their basket
 and patience, why they came, their tier with the brand, the promotions and
-offers that reach them, and their visit in the first person. Each thought's
-tone comes from how close the decision was; hover over it for the numbers
-behind it. Click a cashier or an assistant to see their work, or follow a
-random shopper through their visit.
+offers that reach them, their household's ledger, and their visit in the
+first person. Each thought's tone comes from how close the decision was;
+hover over it for the numbers behind it. Shoppers bringing items back go
+straight to the tills. Click a cashier or an assistant to see their work
+(a cashier's includes the returns they took back), or follow a random
+shopper through their visit. The store's sales are shown gross and net of
+the day's refunds.
 
 ### Strategy
 
-![The Strategy tab: our levers beside the competitors' average, market share over time, revenue, spend per customer and each segment's share of wallet](screenshots/strategy.png)
+![The Strategy tab: our levers beside the competitors' average, market share over time, revenue and spend per customer net of refunds, and each segment's share of wallet](screenshots/strategy.png)
 
 Our family against the competition: our levers beside the competitors'
 average, market share over time (addressable, ours, other brands), revenue,
 spend per customer, average receipt by week, and each segment's share of
-wallet.
+wallet, all net of refunds. A table by brand gives its gross sales,
+refunds and net sales, its online share of net sales, and its return
+rate.
 
 ### Offers
 
@@ -111,8 +121,11 @@ against held out, day by day; each offer's lift with its 95% interval, its
 extra sales, and its extra margin after the cost of sending; the extra spend
 by tier; and where it came from (the brand, the other brands its coupon is
 good at, its sister brands, its competitors, and the net for our family).
-Below, the loyalty tiers: who kept theirs, who moved up, and who hasn't
-re-qualified yet.
+Every figure is net of returns: an item bought during the offer and returned
+later, even after the offer has ended, comes off its spend and its margin
+(the cost of goods comes back too, less the share written off). Below, the
+loyalty tiers: who kept theirs, who moved up, and who hasn't re-qualified
+yet.
 
 ### Assortment
 
@@ -123,17 +136,24 @@ past day saying how many products it took and why it left the others;
 replenishment, each order with the units sent and the day they arrive; and
 products landing. Below it, products through their lifecycle (on order, full
 price, markdown, clearance, sold through), sizes on the floor, sell-through
-against weeks of cover, where the stock is, and a product table.
+(net of returns) against weeks of cover, where the stock is (returned units
+back in stock, written off, or still with shoppers who can return them), and
+a product table with each product's online sales, returns, return rate and
+refunds.
 
 ### Scorecard
 
-![The Scorecard tab: satisfied and unsatisfied visits and why, time in store, and staff utilisation](screenshots/scorecard.png)
+![The Scorecard tab: satisfied and unsatisfied visits and why, online visits and returns, time in store, staff utilisation and the size fill rate](screenshots/scorecard.png)
 
-Satisfied and unsatisfied visits and why, time in store, staff utilisation,
-the size fill rate, each brand's path from full-price value to contribution
-(markdowns and promotions, cost of goods, staff, marketing, offers,
-logistics, and stock written down at the season's end), and a CSV export of
-the daily results.
+Satisfied and unsatisfied visits and why, online visits and why they didn't
+order, returns, time in store, staff utilisation (the tills' time on returns
+apart), the size fill rate, each brand's path from full-price value to
+contribution (markdowns and promotions, refunds, cost of goods net of
+returns, returns written off at cost, staff, marketing, offers, logistics,
+online picking, packing and shipping, delivery charges, return postage, and
+stock written down at the season's end), and a CSV export of the daily
+results: gross sales, returns (units and value), net sales, each split by
+channel, and every cost.
 
 ### Funnel
 
@@ -141,7 +161,11 @@ In market → visited → picked items → past the fitting rooms → kept → p
 with each stage's losses by reason (stayed home, went to another store,
 nothing appealed, too expensive, not in my size, didn't fit or like it, a
 queue too long), a dot for each shopper at each stage right now, and the assistant and
-cashier teams. Filter by brand, area, store and period.
+cashier teams. Filter by brand, area, store, period and channel: online,
+the funnel is in market → visited online → ordered. After paid, a
+returns step: the items bought, and of them those kept, still returnable,
+on the way, and returned, by reason. It doesn't change the visit's
+stages.
 
 ---
 
@@ -152,15 +176,20 @@ Everything is set on the **Setup** tab, in seven sections:
 - **Brands.** Families (exactly one is ours) and their brands, each with its
   price change, marketing, staffing, stock rules, plan by category, taste by
   segment, and loyalty tiers: the share of households that starts in each,
-  and the season's spend that earns it.
+  and the season's spend that earns it. Each brand may run an online store
+  (off unless switched on): its delivery days, the delivery charge to the
+  shopper, picking and packing and shipping per order, and how much it plans
+  to sell (as standard stores). Each has a return window in days (0: no
+  returns) and the postage it pays on a parcel sent back. A brand needs
+  stores or an online store.
 - **Range and calendar.** Each brand's products (name, category, list price,
   cost, the day it lands), typed in or pasted from a spreadsheet. The
   calendar is a Gantt chart of promotions, replenishment, markdowns and
   landing days, each entry edited in a panel that says in one line what it
   does. Problems show in red as you edit.
 - **Shoppers.** The categories; the segments (how they shop, how far they'll
-  travel, their taste for each category, their hidden response to offers);
-  and the market-wide weights.
+  travel, their taste for each category and for shopping online, their
+  hidden response to offers); and the market-wide weights.
 - **Offers.** Each brand's named coupons: days, discount, cost to send, the
   share of households reached that it's sent to and the share of those held
   out, the tiers and areas it reaches, and the brands where it's good.
@@ -229,9 +258,11 @@ Older files are upgraded as they're read or imported, a version at a time:
   on, as one coupon offer on the calendar for the whole season, with a
   quarter of its audience held out.
 - Version 6 (a promotion depth for each brand and a promotion length for
-  the market, used only by the Market tab's promotion buttons) loses both
-  settings: the buttons have gone, and promotions are set on the calendar.
-  It runs the season it ran.
+  the market, used only by the Market tab's promotion buttons, and no online
+  stores or returns) loses both settings: the buttons have gone, and
+  promotions are set on the calendar. Each brand gets an online store,
+  switched off, and a return window of 0 days (no returns), and each segment
+  a taste for shopping online of 0. It runs the season it ran.
 
 </details>
 
@@ -268,26 +299,32 @@ by the nearest.
 <details>
 <summary><b>A day in the market</b>: who shops, where, and why (<code>model/market.R</code>, <code>model/loyalty.R</code>)</summary>
 
-1. Each household with a store in reach is in the market for clothes with a
-   chance that depends on its segment, the weekday, the point in the season,
-   how much budget is left, the promotions that reach it (by how much of
-   each brand's range in the stores they cover), marketing, and any offers
-   it holds.
-2. A household in the market weighs every store in its reach against staying
-   home, using a multinomial logit. A store's appeal is the sum of: the
-   household's taste for the brand; what the brand sells (its racks for the
-   categories the household's segment likes: a brand selling none of them
-   is never chosen); the pull of the household's loyalty tier with the
-   brand; its price sensitivity (smaller, the more loyal it is) times the
-   brand's price position, less what its promotions take off; promotions and
-   marketing; the trip; memory of bad visits (no size, a queue walked out
-   of); word of mouth in its neighbourhood; the store's layout; and any
-   offers good at the brand.
+1. Each household with a store in reach (or any online store) is in the
+   market for clothes with a chance that depends on its segment, the
+   weekday, the point in the season, how much budget is left, the promotions
+   that reach it (by how much of each brand's range in the stores they
+   cover), marketing, and any offers it holds.
+2. A household in the market weighs every store in its reach, and every
+   online store, against staying home, using a multinomial logit. A store's
+   appeal is the sum of: the household's taste for the brand; what the brand
+   sells (its racks for the categories the household's segment likes: a
+   brand selling none of them is never chosen); the pull of the household's
+   loyalty tier with the brand; its price sensitivity (smaller, the more
+   loyal it is) times the brand's price position, less what its promotions
+   take off; promotions and marketing; the trip; memory of bad visits (no
+   size, a queue walked out of); word of mouth in its neighbourhood; the
+   store's layout; the brand's return window; and any offers good at the
+   brand. An online store's appeal is the same, with the segment's taste
+   for shopping online, the wait for delivery and the delivery charge (as a
+   share of a typical order, added to the price) in place of the trip and
+   the layout; its return window pulls harder, since nothing can be tried
+   on.
 3. It drives there along the fastest route, and home again afterwards.
-4. After closing, loyalty moves: what a household paid adds to its season's
-   spend with the brand, and a household whose spend reaches a higher tier
-   moves up to it. It keeps its tier to the season's end, when it stands
-   where the season's spend puts it.
+4. After closing, loyalty moves: what a household paid, less what it was
+   refunded, adds to its season's spend with the brand, and a household
+   whose spend reaches a higher tier moves up to it. It keeps its tier to
+   the season's end, even if a return takes its spend back below it; at the
+   season's end it stands where the season's net spend puts it.
 
 </details>
 
@@ -377,6 +414,60 @@ DC.
 </details>
 
 <details>
+<summary><b>Online stores and returns</b>: orders from the DC, and every item sold in a ledger (<code>model/online.R</code>, <code>model/returns.R</code>)</summary>
+
+An online store has no floor, no queues and no fitting rooms, and isn't on
+the map. A household that picks it comes at a moment of the store day, and
+the orders that came in each five minutes are settled together, in the
+order they came. The shopper goes through the categories they're after,
+among those the brand sells, and in each picks the product that appeals
+most, as at a rack, if they can afford it with the delivery charge, in their
+own size from the brand's DC: "not in my size" happens only when the DC is
+out. The order is charged when it's placed, and its stock leaves the DC
+then. It reaches the household after the brand's delivery days, and can be
+returned only after that. Each order costs the brand its picking and packing
+and its shipping; the shopper pays the delivery charge, which isn't refunded
+with a return. The DC buys for the online store's plan on top of the
+stores'.
+
+Every unit sold, in a store or online, gets a line in the ledger as it's
+sold: the household, the brand, the channel and store, the day, the product
+and size, its full price, what the markdown, the promotion and the coupon
+took off, the price paid, its cost and the offer it was bought with. Each
+evening, every item sold that day is given its fate, hidden from the
+reports: whether the household will want to send it back, why (didn't fit,
+didn't suit them, changed their mind), and after how many days (8 on
+average, counted from the day it reached the household). Items bought
+online come back most, then those bought in a store without trying them
+on, and least those tried on in a fitting room (`RETURN_P` in
+`model/params.R`). A return the brand's window has closed on doesn't happen:
+the household keeps the item.
+
+On the day a return is due, the household takes it, with any others for
+the brand due that day, to the brand's store nearest by route, if one is
+within its reach for the brand, whichever channel sold it. It drives
+there, joins the till queue whatever its length, and a cashier takes the
+items back: a minute, and half a minute an item, recorded in the staff log
+and in the tills' utilisation. It doesn't shop on that trip. If the brand
+has no store in its reach (or none at all), it posts them to the brand's DC
+that morning, one parcel a household, and the brand pays the return
+postage. A returned unit goes back into that store's stock (or the DC's),
+except one in ten too worn to sell again, written off at cost.
+
+The refund is exactly what was paid for the item. A coupon used on it isn't
+given back. The refund goes back into the household's budget, and comes off
+its season's spend with the brand (net spend). Refunds are booked on the day
+of the return, against the store or online store that made the sale, and
+each return is linked to its ledger line, so every report's net sales are
+gross sales less refunds, by day, store, brand and channel.
+
+**Returns after the season.** The season's figures end with its last day:
+returns the window would allow after it don't happen in the season, and
+aren't booked. The reports count the items still returnable at the end.
+
+</details>
+
+<details>
 <summary><b>Offers</b>: random audiences, random holdouts, measured from purchases alone (<code>model/offers.R</code>)</summary>
 
 On an offer's first morning, its audience is drawn at random from the
@@ -388,7 +479,9 @@ household holding one is more likely to shop and more drawn to those brands,
 by its segment's hidden response times its tier's, fading as a brand sends
 it more. Every purchase an audience household makes during the offer, at any
 brand, is logged against the offer, and the reports measure the offer from
-that log alone: those sent against those held out.
+that log alone: those sent against those held out. Returns of those
+purchases, whenever they come (during the offer or after it), come off
+them, so the lift is in net spend and net margin.
 
 </details>
 
@@ -434,7 +527,13 @@ either a setting in the world or a named constant with a comment in
 `model/params.R`. There's no external or licensed data. The logistics fees
 ($150 a store delivery, $0.40 a unit shipped) and the salvage value of stock
 left at the season's end (20% of cost) are assumptions, not sourced figures.
-Rent and overheads are left out of contribution.
+So are the online stores (four brands of five run one, delivering in 2 to 4
+days for $0 to $3.95, at $2.50 to $4.50 picking and packing and $4.50 to
+$7.50 shipping an order), the return windows (14 to 60 days), the return
+postage ($6 a parcel), the chance an item comes back (up to 30% bought
+online, 9% bought in a store untried, 4% tried on, before the window), the
+share written off (10%) and the cashier's time on a return. Rent and
+overheads are left out of contribution.
 
 ### Performance
 
@@ -442,13 +541,20 @@ Rent and overheads are left out of contribution.
 |---|---|
 | Default world in webR: boot, R included | about 5 s |
 | Default world in webR: Setup | about 0.6 s |
-| Default world in webR: a market day (about 3,500 visits to 19 stores) | about 0.5 s at the fastest speed; a 13-week season in under a minute |
-| Largest world (24 brands, 80 stores, 60,000 tiles, 60,000 households), native R | Setup 1.9 s, a market day 0.39 s (about 10,000 visits); webR runs R about 3–4 times slower |
+| Default world in webR: a market day (about 3,600 visits: 3,000 to 19 stores, 600 to 4 online stores) | about 0.6 s at the fastest speed; a 13-week season in about a minute |
+| Largest world (24 brands, 80 stores, 60,000 tiles, 60,000 households), native R | Setup about 2 s, a market day about 0.4 s (about 10,000 visits) with no online stores; about a fifth longer with half the brands online; webR runs R about 3–4 times slower |
 | A 120 × 80 layout, read and routed, native R | 0.1 s |
 
 Those are the largest a world can be: 24 brands, 80 stores, 12 segments, 6
 tiers a brand, 40 areas, a map of 60,000 tiles, 60,000 households, and
 layouts up to 120 × 80 tiles (60 × 40 m).
+
+Online stores and returns made a market day about a fifth longer, in webR
+and in native R, measured side by side against the code before them on one
+machine: online visits and return trips are extra work, and every unit sold
+gets a ledger line as it's sold. A world with no online stores and no
+returns runs about a tenth slower than before, for the ledger. The times in
+the table are those measured before, scaled by these comparisons.
 
 Two measurements shaped the code. With NetLogoR's dependencies loaded,
 `nrow()` and `ncol()` become S4 generics, and dispatch costs more than the
@@ -551,6 +657,27 @@ the shims' (`tools/test-shims.R`).
 - an offer's audience and holdout are the shares asked for, no household
   held out gets a coupon, each coupon is used once, sending is charged on
   the day it goes, and broken offers and tiers are refused
+- every unit sold has exactly one ledger line, and every day's refunds are
+  exactly what was paid for the items returned
+- every week, the whole ledger reconciles: every unit sold is where its line
+  says (with a shopper, back in stock, or written off); no item comes back
+  twice, before it reached the household, or after its window; every return
+  goes to a store of the selling brand, or by post for a brand with none in
+  reach; net sales are gross sales less refunds by day, store, brand and
+  channel; and each household's budget and loyalty spend follow from its
+  lines
+- no cashier takes returns back while serving someone else, and each
+  return trip is one refund at a till, a cashier's job in the staff log
+  for the whole of it
+- every trip to return items starts at the home and ends at a store of the
+  brand; online shoppers make no trip
+- an offer's lift is net of returns, including those made after it ended
+- the same seed gives identical days at season pace and at watch pace with
+  online stores and returns on
+- a brand with no stores and no online store is refused, and every broken
+  online or return setting is refused, each where it is
+- a brand with no stores, only an online store, sells, and its returns go
+  by post to its DC (in the 16-brand world)
 - older worlds upgrade and run: the version 1 default world
   (`tools/fixtures/v1-world`) runs the season the version 1 model ran,
   identical by day and outcome (its floor plans' old tables kept as they
@@ -559,7 +686,8 @@ the shims' (`tools/test-shims.R`).
   `tools/fixtures/v5-default.world.json`) upgrade and run; the version 6
   default world (`tools/fixtures/v6-default.world.json`) upgrades and runs
   the season the version 6 model ran (`tools/fixtures/v6-season.json`),
-  identical by day and outcome, and in sales and units by brand
+  identical by day and outcome, and in sales and units by brand, with no
+  online orders and no returns
 
 </details>
 
@@ -593,7 +721,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `index.html`, `css/fashion.css`, `js/fashion/` | the page |
 | `coi-serviceworker.js` | cross-origin isolation on hosts that can't send the headers, and a cache for the large downloads |
 | `workers/sim.worker.js` | the webR session and the run loop |
-| `model/` | the model, in R (`index.json` gives the order; `events.R` is what's said about a visit, `calendar.R` the calendar and its markdowns, `stock.R` replenishment) |
+| `model/` | the model, in R (`index.json` gives the order; `events.R` is what's said about a visit, `calendar.R` the calendar and its markdowns, `stock.R` replenishment, `online.R` the online stores, `returns.R` the ledger and returns) |
 | `worlds/default.world.json` | the world the app opens with |
 | `layouts/` | the four prefab layouts (`index.json` lists them) |
 | `vfs/` | the pre-built NetLogoR library image for webR (`tools/build-vfs.R`) |

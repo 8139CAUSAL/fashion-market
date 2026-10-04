@@ -13,12 +13,14 @@
 #                 down to the tiers' shares: where last season's spend put
 #                 them, each having spent at least its tier's spend.
 #   This season   a household's spend with the brand (what it paid, after
-#                 markdowns, promotions and coupons) adds up; the evening it
-#                 reaches a higher tier's spend, the household moves up. It
-#                 keeps the tier it holds for the rest of the season.
-#   Season's end  each household is where its season's spend puts it: the
-#                 tier it started in (kept), a higher one (moved up), or a
-#                 lower one (dropped). Until then, one below its starting
+#                 markdowns, promotions and coupons, less its refunds: net
+#                 of returns) adds up; the evening it reaches a higher
+#                 tier's spend, the household moves up. It keeps the tier
+#                 it holds for the rest of the season, even if a return
+#                 takes its spend back below it.
+#   Season's end  each household is where its season's net spend puts it:
+#                 the tier it started in (kept), a higher one (moved up), or
+#                 a lower one (dropped). Until then, one below its starting
 #                 tier's spend hasn't re-qualified yet.
 
 TIER_N <- NULL
@@ -56,9 +58,9 @@ initial_tiers <- function(taste) {
 # The tier a season's spend `spend` with brand b reaches.
 spend_tier <- function(spend, b) findInterval(spend, TIER_SPEND[b, seq_len(TIER_N[b])])
 
-# Households x brands: each household's spend with each brand this season,
-# with today's purchases so far when they haven't been added yet (the
-# reports' view of the season, like tally_live's).
+# Households x brands: each household's net spend with each brand this
+# season, with today's purchases and refunds so far when they haven't been
+# added yet (the reports' view of the season, like tally_live's).
 season_spend <- function(rd = report_day()) {
   sp <- mk$spend
   if (rd$day > mk$spend_day) {
@@ -67,19 +69,25 @@ season_spend <- function(rd = report_day()) {
       hb <- cbind(rd$d$hh[paid], rd$d$brand[paid])
       sp[hb] <- sp[hb] + rd$d$sales[paid]
     }
+    rf <- refunds_today(rd$today$returned)
+    if (length(rf$hh)) sp[cbind(rf$hh, rf$brand)] <- sp[cbind(rf$hh, rf$brand)] - rf$refund
   }
   sp
 }
 
 # After closing: today's purchases add to each household's season spend,
-# and a household whose spend with a brand has reached a higher tier moves
-# up to it.
-tiers_evening <- function() {
+# and its refunds today (rf, refunds_today()) come off it. A household
+# whose spend with a brand has reached a higher tier moves up to it; the
+# highest spend each has reached is kept (spend_max), since that's what its
+# tier stands on until the season's end.
+tiers_evening <- function(rf = refunds_today()) {
   paid <- which(d$outcome == 1L)
   mk$spend_day <<- day
+  if (length(rf$hh)) mk$spend[cbind(rf$hh, rf$brand)] <<- mk$spend[cbind(rf$hh, rf$brand)] - rf$refund
   if (!length(paid)) return(invisible())
-  hb <- cbind(d$hh[paid], d$brand[paid])                 # a household makes one visit a day
+  hb <- cbind(d$hh[paid], d$brand[paid])                 # a household makes one shopping visit a day
   mk$spend[hb] <<- mk$spend[hb] + d$sales[paid]
+  mk$spend_max[hb] <<- pmax(mk$spend_max[hb], mk$spend[hb])
   for (b in unique(hb[, 2])) {
     h <- hb[hb[, 2] == b, 1]
     reached <- spend_tier(mk$spend[h, b], b)

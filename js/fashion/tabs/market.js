@@ -2,13 +2,15 @@
 // households. After the consumer-market picture: the promotions running
 // today (each brand's calendar sets them, on the Setup tab's Range and
 // calendar), households coloured by the brand they last bought from, one
-// household's latent preference, and share, sales and revenue. The brands'
-// levers are on the Setup tab.
+// household's latent preference and its ledger (what it bought, paid and
+// returned), and share, sales and revenue, net of refunds, in the stores
+// and online. The brands' levers are on the Setup tab.
 
 import { el, fmt, select, card, brandVar } from "../ui.js";
 import { LineChart, BarChart, Donut, tooltip } from "../charts.js";
 import { CityView } from "../city-view.js";
 import { possessive } from "../entry-text.js";
+import { ledgerView } from "../ledger-view.js";
 
 const MODES = [
   { value: "brand", label: "Brand last bought from" },
@@ -44,26 +46,34 @@ export class MarketTab {
       onHome: (x, y) => app.action("pick_home_at", { x: Math.round(x), y: Math.round(y) }),
     });
     // One household, beside the map it's picked from.
-    const shopper = card("Latent preference of one household", {
+    const shopper = card("One household", {
       right: el("button", { type: "button", class: "btn small", text: "Pick a random household", onclick: () => app.action("pick_household") }),
     });
     this.shopperBox = el("div", { class: "shopper" }, el("p", { class: "empty", text: "Pick a household, or click a home on the map." }));
     shopper.body.append(this.shopperBox);
     top.append(el("div", { class: "grid" }, this.promoPanel.root, shopper.root), mapCard.root);
+    // That household's ledger: what it bought, paid and returned.
+    this.ledgerCard = card("What the household bought, and returned", { sub: "every item this season, newest first" });
+    this.ledgerBox = el("div");
+    this.ledgerCard.body.append(this.ledgerBox);
+    this.ledgerCard.root.hidden = true;
 
     // Bottom row.
     const bottom = el("div", { class: "grid market-bottom" });
     const pie = card("Customers", { sub: "households by brand last bought" });
     this.donut = new Donut(pie.body, { height: 170, legend: true, emptyText: "No purchases yet" });
-    const dyn2 = card("Sales dynamic", { sub: "each brand's share of the day's sales" });
+    const dyn2 = card("Sales dynamic", { sub: "each brand's share of the day's net sales" });
     this.shareChart = new LineChart(dyn2.body, { height: 170, stacked: true, normalize: true, format: (v) => fmt.pct(v), legend: true,
       xFormat: (x) => `day ${x}`, tipTitle: (x) => `Day ${x}`, emptyText: "Run the season to see sales" });
-    const rev = card("Revenue this season");
-    this.revChart = new BarChart(rev.body, { height: 170, format: fmt.money, valueLabels: true, emptyText: "No sales yet" });
-    const wk = card("Weekly revenue");
+    this.revCard = card("Revenue this season", { sub: "net of refunds · in the stores and online" });
+    this.revChart = new BarChart(this.revCard.body, { height: 170, format: fmt.money, valueLabels: true, stacked: true, legend: true, emptyText: "No sales yet" });
+    this.revNote = el("p", { class: "note" });
+    this.revCard.body.append(this.revNote);
+    const rev = this.revCard;
+    const wk = card("Weekly revenue", { sub: "net of refunds" });
     this.weekChart = new LineChart(wk.body, { height: 170, format: fmt.money, legend: true, xFormat: (x) => `wk ${x}`, tipTitle: (x) => `Week ${x}`, emptyText: "Run the season to see sales" });
     bottom.append(pie.root, dyn2.root, rev.root, wk.root);
-    root.append(top, bottom);
+    root.append(top, this.ledgerCard.root, bottom);
   }
 
   #modeChanged() {
@@ -93,7 +103,7 @@ export class MarketTab {
     const opts = this.app.brandOrder.map((b) => ({ value: b.index, label: b.name }));
     this.offerSel.setOptions(opts, this.offerBrand);
     this.map.setGeometry(geo, homes);
-    this.intro.textContent = `${n} brand${n === 1 ? "" : "s"} run ${geo.stores.length} stores across a market of ${fmt.int(geo.homes.n)} households${geo.areas.length ? ` in ${geo.areas.length} areas` : ""}. Every dot is a household, in the colour of the brand it last bought from. Press Go to play the season and watch shoppers drive to the stores.`;
+    this.intro.textContent = `${n} brand${n === 1 ? "" : "s"} run ${geo.stores.length} stores across a market of ${fmt.int(geo.homes.n)} households${geo.areas.length ? ` in ${geo.areas.length} areas` : ""}. Every dot is a household, in the colour of the brand it last bought from. Press Go to play the season and watch shoppers drive to the stores, and back to return things. Online shoppers don't drive, so they aren't on the map.`;
     this.#legend();
   }
   onHomes(codes, mode, brand) { if (mode === this.mode && (mode !== "offer" || brand === this.offerBrand)) this.map.setHomes(codes, mode); }
@@ -118,7 +128,12 @@ export class MarketTab {
     const days = r.sales_share.length;
     const series = (rows) => order.map((b) => ({ name: b.name, colour: brandVar(b.index), values: rows.map((row) => row[b.index - 1]) }));
     this.shareChart.update(days ? { x: r.sales_share.map((_, i) => i + 1), series: series(r.sales_share) } : null);
-    this.revChart.update({ categories: order.map((b) => b.name), series: [{ name: "Revenue", colours: order.map((b) => brandVar(b.index)), values: order.map((b) => r.revenue[b.index - 1]) }] });
+    const online = (b) => r.revenue_online[b.index - 1];
+    this.revChart.update({ categories: order.map((b) => b.name), series: [
+      { name: "In the stores", colour: "var(--ink-2)", colours: order.map((b) => brandVar(b.index)), values: order.map((b) => r.revenue[b.index - 1] - online(b)) },
+      { name: "Online", colour: "color-mix(in srgb, var(--ink-2) 45%, var(--surface))", colours: order.map((b) => `color-mix(in srgb, ${brandVar(b.index)} 45%, var(--surface))`), values: order.map(online) }] });
+    const g = r.gross.reduce((a, x) => a + x, 0); const rf = r.refunds.reduce((a, x) => a + x, 0);
+    this.revNote.textContent = g ? `Every brand: ${fmt.money(g)} sold, less ${fmt.money(rf)} refunded (${fmt.pct(rf / g, 1)}), is ${fmt.money(g - rf)}. A refund comes off on the day of the return.` : "";
     this.weekChart.update(r.weekly.length ? { x: r.weekly.map((_, i) => i + 1), series: series(r.weekly) } : null);
     this.#shopper(r.shopper);
   }
@@ -158,18 +173,18 @@ export class MarketTab {
     inReach.forEach((br, i) => {
       const b = s.brands[br.index - 1];
       const y = 6 + i * rowH;
-      add("text", { x: L - 8, y: y + 13, "text-anchor": "end", class: "label-ink" }, br.name.length > 11 ? `${br.name.slice(0, 10)}…` : br.name);
+      add("text", { x: L - 8, y: y + 13, "text-anchor": "end", class: "label-ink" }, `${br.name.length > 11 ? `${br.name.slice(0, 10)}…` : br.name}${b.online ? " ⌂" : ""}`);
       const x0 = X(Math.min(0, b.appeal)); const x1 = X(Math.max(0, b.appeal));
       const bar = add("rect", { x: x0, y: y + 3, width: Math.max(1, x1 - x0), height: 14, rx: 3, fill: brandVar(br.index), class: "mark" });
       add("text", { x: X(Math.max(0, b.appeal)) + 5, y: y + 14, class: "label-ink" }, fmt.num2(b.appeal) + (s.favourite === br.index ? "  ★" : ""));
-      bar.addEventListener("pointermove", (ev) => tooltip.show(ev, `${b.store_name} · ${fmt.num1(b.km)} km · ${b.tier}`, [
+      bar.addEventListener("pointermove", (ev) => tooltip.show(ev, b.online ? `${br.name} online · ${b.tier}` : `${b.store_name} · ${fmt.num1(b.km)} km · ${b.tier}`, [
         { colour: brandVar(br.index), value: fmt.num2(b.appeal), name: "appeal" },
         { value: fmt.num2(b.taste), name: "own taste for the brand" }, { value: fmt.num2(b.range), name: "what the brand sells" },
         { value: fmt.num2(b.loyalty), name: `loyalty (${b.tier})` },
-        { value: fmt.num2(b.price), name: "price" }, { value: fmt.num2(b.promotion), name: "promotion and marketing" },
-        { value: fmt.num2(b.distance), name: "trip" }, { value: fmt.num2(b.memory), name: "memory of bad visits" },
-        { value: fmt.num2(b.word_of_mouth), name: "word of mouth" }, { value: fmt.num2(b.store), name: "the store's layout" },
-        { value: fmt.num2(b.offers), name: "offers held" }]));
+        { value: fmt.num2(b.price), name: b.online ? "price, with the delivery charge" : "price" }, { value: fmt.num2(b.promotion), name: "promotion and marketing" },
+        ...(b.online ? [] : [{ value: fmt.num2(b.distance), name: "trip" }]), { value: fmt.num2(b.memory), name: "memory of bad visits" },
+        { value: fmt.num2(b.word_of_mouth), name: "word of mouth" }, { value: fmt.num2(b.store), name: b.online ? "shopping online, and the wait for delivery" : "the store's layout" },
+        { value: fmt.num2(b.offers), name: "offers held" }, { value: fmt.num2(b.returns), name: "the return window" }]));
       bar.addEventListener("pointerleave", () => tooltip.hide());
     });
     add("line", { x1: X(s.outside), x2: X(s.outside), y1: 2, y2: H - 22, stroke: "var(--ink-2)", "stroke-dasharray": "3 3" });
@@ -180,7 +195,7 @@ export class MarketTab {
     const lines = [
       el("div", { class: "stat-sub" }, `Household #${s.id} · ${s.segment} · ${s.area} · size ${s.size}`),
       el("div", { class: "stat-sub" }, `Budget left ${fmt.money(s.budget_left)} of ${fmt.money(s.budget)} · last bought from ${s.last_brand ? this.app.brandName(s.last_brand) : "no one yet"}`),
-      el("div", { class: "stat-sub" }, `${s.reach.n} store${s.reach.n === 1 ? "" : "s"} within its ${fmt.num1(s.radius_km)} km radius${out.length ? ` · out of reach: ${out.join(", ")}` : ""}${nothing.length ? ` · selling nothing they like: ${nothing.join(", ")}` : ""}`),
+      el("div", { class: "stat-sub" }, `${s.reach.n} store${s.reach.n === 1 ? "" : "s"} within its ${fmt.num1(s.radius_km)} km radius${s.reach.online.length ? `, and ${s.reach.online.join(", ")} online (⌂: online is its best choice there)` : ""}${out.length ? ` · out of reach: ${out.join(", ")}` : ""}${nothing.length ? ` · selling nothing they like: ${nothing.join(", ")}` : ""}`),
       el("div", { class: "tier-chips" }, ...order.map((b) => el("span", { class: "chip", vars: { "--brand": brandVar(b.index) }, title: `Loyalty tier with ${b.name}` },
         el("i", { class: "dot" }), `${b.name}: ${s.brands[b.index - 1].tier}`))),
       fav ? el("p", { class: "note" }, `Leans to ${fav}${Number.isFinite(s.gap) ? ` by ${fmt.num2(s.gap)}: a rival gaining that much appeal (a promotion, a shorter trip, a bad visit to ${fav}) would switch them` : ""}. Each day's choice also carries a random taste.`)
@@ -189,5 +204,8 @@ export class MarketTab {
       s.visits?.length ? el("div", { class: "story" }, ...s.visits.map((v) => el("div", {}, el("time", { text: `day ${v.day}` }), `${v.store}: ${v.outcome}${v.sales ? ` (${fmt.money2(v.sales)})` : ""}`))) : el("p", { class: "note", text: "No visits yet this season." }),
     ];
     box.replaceChildren(inReach.length ? svg : el("span"), ...lines.filter(Boolean));
+    this.ledgerCard.root.hidden = false;
+    this.ledgerCard.head.querySelector("h2").textContent = `Household #${s.id}: what it bought, and returned`;
+    this.ledgerBox.replaceChildren(ledgerView(s.ledger, this.app));
   }
 }

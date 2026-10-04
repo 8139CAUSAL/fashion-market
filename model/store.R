@@ -9,12 +9,17 @@
 # placed from those exact times, at whatever pace the run goes, and drawing
 # never draws random numbers, so a season comes out the same whether it's
 # run day by day or watched second by second.
+#
+# A household returning items comes in, walks to the tills, queues however
+# long the queue is, and a cashier takes the items back (returns.R): the
+# refund is a job in the staff log, like an assistant's.
 
 # Leg kinds: what a shopper is doing from t0 to t1.
-WALK <- 1L; BROWSE <- 2L; WAIT_FR <- 3L; WAIT_TILL <- 4L; TRY <- 5L; PAY <- 6L
+WALK <- 1L; BROWSE <- 2L; WAIT_FR <- 3L; WAIT_TILL <- 4L; TRY <- 5L; PAY <- 6L; REFUND <- 7L
 # A leg's look on the floor: browsing, carrying items, queuing, trying on,
-# paying, leaving empty-handed.
-LOOKS <- c("browsing", "carrying", "queuing", "trying on", "paying", "leaving empty-handed", "leaving with a bag")
+# paying, leaving empty-handed, leaving with a bag, returning items.
+LOOKS <- c("browsing", "carrying", "queuing", "trying on", "paying", "leaving empty-handed", "leaving with a bag", "returning items")
+LOOK_RETURNING <- 8L
 # Pending decisions.
 EV_MOVE <- 1L; EV_FR <- 2L; EV_TILL <- 3L
 
@@ -24,7 +29,7 @@ EV_MOVE <- 1L; EV_FR <- 2L; EV_TILL <- 3L
 # till k, assistant k; the logs record which one served each shopper.
 FR_ROW <- 0L; TILL_ROW <- NULL; STAFF_ROW <- NULL     # set with the world (world_install)
 MAX_SERVERS <- 6L                                     # set from the layouts (build_floors)
-JOB_ADVISE <- 1L; JOB_FETCH <- 2L
+JOB_ADVISE <- 1L; JOB_FETCH <- 2L; JOB_REFUND <- 3L      # an assistant's jobs; a cashier's refunds
 
 servers_of <- function() c(S$fitting_rooms, S$cashiers, S$assistants)
 
@@ -68,10 +73,11 @@ run_step <- function(s0, s1) {
   if (s0 %% 3600 == 0) reshelve()
   if (s0 %% 7200 == 0 && s0 > 0) refill_floor()   # staff bring stock out from the stockroom every two hours
   if (s0 %% 300 == 0) sample_queues(s0)
+  if (s0 %% ONLINE_BATCH_S == 0 && d$on_next <= length(d$on_order)) online_step(s0)   # online visits (online.R)
   # Shoppers inside a store, and those arriving this step: only they can
   # have a decision due (arrivals come off a list sorted by time).
   k <- d$next_in
-  while (k <= d$v && d$arrive[d$by_arrival[k]] < s1) k <- k + 1L
+  while (k <= length(d$by_arrival) && d$arrive[d$by_arrival[k]] < s1) k <- k + 1L
   if (k > d$next_in) {
     d$active <<- c(d$active, d$by_arrival[d$next_in:(k - 1L)])
     d$next_in <<- k
@@ -140,7 +146,7 @@ on_move <- function(a) {
   if (!length(b)) return(integer())
   try <- d$n_try[v[b]] > 0
   f <- d$format[v[b]]
-  go_to(v[b], t0[b], ifelse_int(try, fl$fr_head[f], fl$till_head[f]), ifelse_int(try, EV_FR, EV_TILL))
+  go_to(v[b], t0[b], ifelse_int(try, fl$fr_head[f], fl$till_head[f]), ifelse_int(try, EV_FR, EV_TILL), ifelse_int(d$ret[v[b]], LOOK_RETURNING, 2L))
   v[b]
 }
 
@@ -296,10 +302,10 @@ add_units <- function(where, store, sku, n) {
 
 # Walks to a queue's head, where the shopper joins it (decision `kind`) at the
 # time they arrive.
-go_to <- function(v, t0, to, kind) {
+go_to <- function(v, t0, to, kind, look = 2L) {
   if (!length(v)) return(invisible())
   walk <- fl$walk_m[cbind(d$at[v], to)] / d$speed[v]
-  add_legs(v, WALK, t0, t0 + walk, d$at[v], to, 2L)
+  add_legs(v, WALK, t0, t0 + walk, d$at[v], to, look)
   d$at[v] <<- to
   d$ev_at[v] <<- t0 + walk
   d$ev_kind[v] <<- kind
@@ -343,18 +349,23 @@ reshelve <- function() {
 }
 
 # Shoppers reaching the fitting rooms or the tills, in the order they reach
-# them: they join, and are served, balk or give up (see join_queue).
+# them: they join, and are served, balk or give up (see join_queue). A
+# household returning items waits however long it takes.
 on_join <- function(b) {
   j <- d$ev_at[b]
   d$events <<- d$events + length(b)
   fr <- d$ev_kind[b] == EV_FR
+  ret <- d$ret[b]
   seg <- d$seg[b]; s <- d$store[b]
   dur <- ifelse_int(fr, TRY_BASE_S + S$try_s[s] * d$n_try[b], PAY_BASE_S + S$scan_s[s] * d$items[b])
+  dur[ret] <- REFUND_BASE_S + REFUND_ITEM_S * d$items[b[ret]]
   limit <- pmin(SEGMENTS$max_ahead[seg], ifelse_int(fr, S$max_fr_q[s], S$max_till_q[s]))
-  q <- join_queue(s + TILL_ROW * !fr, j, dur, limit, SEGMENTS$patience[seg])
+  patience <- SEGMENTS$patience[seg]
+  limit[ret] <- Inf; patience[ret] <- Inf
+  q <- join_queue(s + TILL_ROW * !fr, j, dur, limit, patience)
   served <- q$status == 1L
   end <- q$start + dur
-  vlog_add(b, j, ifelse_int(fr, EV_FR_JOINED, EV_TILL_JOINED) + ifelse_int(q$status == 2L, 1L, 0L), q$ahead, limit)
+  vlog_add(b, j, ifelse_int(fr, EV_FR_JOINED, EV_TILL_JOINED) + ifelse_int(q$status == 2L, 1L, 0L), q$ahead, ifelse(ret, 0, limit))   # 0: no limit
 
   # Those who balk leave at once; those who give up stand in the queue
   # until their patience runs out. Either way they leave it all behind.
@@ -372,15 +383,18 @@ on_join <- function(b) {
   if (!length(sv)) return(invisible())
   f <- d$format[b[sv]]
   place <- ifelse_int(fr[sv], fl$cubicle_first[f], fl$till_first[f]) + q$server[sv] - 1L
-  add_legs(c(b[sv], b[sv]), rep(c(WAIT_FR, TRY), each = length(sv)) + c(!fr[sv], !fr[sv]),
+  rs <- ret[sv]
+  add_legs(c(b[sv], b[sv]), c(WAIT_FR + !fr[sv], ifelse_int(rs, REFUND, TRY + !fr[sv])),
            c(j[sv], q$start[sv]), c(q$start[sv], end[sv]), c(d$at[b[sv]], place), c(d$at[b[sv]], place),
-           rep(c(3L, 4L), each = length(sv)) + c(integer(length(sv)), !fr[sv]))
+           c(rep(3L, length(sv)), ifelse_int(rs, LOOK_RETURNING, 4L + !fr[sv])))
   d$at[b[sv]] <<- place
   d$wait[b[sv]] <<- d$wait[b[sv]] + (q$start[sv] - j[sv])
   tried <- sv[fr[sv]]
   if (length(tried)) after_trying(b[tried], end[tried])
-  paid <- sv[!fr[sv]]
+  paid <- sv[!fr[sv] & !rs]
   if (length(paid)) pay(b[paid], end[paid])
+  back <- sv[rs]
+  if (length(back)) refund(b[back], q$start[back], end[back], q$server[back], place[match(back, sv)])
 }
 
 # Each item tried on is kept or not (advice from an assistant makes a
@@ -410,25 +424,31 @@ after_trying <- function(s, end) {
   leave_later(s[!keep], end[!keep], 6L)
 }
 
-# Paying: the receipt, the stock sold, and what it means for the household.
+# Paying: the receipt, the stock sold, a ledger line for each item (tried
+# on in the fitting room, or not: returns.R), and what it means for the
+# household.
 pay <- function(v, end) {
   held <- d$basket[v, , drop = FALSE]
   n <- length(v)
-  d$sales[v] <<- .rowSums(d$paid_for[v, , drop = FALSE], n, MAX_ITEMS)
-  d$full_value[v] <<- .rowSums(d$full_for[v, , drop = FALSE] * (held > 0), n, MAX_ITEMS)
-  d$units[v] <<- .rowSums(held > 0, n, MAX_ITEMS)
   sold <- held > 0
   add_units("sold", rep(d$store[v], MAX_ITEMS)[sold], held[sold], 1)
-  d$cogs[v] <<- .rowSums(matrix(PROD_COST[cbind(rep(d$brand[v], MAX_ITEMS), product_of(as.vector(held + (held == 0L))))], n) * sold, n, MAX_ITEMS)
-  # What they saved, item by item: markdowns off full price, promotions off
-  # the marked-down price, the coupon off the rest.
-  full <- d$full_for[v, , drop = FALSE] * sold
-  md <- full * d$md_for[v, , drop = FALSE]
-  promo <- (full - md) * d$off_for[v, , drop = FALSE]
-  coupon <- full - md - promo - d$paid_for[v, , drop = FALSE] * sold
-  d$coupon_saved[v] <<- .rowSums(coupon, n, MAX_ITEMS)
-  vlog_add(v, end, EV_PAID, d$units[v], d$sales[v], .rowSums(md, n, MAX_ITEMS), .rowSums(promo, n, MAX_ITEMS), d$coupon_saved[v])
+  saved <- settle_sale(v, KIND_UNTRIED, day, tried = d$tried[v])
+  vlog_add(v, end, EV_PAID, d$units[v], d$sales[v], .rowSums(saved$md, n, MAX_ITEMS), .rowSums(saved$promo, n, MAX_ITEMS), d$coupon_saved[v])
   leave_later(v, end, 1L)
+}
+
+# Returning: a cashier takes back what each household brought (returns.R:
+# the refund, and the unit back in stock or written off), a job from t0 to
+# t1 at their till (anchor `till`), in the staff log.
+refund <- function(v, t0, t1, server, till) {
+  lines <- d$ret_lines[v]
+  book_returns(unlist(lines), rep(d$store[v], lengths(lines)))
+  staff_add(d$store[v], t0, t1, till, server, JOB_REFUND, v)
+  amount <- vapply(lines, function(x) sum(ledger$m[x, "paid"]), 0)
+  first <- vapply(lines, `[`, 0L, 1L)
+  vlog_add(v, t1, EV_RETURNED, d$items[v], amount, ledger$i[first, "sku"], ledger$i[first, "reason"], server)
+  d$items[v] <<- 0L
+  leave_later(v, t1, OUT_RETURNED)
 }
 
 # ---- Queues ---------------------------------------------------------------------
@@ -512,8 +532,9 @@ add_legs <- function(v, kind, t0, t1, a, b, look) {
   legs$n <<- n + k
 }
 
-# Assistants' work: a row per job (advising, or fetching a size from the
-# stockroom), where and when, which assistant, and for which visit.
+# Staff's jobs beside the tills' sales: a row per job (an assistant
+# advising, or fetching a size from the stockroom; a cashier taking returns
+# back), where and when, which assistant or cashier, and for which visit.
 STAFF_FIELDS <- c("store", "t0", "t1", "anchor", "server", "job", "visit")
 new_staff_log <- function() list(n = 0L, m = matrix(0, 2000, length(STAFF_FIELDS), dimnames = list(NULL, STAFF_FIELDS)))
 

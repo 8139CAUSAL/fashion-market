@@ -13,7 +13,7 @@ import { tooltip } from "./charts.js";
 // cubicle, 13 till counter, 14 behind the counter, 15 stockroom, 16 queue;
 // RACK_CODE + k the racks of the world's k-th category.
 const RACK_CODE = 100;
-export const LOOK_NAMES = ["browsing", "carrying items", "queuing", "trying on", "paying", "leaving empty-handed", "leaving with a bag"];
+export const LOOK_NAMES = ["browsing", "carrying items", "queuing", "trying on", "paying", "leaving empty-handed", "leaving with a bag", "returning items"];
 
 export class FloorView {
   constructor(wrap, { onClick } = {}) {
@@ -144,8 +144,8 @@ export class FloorView {
     const X = (x) => (x + 0.5) * c; const Y = (y) => (p.height - 0.5 - y) * c;
     // Shoppers.
     const rad = Math.max(2.5, c * 0.48);
-    const looks = [1, 2, 3, 4, 5, 6, 7].map((k) => cssVar(`--look-${k}`, r));
-    for (let k = 1; k <= 7; k++) {
+    const looks = LOOK_NAMES.map((_, k) => cssVar(`--look-${k + 1}`, r));
+    for (let k = 1; k <= LOOK_NAMES.length; k++) {
       const path = new Path2D();
       for (let i = 0; i < a.n; i++) {
         if (a.look[i] !== k) continue;
