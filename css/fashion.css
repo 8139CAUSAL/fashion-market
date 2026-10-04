@@ -205,11 +205,8 @@ main { padding: 16px 20px 40px; }
 .lever input[type="range"] { grid-column: 1 / -1; width: 100%; }
 input[type="range"] { accent-color: var(--accent); height: 18px; margin: 0; }
 
-.brand-block { border-top: 3px solid var(--brand); padding-top: 8px; display: grid; gap: 8px; }
-.brand-block + .brand-block { margin-top: 12px; }
 .brand-name { display: flex; align-items: center; gap: 8px; font-weight: 650; }
 .brand-name .dot, .key-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand); flex: none; }
-.brand-block .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .badge { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: var(--surface-3); color: var(--ink-2); white-space: nowrap; }
 .badge.live { background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--good-ink); }
 
@@ -219,21 +216,6 @@ input[type="range"] { accent-color: var(--accent); height: 18px; margin: 0; }
 .canvas-wrap canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .map-wrap { aspect-ratio: 4 / 3; }
 .floor-wrap { background: var(--floor-bg); }
-.map-overlay { position: absolute; inset: 0; pointer-events: none; }
-.promo-pad {
-  position: absolute; pointer-events: auto; display: grid; gap: 3px; transform: translate(-50%, -50%);
-  background: color-mix(in srgb, var(--surface) 88%, transparent); border: 1px solid var(--hairline);
-  border-radius: 8px; padding: 5px 6px; box-shadow: var(--shadow);
-}
-.promo-pad .pad-title { font-size: 11px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); text-align: center; white-space: nowrap; }
-.promo-pad .pad-buttons { display: flex; gap: 3px; }
-.promo-pad button {
-  width: 24px; height: 22px; border-radius: 4px; border: 1px solid var(--hairline); background: var(--surface-2);
-  font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ink-2); position: relative;
-}
-.promo-pad button::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: 2px; height: 2px; border-radius: 1px; background: var(--brand); }
-.promo-pad button[aria-pressed="true"] { background: var(--brand); color: #fff; border-color: transparent; }
-.promo-pad button[aria-pressed="true"]::after { background: #fff; }
 .map-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
 .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-swatch { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
@@ -317,7 +299,7 @@ table.data tr:hover td { background: var(--surface-2); }
 
 /* ---- Strategy: levers against competitors -------------------------------------- */
 
-.lever-columns { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.lever-columns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .lever-col { display: grid; gap: 6px; justify-items: center; text-align: center; }
 .lever-col h3 { font-size: 12px; font-weight: 600; margin: 0; color: var(--ink-2); min-height: 32px; }
 .lever-col .pair { display: flex; align-items: end; gap: 10px; height: 170px; }
@@ -411,7 +393,6 @@ input[type="range"]::-webkit-slider-thumb {
 }
 input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
 .settings-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; }
-.brand-block input[type="range"] { --accent: var(--brand); }
 
 /* Phones: the header folds into two compact rows. */
 @media (max-width: 640px) {
@@ -556,14 +537,13 @@ table.tier-matrix td.down { background: color-mix(in srgb, var(--tier-down) 12%,
 .anchor-grid button { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--hairline); background: var(--surface-2); padding: 0; cursor: pointer; }
 .anchor-grid button[aria-checked="true"] { background: var(--focus); border-color: var(--focus); }
 
-/* The Market tab: many brands. */
-.promo-list { display: grid; gap: 10px; max-height: 420px; overflow: auto; }
-.family-label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
-.promo-list .brand-block + .brand-block { margin-top: 0; }
+/* The Market tab: the promotions running today, brand by brand. */
+.promo-today { display: grid; gap: 8px; }
+.promo-today ul { margin: 3px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--ink-2); }
+.promo-today p { margin: 0; }
 .tier-chips { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0; }
 .chip { display: inline-flex; gap: 5px; align-items: center; font-size: 11.5px; color: var(--ink-2); }
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
-.promo-pad button { width: auto; min-width: 54px; padding: 0 8px; font-size: 11px; font-weight: 600; }
 
 /* The inspector. */
 .inspector { border-color: color-mix(in srgb, var(--focus) 45%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus) 20%, transparent); }

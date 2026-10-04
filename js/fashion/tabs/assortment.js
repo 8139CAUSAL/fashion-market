@@ -112,7 +112,7 @@ export class AssortmentTab {
   // lighter. A markdown that changed no price says why.
   #calendar(r) {
     const c = r.calendar; const colour = `var(--brand-${r.brand})`;
-    const from = { plan: "planned", global: "the Market tab's promotion button", local: "a Market tab local promotion" };
+    const from = { plan: "planned" };
     const past = (day) => day <= c.today;
     const mdTicks = (m) => m.days.map((day) => {
       const x = m.done.find((t) => t.day === day);

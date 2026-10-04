@@ -177,7 +177,7 @@ export class RangeEditor {
     }) });
     this.editorBox = el("div", { class: "entry-editor" });
     c.body.append(el("div", { class: "row" }, addP, addR, addM), el("div", { class: "calendar-layout" }, gantt, this.editorBox),
-      el("p", { class: "note", text: "A product has at most one promotion on any day for any household: two on the same product and day must reach different tiers or areas. It takes at most one replenishment entry and one markdown entry a day. A product no replenishment entry covers gets its opening allocation and nothing more. The Market tab's promotion buttons add to the calendar as the season runs; the Assortment tab shows it as it ran." }));
+      el("p", { class: "note", text: "A product has at most one promotion on any day for any household: two on the same product and day must reach different tiers or areas. It takes at most one replenishment entry and one markdown entry a day. A product no replenishment entry covers gets its opening allocation and nothing more. The Market tab shows the promotions running each day, and the Assortment tab shows the calendar as it ran." }));
     this.gantt = gantt;
     requestAnimationFrame(() => this.#drawGantt());
     this.#renderEntry();

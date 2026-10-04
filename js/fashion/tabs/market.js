@@ -1,8 +1,9 @@
 // Market: the macro world, its brands and what each is doing to win the
-// households. After the consumer-market picture: each brand's promotion
-// button, local promotions area by area, households coloured by the brand
-// they last bought from, one household's latent preference, and share,
-// sales and revenue. The brands' levers are on the Setup tab.
+// households. After the consumer-market picture: the promotions running
+// today (each brand's calendar sets them, on the Setup tab's Range and
+// calendar), households coloured by the brand they last bought from, one
+// household's latent preference, and share, sales and revenue. The brands'
+// levers are on the Setup tab.
 
 import { el, fmt, select, card, brandVar } from "../ui.js";
 import { LineChart, BarChart, Donut, tooltip } from "../charts.js";
@@ -23,26 +24,24 @@ export class MarketTab {
     root.append(el("div", { class: "tab-intro" }, el("h1", { text: "Market" }), this.intro));
 
     const top = el("div", { class: "grid market-top" });
-    // Promotions, one row per brand, by family.
-    this.promoPanel = card("Promotions", { sub: "a brand's promotion across the market, from tomorrow · local ones on the map · each goes on its calendar" });
-    this.promoList = el("div", { class: "promo-list" });
-    this.promoPanel.body.append(this.promoList);
-    this.brandUI = [];
+    // The promotions running today, read from the calendars.
+    this.promoPanel = card("Promotions today", { sub: "a store marked % on the map has one on" });
+    this.promoList = el("div", { class: "promo-today" });
+    this.promoPanel.body.append(this.promoList,
+      el("p", { class: "note", text: "Promotions are set on each brand's calendar: Setup → Range and calendar." }));
 
     // The map.
     const modeSel = select({ label: "Colour homes by", options: MODES, value: "brand", hideLabel: true, onChange: (v) => { this.mode = v; this.#modeChanged(); } });
     this.offerSel = select({ label: "Brand", options: [], value: 1, hideLabel: true, onChange: (v) => { this.offerBrand = Number(v); this.#modeChanged(); } });
     this.offerSel.root.hidden = true;
-    this.localSel = select({ label: "Local promotion for", options: [], value: 1, hideLabel: true, onChange: (v) => this.map.setPromoBrand(Number(v)) });
     const mapCard = card("The market", { sub: "click a store to open its floor · click a home to see that household",
-      right: el("span", { class: "row" }, el("span", { class: "sub", text: "Local promotion:" }), this.localSel.root, modeSel.root, this.offerSel.root) });
+      right: el("span", { class: "row" }, modeSel.root, this.offerSel.root) });
     const wrap = el("div", { class: "canvas-wrap map-wrap" });
     this.legendBox = el("div", { class: "map-legend" });
     mapCard.body.append(wrap, this.legendBox);
     this.map = new CityView(wrap, {
       onStore: (id) => app.openStore(id),
       onHome: (x, y) => app.action("pick_home_at", { x: Math.round(x), y: Math.round(y) }),
-      onLocalPromo: (b, a) => app.action("local_promo", { brand: b, area: a }),
     });
     // One household, beside the map it's picked from.
     const shopper = card("Latent preference of one household", {
@@ -73,18 +72,6 @@ export class MarketTab {
     this.app.view({ homesMode: this.mode, homesBrand: this.offerBrand });
   }
 
-  #brandRow(b) {
-    const promoBtn = el("button", { type: "button", class: "btn small", text: "Global promotion", onclick: () => this.app.action("global_promo", { brand: b.index }) });
-    const done = el("span", { class: "badge", text: "promos done 0" });
-    const live = el("span", { class: "badge live", hidden: true });
-    const stores = el("span", { class: "sub" });
-    const who = el("span", { class: "sub" });
-    const block = el("div", { class: "brand-block", vars: { "--brand": brandVar(b.index) } },
-      el("div", { class: "brand-name" }, el("i", { class: "dot" }), b.name, stores),
-      el("div", { class: "row" }, promoBtn, done, live, who));
-    return { block, promoBtn, done, live, stores, who, index: b.index };
-  }
-
   #legend() {
     const g = this.app.geometry; if (!g) return;
     const items = {
@@ -105,18 +92,7 @@ export class MarketTab {
     if (this.offerBrand > n) this.offerBrand = 1;
     const opts = this.app.brandOrder.map((b) => ({ value: b.index, label: b.name }));
     this.offerSel.setOptions(opts, this.offerBrand);
-    this.localSel.setOptions(opts, this.map.promoBrand <= n ? this.map.promoBrand : 1);
-    // A row per brand, by family.
-    this.brandUI = []; this.promoList.replaceChildren();
-    let fam = null;
-    for (const b of this.app.brandOrder) {
-      if (b.familyName !== fam) { fam = b.familyName; this.promoList.append(el("div", { class: "family-label", text: fam + (b.ours ? " (ours)" : "") })); }
-      const ui = this.#brandRow(b);
-      this.brandUI[b.index - 1] = ui;
-      this.promoList.append(ui.block);
-    }
     this.map.setGeometry(geo, homes);
-    this.map.setPromoBrand(Number(this.localSel.value) || 1);
     this.intro.textContent = `${n} brand${n === 1 ? "" : "s"} run ${geo.stores.length} stores across a market of ${fmt.int(geo.homes.n)} households${geo.areas.length ? ` in ${geo.areas.length} areas` : ""}. Every dot is a household, in the colour of the brand it last bought from. Press Go to play the season and watch shoppers drive to the stores.`;
     this.#legend();
   }
@@ -129,19 +105,8 @@ export class MarketTab {
   update(r) {
     const order = this.app.brandOrder;
     this.map.setStores(r.stores);
-    this.map.setPromos(r.brands);
     this.map.setCaption(this.app.header?.pace === "watch" ? `${fmt.int(this.app.header?.on_road)} shoppers on the road` : `${r.day_label}'s visits shown by each store's halo`);
-    r.brands.forEach((b, i) => {
-      const ui = this.brandUI[i]; if (!ui) return;
-      ui.done.textContent = `promos done ${b.promos_done}`;
-      const on = b.on_today ?? [];
-      ui.live.hidden = !on.length;
-      ui.live.textContent = `on today: ${on.join(", ")}${b.global_left > 0 ? ` (${b.global_left} day${b.global_left === 1 ? "" : "s"} left)` : ""}`;
-      ui.promoBtn.disabled = !!b.global_block;
-      ui.promoBtn.title = b.global_block ? `It would overlap: ${b.global_block}` : `${fmt.pct(b.promo_depth)} off ${possessive(b.name)} whole range, from tomorrow, for every tier`;
-      ui.stores.textContent = ` · ${b.stores} store${b.stores === 1 ? "" : "s"}`;
-      ui.who.textContent = b.global_block ? `waits: ${b.global_block}` : "";
-    });
+    this.#promotions(r.brands);
 
     const ours = r.customers.slice(1).reduce((a, v, i) => a + (this.app.brands[i]?.ours ? v : 0), 0);
     const all = r.customers.slice(1).reduce((a, b) => a + b, 0);
@@ -156,6 +121,23 @@ export class MarketTab {
     this.revChart.update({ categories: order.map((b) => b.name), series: [{ name: "Revenue", colours: order.map((b) => brandVar(b.index)), values: order.map((b) => r.revenue[b.index - 1]) }] });
     this.weekChart.update(r.weekly.length ? { x: r.weekly.map((_, i) => i + 1), series: series(r.weekly) } : null);
     this.#shopper(r.shopper);
+  }
+
+  // Today's promotions, brand by brand (our family first), and the brands
+  // with none.
+  #promotions(brands) {
+    const order = this.app.brandOrder;
+    const on = order.filter((b) => brands[b.index - 1]?.on_today.length);
+    const none = order.filter((b) => !brands[b.index - 1]?.on_today.length).map((b) => b.name);
+    const day = this.app.header?.day;
+    this.promoPanel.setSub(`${day ? `day ${day} · ` : ""}a store marked % on the map has one on`);
+    this.promoList.replaceChildren(
+      ...on.map((b) => el("div", { class: "promo-brand", vars: { "--brand": brandVar(b.index) } },
+        el("div", { class: "brand-name" }, el("i", { class: "dot" }), b.name),
+        el("ul", {}, ...brands[b.index - 1].on_today.map((p) => el("li", {}, el("b", { text: p.name }),
+          `: ${fmt.pct(p.depth)} off ${p.on}; ${p.reach}; to day ${p.to}`))))),
+      on.length ? (none.length ? el("p", { class: "sub", text: `None today at ${none.join(", ")}.` }) : null)
+        : el("p", { class: "empty", text: "No promotions running today." }));
   }
 
   #shopper(s) {

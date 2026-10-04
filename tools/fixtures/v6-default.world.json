@@ -1,6 +1,6 @@
 {
   "kind": "fashion-world",
-  "version": 7,
+  "version": 6,
   "name": "Four-district city",
   "seed": 1,
   "season_days": 91,
@@ -729,7 +729,15 @@
       "family": "ours",
       "colour": "#eb6834",
       "fit": {"value_seekers": 0.3, "trend_followers": 0.3, "quality_loyalists": 0.3, "convenience": 0.3},
-      "levers": {"price": 1, "ad": 0.4, "cashiers": 1, "assistants": 1, "skill": 1, "scan_s": 12},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.4,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 1,
+        "scan_s": 12
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -1132,7 +1140,15 @@
       "family": "ours",
       "colour": "#e87ba4",
       "fit": {"value_seekers": 0.3, "trend_followers": 0.3, "quality_loyalists": 0.3, "convenience": 0.3},
-      "levers": {"price": 1, "ad": 0.4, "cashiers": 1, "assistants": 1, "skill": 1, "scan_s": 12},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.4,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 1,
+        "scan_s": 12
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -1441,7 +1457,15 @@
       "family": "value_co",
       "colour": "#2a78d6",
       "fit": {"value_seekers": 0.8, "trend_followers": -0.2, "quality_loyalists": -0.6, "convenience": 0.2},
-      "levers": {"price": 1, "ad": 0.3, "cashiers": 1, "assistants": 0, "skill": 1, "scan_s": 10},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.15,
+        "ad": 0.3,
+        "cashiers": 1,
+        "assistants": 0,
+        "skill": 1,
+        "scan_s": 10
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -1742,7 +1766,15 @@
       "family": "premium_co",
       "colour": "#4a3aa7",
       "fit": {"value_seekers": -0.8, "trend_followers": 0.1, "quality_loyalists": 0.9, "convenience": -0.1},
-      "levers": {"price": 1, "ad": 0.5, "cashiers": 2, "assistants": 2, "skill": 1.2, "scan_s": 14},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.1,
+        "ad": 0.5,
+        "cashiers": 2,
+        "assistants": 2,
+        "skill": 1.2,
+        "scan_s": 14
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -1985,7 +2017,15 @@
       "family": "fast_co",
       "colour": "#1baf7a",
       "fit": {"value_seekers": 0.1, "trend_followers": 0.9, "quality_loyalists": -0.5, "convenience": 0.1},
-      "levers": {"price": 1, "ad": 0.6, "cashiers": 1, "assistants": 1, "skill": 0.9, "scan_s": 12},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.25,
+        "ad": 0.6,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 0.9,
+        "scan_s": 12
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -2473,6 +2513,7 @@
     "grudge_w": 0.8,
     "wom": 0.35,
     "outside": 2,
+    "promo_days": 7,
     "range_w": 1
   }
 }

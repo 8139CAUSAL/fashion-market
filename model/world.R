@@ -29,11 +29,13 @@
 # version 4 chose stores without regard to what their brands sell;
 # version 5 earned loyalty tiers by paid visits and ran each brand's offers
 # as a programme outside the calendar (a policy choosing among three kinds
-# of offer for its daily contacts).
+# of offer for its daily contacts); version 6 had a promotion depth for each
+# brand and a promotion length for the market, for the Market tab's
+# promotion buttons.
 
 WORLD_KIND <- "fashion-world"
 LAYOUT_KIND <- "fashion-layout"
-WORLD_VERSION <- 6L
+WORLD_VERSION <- 7L
 LAYOUT_VERSION <- 2L                 # a layout file's own version (its format hasn't changed since the world's version 2)
 NO_DAY <- 1e6                        # the landing day of a product slot a brand's range doesn't fill
 
@@ -158,7 +160,8 @@ world_upgrade <- function(W) {
   if (identical(version, 2L)) { W <- upgrade_v2(W); version <- 3L }
   if (identical(version, 3L)) { W <- upgrade_v3(W); version <- 4L }
   if (identical(version, 4L)) { W <- upgrade_v4(W); version <- 5L }
-  if (identical(version, 5L)) W <- upgrade_v5(W)
+  if (identical(version, 5L)) { W <- upgrade_v5(W); version <- 6L }
+  if (identical(version, 6L)) W <- upgrade_v6(W)
   W
 }
 
@@ -358,6 +361,21 @@ upgrade_v5 <- function(W) {
   W$version <- 6L
   if (is.list(W$brands)) W$brands <- lapply(W$brands, brand)
   if (is.list(W$segments)) W$segments <- lapply(W$segments, segment)
+  W
+}
+
+# A version 6 world, as version 7. The Market tab's promotion buttons
+# started promotions mid-season, at each brand's promotion depth, for the
+# market's promotion length. The buttons have gone (promotions are set on
+# the calendar), so those two settings go too: a season without a button
+# pressed runs as it did.
+upgrade_v6 <- function(W) {
+  W$version <- 7L
+  if (is.list(W$market) && !is.null(names(W$market))) W$market$promo_days <- NULL
+  if (is.list(W$brands)) W$brands <- lapply(W$brands, function(b) {
+    if (is.list(b) && is.list(b$levers) && !is.null(names(b$levers))) b$levers$promo_depth <- NULL
+    b
+  })
   W
 }
 

@@ -104,9 +104,8 @@ load_default_world <- function(root) {
 brand_index <- function(b) if (is.character(b)) match(b, BRANDS$id) else as.integer(b)
 store_index <- function(s) if (is.character(s)) match(s, STORES$id) else as.integer(s)
 
-# A brand lever: price change, promotion depth (for the Market tab's
-# buttons), marketing, or staffing (which sets every store of the brand,
-# from this moment of the store day on).
+# A brand lever: price change, marketing, or staffing (which sets every
+# store of the brand, from this moment of the store day on).
 set_lever <- function(name, brand, value) {
   L <- LEVERS[[name]]
   if (is.null(L)) stop("no lever called ", name)

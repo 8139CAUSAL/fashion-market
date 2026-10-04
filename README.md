@@ -39,7 +39,7 @@ button shows the files that are running, and the world they run in.
 | Size allocation | How much revenue is lost because the shopper's size isn't on the rack, and how much does allocating by each store's own size mix win back? | size allocation (flat or learned), the season's buy, lead time | Assortment, Funnel |
 | Replenishment | Weekly or twice a week? Top up to cover, or replace what sold? What does each cost in deliveries and leftover stock, against what it wins in sizes found? | replenishment entries on the calendar, opening allocation, lead time, logistics fees, salvage value | Assortment, Scorecard |
 | Markdowns | When to mark down, how deep, and everything or only what's behind plan? Should promotions also come off marked-down prices? | markdown entries on the calendar, sell-through target, price rules | Assortment, Scorecard |
-| Promotions and price | A category or the whole range? Members or everyone? One area or the whole market? Whose share does it take, and what does it do to margin? | promotions on the calendar, a brand's price change and marketing; the promotion buttons on the Market tab | Market, Strategy, Scorecard |
+| Promotions and price | A category or the whole range? Members or everyone? One area or the whole market? Whose share does it take, and what does it do to margin? | promotions on the calendar, a brand's price change and marketing | Market, Strategy, Scorecard |
 | Offers and loyalty | What did a coupon add, against the households held out? When it's also good at a sister brand, where does the extra spend go? Who kept their tier, who moved up, who dropped? | offers on the calendar (audience, holdout, tiers and areas reached, where it's good); each tier's starting share and qualifying spend | Offers |
 | Competition | What do a rival's prices, categories and launch dates do to us? | a brand's range: products, prices, costs, the day each lands | Market, Strategy, Assortment |
 | Store network | Where should the next store go? Which households have no store in reach? | where stores stand on the map, its areas, each segment's travel radius | Setup (Macro world) |
@@ -75,10 +75,11 @@ button shows the files that are running, and the world they run in.
 
 The whole market at once (above): households coloured by the brand they last
 bought from (or by segment, offer held, or area), stores in their brand's
-colour, and shoppers driving the fastest route there and back. Start a
-promotion across the market or in one area from here. Click a home to see
-that household's latent preference: its tier with each brand, the stores in
-its reach, the offers it holds.
+colour, and shoppers driving the fastest route there and back. Beside the
+map, the promotions running today, brand by brand; each brand's calendar
+sets them (Setup → Range and calendar). Click a home to see that
+household's latent preference: its tier with each brand, the stores in its
+reach, the offers it holds.
 
 ### Store
 
@@ -227,6 +228,10 @@ Older files are upgraded as they're read or imported, a version at a time:
   the old climb at the brand's typical price, and its programme, if it was
   on, as one coupon offer on the calendar for the whole season, with a
   quarter of its audience held out.
+- Version 6 (a promotion depth for each brand and a promotion length for
+  the market, used only by the Market tab's promotion buttons) loses both
+  settings: the buttons have gone, and promotions are set on the calendar.
+  It runs the season it ran.
 
 </details>
 
@@ -543,7 +548,10 @@ repository's tests.
   identical by day and outcome (its floor plans' old tables kept as they
   were for this check), and the version 2 and version 5 default worlds
   (`tools/fixtures/v2-default.world.json`,
-  `tools/fixtures/v5-default.world.json`) upgrade and run
+  `tools/fixtures/v5-default.world.json`) upgrade and run; the version 6
+  default world (`tools/fixtures/v6-default.world.json`) upgrades and runs
+  the season the version 6 model ran (`tools/fixtures/v6-season.json`),
+  identical by day and outcome, and in sales and units by brand
 
 </details>
 

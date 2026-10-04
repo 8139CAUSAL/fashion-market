@@ -29,7 +29,7 @@ const SECTIONS = [
   { value: "brands", label: "Brands" }, { value: "range", label: "Range and calendar" }, { value: "shoppers", label: "Shoppers" }, { value: "offers", label: "Offers" },
   { value: "macro", label: "Macro world" }, { value: "micro", label: "Micro world" }, { value: "season", label: "Season" },
 ];
-const MARKET_SHOWN = ["taste_w", "range_w", "km_w", "memory", "wom", "promo_days"];
+const MARKET_SHOWN = ["taste_w", "range_w", "km_w", "memory", "wom"];
 const LIVE = el("span", { class: "tag live", text: "live" });
 const WAITS = el("span", { class: "tag", text: "at Setup" });
 const tag = (live) => (live ? LIVE : WAITS).cloneNode(true);
@@ -280,7 +280,7 @@ export class SetupTab {
     } }).root;
 
     const price = card(`${b.name}: price and marketing`, { right: tag(true) });
-    price.body.append(el("div", { class: "settings-grid" }, lev("price"), lev("promo_depth"), lev("ad")));
+    price.body.append(el("div", { class: "settings-grid" }, lev("price"), lev("ad")));
     const staff = card("Staff, in every store of the brand", { right: tag(true) });
     staff.body.append(el("div", { class: "settings-grid" }, lev("cashiers"), lev("assistants"), lev("skill"), lev("scan_s")),
       el("p", { class: "note", text: "Sets every one of the brand's stores; one store can then be changed on its own (Macro world, Stores)." }));

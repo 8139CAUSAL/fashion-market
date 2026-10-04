@@ -18,7 +18,9 @@
 # an offer's audience and holdout are the shares asked for, no household
 # held out gets a coupon, a coupon is used once, sending is charged on the
 # day it goes, broken offers and tiers are refused, and a version 5 file
-# (tiers by visits, an offers programme) upgrades and runs; and drawn
+# (tiers by visits, an offers programme) upgrades and runs; a version 6
+# file (a promotion depth and length for the Market tab's old promotion
+# buttons) upgrades and runs the season the version 6 model ran; and drawn
 # floors: a fetch walks to the stockroom door and back, a shopper tries on
 # in the cubicle, a cubicle is never a corridor, every door is a way in and
 # out, every block of racks has a place to stand, and rack space is the
@@ -736,6 +738,30 @@ check(identical(U$version, WORLD_VERSION) && !length(world_check(U)) && identica
 world_install(U); P$pace <- "season"; setup(3)
 r <- run_season_days(7)
 check(r$ok && sum(tally$visits) > 0 && sum(tally$offer_cost) > 0, "the upgraded version 5 world runs a week, its offers sent")
+
+# ---- A version 6 world ------------------------------------------------------------------
+
+# A version 6 world upgrades: the settings of the Market tab's old promotion
+# buttons (each brand's promotion depth, the market's promotion length) go.
+# It then runs the season the version 6 model ran, recorded in
+# tools/fixtures/v6-season.json: the same visits by outcome, and the same
+# sales and units by brand, day by day.
+cat("A version 6 world\n")
+V6 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v6-default.world.json")), collapse = "\n"))
+U <- world_resolve(world_upgrade(V6), file.path(root, "layouts"))
+check(identical(U$version, WORLD_VERSION) && !length(world_check(U)) && is.null(U$market$promo_days) &&
+      !any(vapply(U$brands, function(b) "promo_depth" %in% names(b$levers), TRUE)),
+      "a version 6 world upgrades: its promotion depth and promotion length (for the Market tab's old buttons) go")
+rec <- jsonlite::fromJSON(file.path(root, "tools", "fixtures", "v6-season.json"))
+world_install(U); P$pace <- "season"; setup(rec$seed)
+n6 <- min(n_season, rec$days)
+r <- run_season_days(n6)
+by_brand <- function(what) t(vapply(seq_len(n6), function(i) as.vector(rowsum(colSums(tally[[what]][i, , ]), STORES$brand, reorder = TRUE)), numeric(N_BRANDS)))
+visits6 <- t(vapply(seq_len(n6), function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
+same6 <- identical(visits6, rec$visits[seq_len(n6), , drop = FALSE]) && max(abs(by_brand("sales") - rec$sales[seq_len(n6), , drop = FALSE])) < 0.006 &&
+  identical(round(by_brand("units")), rec$units[seq_len(n6), , drop = FALSE] + 0)
+check(r$ok && same6, sprintf("the upgraded version 6 world runs the season the version 6 model ran: %d days, %s visits, identical by day and outcome, and sales and units by brand",
+                             n6, format(sum(visits6), big.mark = ",")))
 
 # ---- A version 1 world ------------------------------------------------------------------
 

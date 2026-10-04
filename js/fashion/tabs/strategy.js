@@ -7,7 +7,7 @@
 import { el, fmt, card, brandVar, formatOf } from "../ui.js";
 import { LineChart, BarChart, Donut } from "../charts.js";
 
-const SHORT = { price: "Price position", promo_depth: "Promotion depth", ad: "Marketing reach", cashiers: "Cashiers / store", assistants: "Assistants / store" };
+const SHORT = { price: "Price position", ad: "Marketing reach", cashiers: "Cashiers / store", assistants: "Assistants / store" };
 
 export class StrategyTab {
   constructor(root, app) {

@@ -81,7 +81,6 @@ setting <- function(label, min, max, step, format = "num2", kind = if (format ==
 # every store of the brand; one store can then be changed on its own.
 LEVERS <- list(
   price       = setting("Price change (x list prices)", 0.5, 2, 0.05, "num2"),
-  promo_depth = setting("Promotion depth (Market tab)", 0.05, 0.5, 0.05, "pct"),
   ad          = setting("Marketing reach", 0, 1, 0.05, "pct"),
   cashiers    = setting("Cashiers per store", 1, 5, 1, "int"),
   assistants  = setting("Assistants per store", 0, 4, 1, "int"),
@@ -102,8 +101,7 @@ FIELDS <- list(
     memory = setting("Memory of bad visits (kept per day)", 0.8, 0.995, 0.005, "pct1"),
     grudge_w = setting("Weight of a bad visit", 0, 3, 0.1, "num1"),
     wom = setting("Word of mouth", 0, 1.5, 0.05, "num2"),
-    outside = setting("Appeal of staying home", 0, 5, 0.1, "num1"),
-    promo_days = setting("Promotion length (days, Market tab)", 3, 21, 1, "int")),
+    outside = setting("Appeal of staying home", 0, 5, 0.1, "num1")),
   season = list(days = setting("Season length (days)", 7, MAX_SEASON_DAYS, 1, "int")),
   category = list(price = setting("Typical price ($)", 1, 1e5, 1, "money")),
   product = list(

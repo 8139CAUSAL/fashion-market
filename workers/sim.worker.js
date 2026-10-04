@@ -326,8 +326,6 @@ const rArg = (value) => {
 
 // Levers and actions the page may call, and the R code each runs.
 const ACTIONS = {
-  global_promo: ({ brand }) => `global_promo(${rNumber(brand)})`,
-  local_promo: ({ brand, area }) => `local_promo(${rNumber(brand)}, ${rNumber(area)})`,
   pick_household: ({ household }) => `pick_household(${household ? rNumber(household) : "NA"})`,
   pick_home_at: ({ x, y }) => `pick_household(which.min((mk$hh$x - ${rNumber(x)})^2 + (mk$hh$y - ${rNumber(y)})^2))`,
   follow_visit: ({ store }) => `follow_visit(${rNumber(store)})`,

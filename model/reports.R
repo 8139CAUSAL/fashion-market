@@ -95,14 +95,10 @@ report_market <- function() {
       promo = STORES$brand[s] %in% running)),
     brands = lapply(seq_len(N_BRANDS), function(b) list(
       name = BRANDS$name[b], colour = BRANDS$colour[b], family = BRANDS$family[b], ours = OURS_B[b],
-      price = pos[b], promo_depth = LEVERS$promo_depth$value[b], ad = LEVERS$ad$value[b],
+      price = pos[b], ad = LEVERS$ad$value[b],
       cashiers = LEVERS$cashiers$value[b], assistants = LEVERS$assistants$value[b],
-      on_today = I(cal$pr$name[today_promos$k[running == b]]),
-      global_left = max(0, cal$pr$to[cal$pr$brand == b & cal$pr$source == "global"] - day),
-      global_block = global_promo_block(b),
-      promos_done = cal$done[b] + sum(cal$local_done[b, ]),
-      local_left = I(vapply(seq_len(N_AREAS), function(a) { k <- local_running(b, a); if (length(k)) cal$pr$to[k[1]] - day else 0 }, 0)),
-      local_block = I(vapply(seq_len(N_AREAS), function(a) { x <- local_promo_block(b, a); if (is.na(x)) "" else x }, "")),
+      on_today = lapply(today_promos$k[running == b], function(k) list(name = cal$pr$name[k], depth = cal$pr$depth[k], to = cal$pr$to[k],
+                                                                       on = promo_on_text(b, cal$pr$cover[k, ]), reach = promo_reach_text(b, k))),
       stores = sum(STORES$brand == b))),
     customers = last_row("customers", dd) %||% tabulate(mk$last_brand + 1L, N_BRANDS + 1L),
     sales_share = if (length(dd)) round(bd / pmax(rowSums(bd), 1), 4) else list(),
@@ -190,7 +186,7 @@ report_strategy <- function() {
   pos <- price_position()
   levers <- c(list(list(name = "price", label = "Price position", min = 0, max = max(2, ceiling(max(pos) * 4) / 4), step = 0.01, format = "num2",
                         ours = ours_mean(pos), competitors = rivals_mean(pos), each = I(pos))),
-              lapply(c("promo_depth", "ad", "cashiers", "assistants"), function(n) {
+              lapply(c("ad", "cashiers", "assistants"), function(n) {
     L <- LEVERS[[n]]
     list(name = n, label = L$label, min = L$min, max = L$max, step = L$step, format = L$format,
          ours = ours_mean(L$value), competitors = rivals_mean(L$value), each = I(L$value))
@@ -617,29 +613,36 @@ report_assortment <- function(b) {
        calendar = calendar_strip(b))
 }
 
-# Brand b's calendar as it has run so far and is planned: its promotions
-# (planned, and from the Market tab's buttons); its markdowns and its
-# replenishment, each entry with the days it acts and, for the days gone,
-# what it did (a markdown: how many products it took, and why it left the
-# others; an order: the units ordered and the day they arrive); and the
-# days its products land.
+# What a calendar entry of brand b is on (cover: a logical over its
+# products), in words: the whole range, or its categories and products.
+promo_on_text <- function(b, cover) {
+  ok <- PROD_OK[b, ]
+  if (all(cover[ok])) return("the whole range")
+  cats <- which(CARRIES[b, ])
+  whole <- cats[vapply(cats, function(c) all(cover[ok & PROD_CAT[b, ] == c]), TRUE)]
+  rest <- which(cover & ok & !(PROD_CAT[b, ] %in% whole))
+  paste(c(CATEGORIES[whole], PROD_NAME[b, rest]), collapse = ", ")
+}
+
+# Who promotion k of brand b reaches, in words: its tiers, and its areas.
+promo_reach_text <- function(b, k) {
+  t <- cal$pr
+  tiers <- t$tiers[k, seq_len(TIER_N[b])]
+  who <- if (all(tiers)) "every tier" else paste(TIER_NAMES[[b]][tiers], collapse = ", ")
+  bins <- t$bins[k, ]
+  where <- if (all(bins)) "everywhere" else paste(c(AREAS$name, "outside every area")[bins], collapse = ", ")
+  paste(who, where, sep = ", ")
+}
+
+# Brand b's calendar as it has run so far and is planned: its promotions;
+# its markdowns and its replenishment, each entry with the days it acts
+# and, for the days gone, what it did (a markdown: how many products it
+# took, and why it left the others; an order: the units ordered and the day
+# they arrive); and the days its products land.
 calendar_strip <- function(b) {
   t <- cal$pr
-  on_text <- function(cover) {
-    ok <- PROD_OK[b, ]
-    if (all(cover[ok])) return("the whole range")
-    cats <- which(CARRIES[b, ])
-    whole <- cats[vapply(cats, function(c) all(cover[ok & PROD_CAT[b, ] == c]), TRUE)]
-    rest <- which(cover & ok & !(PROD_CAT[b, ] %in% whole))
-    paste(c(CATEGORIES[whole], PROD_NAME[b, rest]), collapse = ", ")
-  }
-  reach_text <- function(k) {
-    tiers <- t$tiers[k, seq_len(TIER_N[b])]
-    who <- if (all(tiers)) "every tier" else paste(TIER_NAMES[[b]][tiers], collapse = ", ")
-    bins <- t$bins[k, ]
-    where <- if (all(bins)) "everywhere" else paste(c(AREAS$name, "outside every area")[bins], collapse = ", ")
-    paste(who, where, sep = ", ")
-  }
+  on_text <- function(cover) promo_on_text(b, cover)
+  reach_text <- function(k) promo_reach_text(b, k)
   mine <- which(t$brand == b & t$from <= t$to)
   mds <- which(vapply(CAL_PLAN$markdowns, function(x) x$brand == b, TRUE))
   reps <- which(vapply(CAL_PLAN$replenishment, function(x) x$brand == b, TRUE))
