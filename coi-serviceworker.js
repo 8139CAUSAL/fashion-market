@@ -13,9 +13,9 @@
  * rarely-changing downloads so return visits start without the network:
  *   - a published webR release (webr.r-wasm.org/vX.Y.Z/) never changes, so
  *     it is cached for good;
- *   - the NetLogoR library image, the editor bundle and model data files are
- *     served from the cache at once and refreshed in the background, so a
- *     new deployment arrives on the following visit.
+ *   - the NetLogoR library image and the editor bundle are served from the
+ *     cache at once and refreshed in the background, so a new deployment
+ *     arrives on the following visit.
  *
  * When the server already sends the headers (tools/serve.R), the page is
  * isolated on first load and this script does nothing.
@@ -28,7 +28,7 @@ if (typeof window === "undefined") {
   // ---- Service worker context -------------------------------------------
   const CACHE = "netlogor-assets-v1";
   const IMMUTABLE = /^https:\/\/webr\.r-wasm\.org\/v\d+\.\d+\.\d+\//;
-  const REVALIDATE = /\/(vfs|vendor|templates\/data)\//;
+  const REVALIDATE = /\/(vfs|vendor)\//;
 
   self.addEventListener("install", () => self.skipWaiting());
   self.addEventListener("activate", (event) => {

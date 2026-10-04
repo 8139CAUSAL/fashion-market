@@ -15,7 +15,14 @@
 # week), shared among the category's products in the stores that week. A
 # store's planned sales of a category, and how deep its racks of it are,
 # scale with the category's rack faces in its layout (against a standard
-# store's: STORE_SPACE, world.R).
+# store's: STORE_SPACE, world.R). A brand's online store plans to sell as
+# much as some standard stores (its plan_stores), and sells from the DC.
+#
+# Every unit bought is somewhere: at the DC, on its way to a store, on a
+# rack, in a stockroom, waiting to be reshelved, or sold (in a store or
+# online). A unit sold may come back (returns.R): back in a store's stock
+# or the DC's, or written off. So a unit sold is with a household (on its
+# way, returnable, or kept), back in stock, or written off.
 
 sku_prod <- function() rep(seq_len(N_PROD), each = N_SIZES)
 product_of <- function(sku) (sku - 1L) %/% N_SIZES + 1L
@@ -51,12 +58,13 @@ init_catalogue <- function() {
 }
 
 # The season's buy, per brand and SKU: planned weekly sales across the
-# brand's stores, for the weeks each product is in the stores, split by the
-# market's size curve.
+# brand's stores and its online store (as standard stores), for the weeks
+# each product is in the stores, split by the market's size curve.
 season_plan <- function() {
   vol <- matrix(0, N_BRANDS, N_PROD)                                         # brand x product: its stores' space for it
   by_brand <- rowsum(SPACE_SP, STORES$brand)
   vol[as.integer(rownames(by_brand)), ] <- by_brand
+  vol <- vol + ONLINE$plan_stores * ONLINE$on * PROD_OK                      # ... and its online store's
   share <- Reduce(`+`, lapply(seq_len(SEASON_WEEKS), function(w) week_share(w) * week_weight(w)))   # weeks of a category's sales, per product
   curve <- market_size_curve()
   per_prod <- (vol * P_STOCK$season_buy) * PLAN_CAT * share                     # brand x product
@@ -71,7 +79,10 @@ season_plan <- function() {
 # weekday a week before (count_demand).
 init_stock <- function() {
   zero <- matrix(0, N_STORES, N_SKU)
+  by_brand <- matrix(0, N_BRANDS, N_SKU)
   stock <<- list(rack = zero, room = zero, go_back = zero, sold = zero, missed = zero,
+                 online = by_brand,                        # sold online, by brand (gone from the DC)
+                 restocked = zero, restocked_dc = by_brand, written_off = by_brand,   # returned: back in a store's stock, or the DC's; written off
                  dc = season_plan(), transit = list(day = numeric(), store = integer(), sku = integer(), n = numeric()),
                  day_demand = rep(list(zero), 7L),        # each of the last seven days' demand, in its weekday's place
                  estimate = rep(list(zero), 7L),          # each weekday's estimate of a week's demand
@@ -332,8 +343,23 @@ stock_left_cost <- function(left = product_left()) .rowSums((left$stores + left$
 # Units by brand and product: from a store x SKU table (summed over each
 # brand's stores), or from a brand x SKU one.
 prod_totals <- function(m, by_brand = FALSE) {
-  if (!by_brand) m <- rowsum(m, STORES$brand, reorder = TRUE)
+  if (!by_brand) m <- stores_to_brands(m)
   t(rowsum(t(m), sku_prod(), reorder = TRUE))
+}
+
+# A store x anything table summed over each brand's stores: brand x
+# anything (a brand with no stores has zeros).
+stores_to_brands <- function(m) {
+  out <- matrix(0, N_BRANDS, dim(m)[2L])
+  r <- rowsum(m, STORES$brand, reorder = TRUE)
+  out[as.integer(rownames(r)), ] <- r
+  out
+}
+
+# Brand x product: units sold (in the stores and online), less those
+# returned (back in stock or written off).
+net_sold <- function() {
+  prod_totals(stock$sold) + prod_totals(stock$online - stock$restocked_dc - stock$written_off, by_brand = TRUE) - prod_totals(stock$restocked)
 }
 
 # A store x SKU table summed by category: store x category.
@@ -346,10 +372,12 @@ by_category <- function(m) {
   out
 }
 
-# Everything a brand bought is sold, on a rack, in a stockroom, waiting to
-# be reshelved, on its way or still at the DC (checked at the end of each
-# day).
-stock_balance <- function() {
-  held <- rowsum(stock$rack + stock$room + stock$go_back + stock$sold + in_transit(), STORES$brand, reorder = TRUE)
-  rowSums(stock$bought) - rowSums(held) - rowSums(stock$dc)
+# Everything a brand bought is on a rack, in a stockroom, waiting to be
+# reshelved, on its way, at the DC, or sold, in a store or online; less
+# what came back into stock (counted where it is now). Brand x SKU: 0 in
+# every place, checked at the end of each day.
+stock_balance <- function(by_sku = FALSE) {
+  held <- stores_to_brands(stock$rack + stock$room + stock$go_back + stock$sold + in_transit() - stock$restocked)
+  out <- stock$bought - held - stock$dc - stock$online + stock$restocked_dc
+  if (by_sku) out else rowSums(out)
 }

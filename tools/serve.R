@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Local development server for the NetLogoR Workbench.
+# Local development server for Fashion Market.
 #
 # Serves the project root with the COOP/COEP headers that make the page
 # cross-origin isolated (needed for webR's SharedArrayBuffer channel). On

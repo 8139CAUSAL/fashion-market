@@ -1,6 +1,7 @@
-// Bundles CodeMirror into vendor/codemirror.js, which is committed so the
-// Workbench stays a set of static files: no install, no build, no CDN at
-// runtime (and so it keeps working offline and under cross-origin isolation).
+// Bundles CodeMirror into vendor/codemirror.js (the R code drawer's viewer,
+// js/fashion/code-drawer.js), which is committed so Fashion Market stays a
+// set of static files: no install, no build, no CDN at runtime (and so it
+// keeps working offline and under cross-origin isolation).
 //
 //   npm install && npm run build:editor
 

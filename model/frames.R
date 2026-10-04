@@ -3,9 +3,10 @@
 
 # Every shopper in store `s` at time `t`, where their legs put them (one
 # trying on stands in the cubicle), and the staff, each with their number:
-# cashier k at till k, assistant k with the shopper they're advising, on
-# the way to or from the stockroom door or at it for one they're fetching a
-# size for, or waiting at their place on the floor.
+# cashier k at till k (busy with a sale or a return), assistant k with the
+# shopper they're advising, on the way to or from the stockroom door or at
+# it for one they're fetching a size for, or waiting at their place on the
+# floor.
 floor_agents <- function(s, t) {
   f <- STORES$format[s]; plan <- fl$plans[[f]]
   m <- legs$m[seq_len(legs$n), , drop = FALSE]
@@ -37,13 +38,13 @@ floor_agents <- function(s, t) {
     }
   }
   cub_busy <- tabulate(a[kind == TRY] - fl$cubicle_first[f] + 1L, fl$n_cubicles[f])
-  till_busy <- tabulate(a[kind == PAY] - fl$till_first[f] + 1L, fl$n_tills[f])
+  till_busy <- tabulate(a[kind == PAY | kind == REFUND] - fl$till_first[f] + 1L, fl$n_tills[f])
 
   # Staff.
   nc <- S$cashiers[s]
   cx <- plan$cashier_xy[seq_len(nc), 1]; cy <- plan$cashier_xy[seq_len(nc), 2]
   sm <- staff$m[seq_len(staff$n), , drop = FALSE]
-  sm <- sm[sm[, "store"] == s & sm[, "t0"] <= t & sm[, "t1"] > t, , drop = FALSE]
+  sm <- sm[sm[, "store"] == s & sm[, "job"] != JOB_REFUND & sm[, "t0"] <= t & sm[, "t1"] > t, , drop = FALSE]
   na <- S$assistants[s]
   k <- seq_len(na)
   job <- match(k, sm[, "server"])                                  # each assistant's job now, if any

@@ -60,6 +60,29 @@ AD_COST <- 450                  # $ per day at full reach, across the city
 AD_SHOP <- 0.25                 # full reach raises the chance of being in the market by this share
 PROMO_SHOP <- 0.35              # ... and a promotion one hears of, by this share (times segment response)
 
+# ---- Online stores and returns -------------------------------------------------------
+
+DELIVERY_W <- 0.2               # dislike of waiting for an online order, in utility per day of delivery
+ONLINE_BATCH_S <- 300           # online visits are settled every five minutes of the store day, in the order they came
+ONLINE_BASKET_ITEMS <- 2        # a typical online order, in items: what a delivery charge is weighed against
+RETURN_DAYS <- 8                # days, on average, from having an item to deciding to send it back
+# The chance an item is sent back, if the brand's return window allowed it,
+# by why, for each way it was bought: online (not seen or tried on), in a
+# store without trying it on (shoes, a bag, a size taken on trust), and
+# tried on in a fitting room (it fitted, so mostly a change of mind). The
+# window decides how many of these happen: a return comes RETURN_DAYS after
+# the item reaches the household, on average, and one the window has
+# closed on doesn't happen (returns.R).
+RETURN_REASONS <- c("didn't fit", "didn't suit them", "changed their mind")
+RETURN_KINDS <- c("bought online", "bought in a store, not tried on", "tried on in a fitting room")
+RETURN_P <- matrix(c(0.14, 0.11, 0.05,
+                     0.04, 0.03, 0.02,
+                     0.005, 0.01, 0.025), 3, byrow = TRUE, dimnames = list(c("online", "untried", "tried"), RETURN_REASONS))
+RETURN_WRITE_OFF <- 0.1         # share of returned items too worn or damaged to sell again: written off at cost
+RETURN_PULL <- c(store = 0.15, online = 0.4)   # pull of a return window that covers every return a shopper might want, in utility
+REFUND_BASE_S <- 60             # a cashier taking returns back: finding the sale, giving the refund
+REFUND_ITEM_S <- 30             # ... and checking and tagging each item
+
 # ---- How big a world can be ---------------------------------------------------------
 
 MAX_BRANDS <- 24
@@ -81,7 +104,6 @@ setting <- function(label, min, max, step, format = "num2", kind = if (format ==
 # every store of the brand; one store can then be changed on its own.
 LEVERS <- list(
   price       = setting("Price change (x list prices)", 0.5, 2, 0.05, "num2"),
-  promo_depth = setting("Promotion depth (Market tab)", 0.05, 0.5, 0.05, "pct"),
   ad          = setting("Marketing reach", 0, 1, 0.05, "pct"),
   cashiers    = setting("Cashiers per store", 1, 5, 1, "int"),
   assistants  = setting("Assistants per store", 0, 4, 1, "int"),
@@ -102,8 +124,7 @@ FIELDS <- list(
     memory = setting("Memory of bad visits (kept per day)", 0.8, 0.995, 0.005, "pct1"),
     grudge_w = setting("Weight of a bad visit", 0, 3, 0.1, "num1"),
     wom = setting("Word of mouth", 0, 1.5, 0.05, "num2"),
-    outside = setting("Appeal of staying home", 0, 5, 0.1, "num1"),
-    promo_days = setting("Promotion length (days, Market tab)", 3, 21, 1, "int")),
+    outside = setting("Appeal of staying home", 0, 5, 0.1, "num1")),
   season = list(days = setting("Season length (days)", 7, MAX_SEASON_DAYS, 1, "int")),
   category = list(price = setting("Typical price ($)", 1, 1e5, 1, "money")),
   product = list(
@@ -129,6 +150,15 @@ FIELDS <- list(
     salvage = setting("Stock left at the season's end: recovered, of cost", 0, 1, 0.05, "pct")),
   pricing = list(
     md_target = setting("Sell-through target by season end", 0.5, 0.98, 0.02, "pct")),
+  online = list(
+    delivery_days = setting("Delivery (days)", 1, 14, 1, "int"),
+    delivery_charge = setting("Delivery charge to the shopper, per order ($)", 0, 50, 0.05, "money"),
+    fulfilment_cost = setting("Picking and packing, per order ($)", 0, 50, 0.05, "money"),
+    shipping_cost = setting("Shipping, per order ($)", 0, 50, 0.05, "money"),
+    plan_stores = setting("Plans to sell as much as (standard stores)", 0, 20, 0.25, "num2")),
+  returns = list(
+    window_days = setting("Return window (days; 0: no returns)", 0, 365, 1, "int"),
+    post_cost = setting("Return postage, per parcel ($)", 0, 50, 0.05, "money")),
   plan = setting("Planned units a week, standard store", 0, 5000, 1, "int"),
   staff = list(
     cashiers = setting("Cashiers on the tills", 1, 12, 1, "int"),
@@ -162,7 +192,8 @@ FIELDS <- list(
     browse = setting("Seconds at a rack", 60, 900, 10, "int"),
     patience = setting("Patience in a queue (s)", 30, 1800, 10, "int"),
     max_ahead = setting("Longest queue joined", 1, 20, 1, "int"),
-    budget = setting("Budget (times the area's)", 0.2, 4, 0.05, "num2")),
+    budget = setting("Budget (times the area's)", 0.2, 4, 0.05, "num2"),
+    online = setting("Taste for shopping online", -3, 3, 0.1, "num1")),
   taste = setting("Taste", 0, 5, 0.5, "num1"),
   macro = list(
     patch_m = setting("Metres per tile", 5, 5000, 5, "int"),

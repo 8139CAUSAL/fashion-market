@@ -1,9 +1,14 @@
 // Scorecard: the season's statistics, after the multi-tab restaurant's
-// Statistics page — satisfied against unsatisfied visits and why, time in
-// store with its summary statistics, staff utilisation, the size fill rate,
-// and what each brand has earned: its logistics charged as stock leaves the
-// DC, and at the season's end its stock left, written down to what it
-// fetches (until then, the stock left is shown at cost).
+// Statistics page — satisfied against unsatisfied visits and why (in the
+// stores, and online), time in store with its summary statistics, staff
+// utilisation (refunds at the tills included), returns, the size fill rate,
+// and what each brand has earned: gross sales less refunds (booked on the
+// day of the return), cost of goods net of what came back, the returns
+// written off at cost, its logistics charged as stock leaves the DC, its
+// online orders' picking, packing and shipping, the delivery charges its
+// shoppers paid, return postage, and at the season's end its stock left,
+// written down to what it fetches (until then, the stock left is shown at
+// cost).
 
 import { el, fmt, select, card, brandVar } from "../ui.js";
 import { LineChart, BarChart, Donut, Waterfall } from "../charts.js";
@@ -22,13 +27,20 @@ export class ScorecardTab {
     this.satDonut = new Donut(d1, { height: 130, emptyText: "No visits yet" });
     this.reasons = new BarChart(b1, { height: 150, horizontal: true, labelWidth: 176, format: fmt.int, valueLabels: true, valueFormat: fmt.compact });
 
+    this.onCard = card("Online visits and returns", { sub: "every brand, the season so far" });
+    this.onStats = el("div", { class: "stats", style: { marginBottom: "6px" } });
+    const b2 = el("div");
+    this.retNote = el("p", { class: "note" });
+    this.onCard.body.append(this.onStats, b2, this.retNote);
+    this.onReasons = new BarChart(b2, { height: 120, horizontal: true, labelWidth: 176, format: fmt.int, valueLabels: true, valueFormat: fmt.compact });
+
     const dw = card("Time in store", { sub: "minutes per visit" });
     this.dwellStats = el("div", { class: "stats", style: { marginBottom: "6px" } });
     dw.body.append(this.dwellStats);
     this.dwell = new BarChart(dw.body, { height: 150, stacked: true, format: fmt.compact, legend: true, barMax: 10, catWidth: 34, catFormat: (c) => c });
 
     const scopeSel = select({ label: "Stores", hideLabel: true, value: "ours", options: [{ value: "ours", label: "Our brands' stores" }, { value: "all", label: "Every store" }], onChange: (v) => { this.scope = v; this.#render(); } });
-    const ut = card("Staff utilisation", { sub: "share of the day busy, by day", right: scopeSel.root });
+    const ut = card("Staff utilisation", { sub: "share of the day busy, by day", right: scopeSel.root, cls: "span-2" });
     this.util = new LineChart(ut.body, { height: 170, format: (v) => fmt.pct(v), yMax: 1, legend: true, xFormat: (x) => `day ${x}`, tipTitle: (x) => `Day ${x}`, emptyText: "After the first day" });
 
     const fl = card("Size fill rate", { sub: "rack visits where the shopper's size was there (or fetched)" });
@@ -36,16 +48,16 @@ export class ScorecardTab {
 
     this.brandSel = select({ label: "Brand", hideLabel: true, value: 1, options: [], onChange: (v) => { this.brand = Number(v); this.#render(); } });
     const brandSel = this.brandSel;
-    const wf = card("Where the money went", { sub: "the season so far · rent and overheads left out", right: brandSel.root, cls: "span-2" });
+    const wf = card("Where the money went", { sub: "the season so far · rent and overheads left out", right: brandSel.root, cls: "span-all" });
     this.waterfall = new Waterfall(wf.body, { height: 210, format: fmt.money });
     this.leftNote = el("p", { class: "note" });
     wf.body.append(this.leftNote);
 
-    const ct = card("Contribution by brand", { cls: "span-all" });
+    const ct = card("Contribution by brand", { sub: "gross sales less refunds is net sales; every cost is net of returns", cls: "span-all" });
     this.contribBox = el("div", { class: "table-scroll" });
     ct.body.append(this.contribBox);
 
-    grid.append(sat.root, dw.root, ut.root, fl.root, wf.root, ct.root);
+    grid.append(sat.root, this.onCard.root, dw.root, ut.root, fl.root, wf.root, ct.root);
     root.append(grid);
   }
 
@@ -63,6 +75,14 @@ export class ScorecardTab {
       centre: { value: fmt.pct(o[0] / Math.max(1, total), 0), label: "satisfied" } });
     this.reasons.update({ categories: r.outcome_names.slice(1), series: [{ name: "Visits", colour: "var(--critical)", values: o.slice(1) }] });
 
+    const oo = r.online_outcomes; const onTotal = oo.reduce((a, b) => a + b, 0); const rt = r.returns;
+    this.onStats.replaceChildren(...[["Online visits", fmt.int(onTotal)], ["Ordered", fmt.pct(oo[0] / Math.max(1, onTotal), 0)],
+      ["Return trips", fmt.int(rt.trips)], ["Parcels back", fmt.int(rt.parcels)]]
+      .map(([k, v]) => el("div", { class: "stat" }, el("div", { class: "stat-label", text: k }), el("div", { class: "stat-value", style: { fontSize: "15px" }, text: v }))));
+    this.onReasons.update(r.any_online ? { categories: r.online_outcome_names.slice(1), series: [{ name: "Online visits", colour: "var(--critical)", values: oo.slice(1) }] } : null);
+    this.retNote.textContent = `${r.any_online ? "Online visits that didn't order, and why, above. " : "No brand has an online store. "}`
+      + `Items taken back at the tills: ${fmt.int(rt.taken_back)}, taking cashiers ${fmt.num1(rt.refund_hours)} hours. Returns by post go straight to the brand's DC.`;
+
     const dw = r.dwell;
     this.dwellStats.replaceChildren(...[["Count", fmt.int(dw.n)], ["Mean", fmt.num1(dw.mean)], ["Min", fmt.num1(dw.min)], ["Max", fmt.num1(dw.max)], ["Std dev", fmt.num1(dw.sd)]]
       .map(([k, v]) => el("div", { class: "stat" }, el("div", { class: "stat-label", text: k }), el("div", { class: "stat-value", style: { fontSize: "15px" }, text: v }))));
@@ -73,31 +93,46 @@ export class ScorecardTab {
     const days = u.fitting.length;
     this.util.update(days ? { x: Array.from({ length: days }, (_, i) => i + 1), series: [
       { name: "Fitting rooms", colour: "var(--look-4)", values: u.fitting }, { name: "Tills", colour: "var(--look-3)", values: u.tills },
-      { name: "Assistants", colour: "var(--accent)", values: u.assistants }] } : null);
+      { name: "Assistants", colour: "var(--accent)", values: u.assistants }, { name: "Tills: returns", colour: "var(--look-8)", values: u.returns }] } : null);
     this.fill.update(r.fill.all.length ? { x: r.fill.all.map((_, i) => i + 1), series: [
       { name: "Our brands' stores", colour: "var(--ours)", values: r.fill.ours }, { name: "Every store", colour: "var(--ink-2)", values: r.fill.all }] } : null);
 
     const c = r.contribution[this.brand - 1] ?? r.contribution[0];
+    const online = c.online || c.orders > 0;
     this.waterfall.update({ steps: [
       { label: "Full-price value", value: c.full_price, total: true }, { label: "Markdowns and promotions", value: -c.discounts },
-      { label: "Cost of goods", value: -c.cogs }, { label: "Staff", value: -c.staff }, { label: "Marketing", value: -c.marketing },
+      { label: "Refunds", value: -c.refunds },
+      { label: "Cost of goods (net)", value: -c.cogs }, ...(c.written_off ? [{ label: "Returns written off", value: -c.written_off }] : []),
+      { label: "Staff", value: -c.staff }, { label: "Marketing", value: -c.marketing },
       ...(c.offers ? [{ label: "Offers", value: -c.offers }] : []), { label: "Logistics", value: -c.logistics },
+      ...(online ? [{ label: "Online packing", value: -c.fulfilment }, { label: "Online shipping", value: -c.shipping }, { label: "Delivery charges", value: c.delivery }] : []),
+      ...(c.return_post ? [{ label: "Return postage", value: -c.return_post }] : []),
       ...(c.written_down ? [{ label: "Stock write-down", value: -c.writedown }] : []), { label: "Contribution", value: c.contribution, total: true }] });
     const who = this.app.brandName(c.brand);
-    this.leftNote.textContent = c.written_down
+    const left = c.written_down
       ? `${who} ended the season with ${fmt.money(c.stock_left)} of stock left at cost, written down to the ${fmt.pct(c.salvage)} it fetches: ${fmt.money(c.writedown)} off its contribution. Logistics: ${fmt.int(c.deliveries)} store deliveries, ${fmt.int(c.shipped)} units shipped.`
       : `${who} has ${fmt.money(c.stock_left)} of stock left at cost (in its stores, on the way and at its DC). At the season's end what's left is written down to the ${fmt.pct(c.salvage)} of cost it fetches. Logistics so far: ${fmt.int(c.deliveries)} store deliveries, ${fmt.int(c.shipped)} units shipped.`;
+    const back = ` Gross sales ${fmt.money(c.gross)}, refunds ${fmt.money(c.refunds)} (${fmt.int(c.returned_units)} items, booked on the day they came back), net sales ${fmt.money(c.sales)}.`
+      + ` Cost of goods is net of the returns: back in stock, their cost comes off; of those, ${fmt.int(c.written_off_units)} were written off, at cost.`
+      + (online ? ` Online: ${fmt.int(c.orders)} orders, each costing picking and packing and shipping; shoppers paid the delivery charges, which aren't refunded with a return.` : "")
+      + (c.parcels ? ` Return postage: ${fmt.int(c.parcels)} parcels back to the DC.` : "");
+    this.leftNote.textContent = left + back;
 
-    const cols = [["Brand", (x) => this.app.brandName(x.brand)], ["Sales", (x) => fmt.money(x.sales)], ["Given away", (x) => fmt.money(x.discounts)],
-      ["Cost of goods", (x) => fmt.money(x.cogs)], ["Staff", (x) => fmt.money(x.staff)], ["Marketing", (x) => fmt.money(x.marketing)],
-      ["Offers", (x) => fmt.money(x.offers)], ["Logistics", (x) => fmt.money(x.logistics)], ["Stock left at cost", (x) => fmt.money(x.stock_left)],
+    const cols = [["Brand", (x) => this.app.brandName(x.brand)], ["Gross sales", (x) => fmt.money(x.gross)], ["Refunds", (x) => fmt.money(x.refunds)],
+      ["Net sales", (x) => fmt.money(x.sales)], ["Given away", (x) => fmt.money(x.discounts)],
+      ["Cost of goods (net)", (x) => fmt.money(x.cogs)], ["Returns written off", (x) => fmt.money(x.written_off)],
+      ["Staff", (x) => fmt.money(x.staff)], ["Marketing", (x) => fmt.money(x.marketing)],
+      ["Offers", (x) => fmt.money(x.offers)], ["Logistics", (x) => fmt.money(x.logistics)],
+      ["Online costs", (x) => (x.online || x.orders ? fmt.money(x.fulfilment + x.shipping) : "no online store")],
+      ["Delivery charges", (x) => fmt.money(x.delivery)], ["Return postage", (x) => fmt.money(x.return_post)],
+      ["Stock left at cost", (x) => fmt.money(x.stock_left)],
       ["Stock written down", (x) => (x.written_down ? fmt.money(x.writedown) : "at the end")],
-      ["Contribution", (x) => fmt.money(x.contribution)], ["Margin", (x) => fmt.pct(x.contribution / Math.max(1, x.sales), 1)]];
+      ["Contribution", (x) => fmt.money(x.contribution)], ["Margin (of net sales)", (x) => fmt.pct(x.contribution / Math.max(1, x.sales), 1)]];
     this.contribBox.replaceChildren(el("table", { class: "data" },
       el("thead", {}, el("tr", {}, ...cols.map(([h], i) => el("th", { class: i ? "num" : "", text: h })))),
       el("tbody", {}, ...this.app.brandOrder.map((b) => r.contribution[b.index - 1]).filter(Boolean).map((x) => el("tr", {}, ...cols.map(([, f], i) => {
         const td = el("td", { class: i ? "num" : "", text: f(x) });
-        if (!i) td.prepend(el("i", { class: "legend-swatch", vars: { "--c": brandVar(x.brand) }, style: { display: "inline-block", marginRight: "6px" } }));
+        if (!i) { td.style.whiteSpace = "nowrap"; td.prepend(el("i", { class: "legend-swatch", vars: { "--c": brandVar(x.brand) }, style: { display: "inline-block", marginRight: "6px" } })); }
         return td;
       }))))));
   }

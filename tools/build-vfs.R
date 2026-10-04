@@ -10,12 +10,13 @@
 #   vfs/netlogor-lib.data.gz       concatenated file contents, gzipped
 #   vfs/netlogor-lib.js.metadata   JSON index: [{filename, start, end}, ...]
 #
-# The engine worker mounts this image at startup, so the browser never runs
-# install.packages() or contacts the package repository.
+# The simulation worker (workers/sim.worker.js) mounts this image at
+# startup, so the browser never runs install.packages() or contacts the
+# package repository.
 #
 #   Rscript tools/build-vfs.R
 #
-# R_VERSION must match the webR release pinned in js/config.js
+# R_VERSION must match the webR release pinned in workers/sim.worker.js
 # (webR 0.6.x ships R 4.6).
 #
 # Shims: NetLogoR imports terra and quickPlot, but the webR build of terra

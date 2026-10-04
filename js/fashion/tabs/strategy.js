@@ -1,13 +1,14 @@
 // Strategy: our family's levers set against the competition's (set on the
 // Setup tab), and what they're doing to share, revenue and spend per
-// customer. After the strategy-control picture: our bars beside the
-// competitors' average, the market share history as a stacked area
-// (addressable, ours, other), and revenue per customer with its history.
+// customer, all net of refunds. After the strategy-control picture: our
+// bars beside the competitors' average, the market share history as a
+// stacked area (addressable, ours, other), and revenue per customer with
+// its history; then each brand's online share and return rate.
 
 import { el, fmt, card, brandVar, formatOf } from "../ui.js";
 import { LineChart, BarChart, Donut } from "../charts.js";
 
-const SHORT = { price: "Price position", promo_depth: "Promotion depth", ad: "Marketing reach", cashiers: "Cashiers / store", assistants: "Assistants / store" };
+const SHORT = { price: "Price position", ad: "Marketing reach", cashiers: "Cashiers / store", assistants: "Assistants / store" };
 
 export class StrategyTab {
   constructor(root, app) {
@@ -33,16 +34,21 @@ export class StrategyTab {
     top.append(levers.root, market.root);
 
     const bottom = el("div", { class: "grid strategy-bottom" });
-    const rev = card("Total revenue", { sub: "this season" });
+    const rev = card("Total revenue", { sub: "this season, net of refunds" });
     this.revenue = new BarChart(rev.body, { height: 180, format: fmt.money, valueLabels: true });
-    const spc = card("Spend per customer", { sub: "season revenue ÷ customers, by brand" });
+    this.revNote = el("p", { class: "note" });
+    rev.body.append(this.revNote);
+    const spc = card("Spend per customer", { sub: "season revenue, net of refunds ÷ customers, by brand" });
     this.spend = new BarChart(spc.body, { height: 180, format: fmt.money, valueLabels: true, catWidth: 60 });
-    const hr = card("Average receipt history", { sub: "by week" });
+    const hr = card("Average receipt history", { sub: "by week · the week's sales less its refunds ÷ receipts and online orders" });
     this.receipt = new LineChart(hr.body, { height: 180, format: fmt.money, legend: true, endLabels: true, xFormat: (x) => `wk ${x}`, tipTitle: (x) => `Week ${x}`, emptyText: "Run the season to see receipts" });
-    const wal = card("Share of wallet", { sub: "each segment's season budget: where it went" });
+    const wal = card("Share of wallet", { sub: "each segment's season budget: where it went, net of refunds" });
     this.wallet = new BarChart(wal.body, { height: 180, horizontal: true, stacked: true, labelWidth: 112, format: fmt.money, tipFormat: fmt.money, legend: true });
     bottom.append(rev.root, spc.root, hr.root, wal.root);
-    root.append(top, bottom);
+    const ch = card("Online and returns, by brand", { sub: "this season · a refund comes off on the day of the return", cls: "span-all" });
+    this.channelBox = el("div", { class: "table-scroll" });
+    ch.body.append(this.channelBox, el("p", { class: "note", text: "Online share is the brand's online sales, net of refunds, of all its net sales. Return rate is the units returned this season against the units sold, so early in the season it trails what's still to come back." }));
+    root.append(top, bottom, el("div", { class: "grid" }, ch.root));
   }
 
   onGeometry() {
@@ -84,7 +90,10 @@ export class StrategyTab {
       { name: oursName, colour: "var(--ours)", values: h.map((row) => row[0]) },
       { name: "Other brands", colour: "var(--ink-2)", values: h.map((row) => row[1]) },
     ] } : null);
-    this.revenue.update({ categories: [oursName, "Competitors"], series: [{ name: "Revenue", colours: ["var(--ours)", "var(--ink-2)"], values: [r.revenue.ours, r.revenue.competitors] }] });
+    this.revenue.update({ categories: [oursName, "Competitors"], series: [{ name: "Revenue, net of refunds", colours: ["var(--ours)", "var(--ink-2)"], values: [r.revenue.ours, r.revenue.competitors] }] });
+    const sum = (a, ours) => a.reduce((x, v, i) => x + ((this.app.brands[i]?.ours ?? false) === ours ? v : 0), 0);
+    this.revNote.textContent = `${oursName}: ${fmt.money(sum(r.revenue.gross, true))} sold, less ${fmt.money(sum(r.revenue.refunds, true))} refunded. Competitors: ${fmt.money(sum(r.revenue.gross, false))}, less ${fmt.money(sum(r.revenue.refunds, false))}.`;
+    this.#channels(r, order);
     this.spend.update({ categories: order.map((b) => b.name), series: [{ name: "Spend per customer", colours: order.map((b) => brandVar(b.index)), values: order.map((b) => r.spend_per_customer.by_brand[b.index - 1]) }] });
     const rh = r.receipt_history;
     this.receipt.update(rh.length ? { x: rh.map((_, i) => i + 1), series: [
@@ -95,5 +104,21 @@ export class StrategyTab {
       ...order.map((b) => ({ name: b.name, colour: brandVar(b.index), values: r.wallet.map((w) => w.spend[b.index - 1]) })),
       { name: "Not spent yet", colour: "var(--surface-3)", values: r.wallet.map((w) => Math.max(0, w.budget - w.spend.reduce((a, x) => a + x, 0))) },
     ] });
+  }
+
+  #channels(r, order) {
+    const v = r.revenue;
+    const cols = ["Brand", "Net sales", "Sold (gross)", "Refunds", "Online", "Online share", "Return rate (units)", "Refunds of sales"];
+    this.channelBox.replaceChildren(el("table", { class: "data" },
+      el("thead", {}, el("tr", {}, ...cols.map((h, i) => el("th", { class: i ? "num" : "", text: h })))),
+      el("tbody", {}, ...order.map((b) => {
+        const i = b.index - 1;
+        return el("tr", {},
+          el("td", {}, el("i", { class: "legend-swatch", vars: { "--c": brandVar(b.index) }, style: { display: "inline-block", marginRight: "6px" } }), b.name),
+          el("td", { class: "num", text: fmt.money(v.by_brand[i]) }), el("td", { class: "num", text: fmt.money(v.gross[i]) }),
+          el("td", { class: "num", text: fmt.money(v.refunds[i]) }), el("td", { class: "num", text: r.has_online[i] ? fmt.money(v.online[i]) : "no online store" }),
+          el("td", { class: "num", text: r.has_online[i] ? fmt.pct(r.online_share[i], 1) : "—" }),
+          el("td", { class: "num", text: fmt.pct(r.return_rate[i], 1) }), el("td", { class: "num", text: fmt.pct(r.refund_rate[i], 1) }));
+      }))));
   }
 }

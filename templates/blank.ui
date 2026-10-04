@@ -1,4 +1,0 @@
-# A blank model. Add widgets here, one per line; the Guide tab explains how.
-
-button setup
-button go forever .right()

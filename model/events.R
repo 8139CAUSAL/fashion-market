@@ -14,17 +14,26 @@
 # afford, at today's price, before their taste on the day) was low, and
 # something appealed anyway.
 
-# How visits end, and the funnel stage each is lost at (report_funnel).
+# How shopping visits end, and the funnel stage each is lost at
+# (report_funnel). An online visit ends in one of the first four: it was
+# ordered (paid), or nothing appealed, it was too expensive, or the DC
+# was out of the shopper's size. A trip to return items ends in one way
+# of its own.
 OUTCOMES <- c("paid", "nothing appealed", "too expensive", "not in my size",
               "left the fitting-room queue", "didn't fit or like it", "walked out of the till queue")
 N_OUTCOMES <- length(OUTCOMES)
 FUNNEL_STAGES <- c("In market", "Visited", "Picked items", "Past fitting rooms", "Kept", "Paid")
 OUTCOME_STAGE <- c(NA, 2L, 2L, 2L, 3L, 4L, 5L)
+ONLINE_OUTCOMES <- c("ordered", OUTCOMES[2:4])
+ONLINE_STAGES <- c("In market", "Visited online", "Ordered")
+ONLINE_STAGE <- c(NA, 2L, 2L, 2L)
+OUT_RETURNED <- N_OUTCOMES + 1L
+TRIP_OUTCOME <- "returned items"
 
 # The events, by the code the log gives them.
 EV_CAME <- 1L; EV_PICKED <- 3L; EV_NO_SIZE <- 4L; EV_FETCHED <- 5L; EV_TOO_DEAR <- 6L; EV_NOTHING <- 7L
 EV_ADVISED <- 8L; EV_FR_JOINED <- 9L; EV_FR_BALKED <- 10L; EV_FR_GAVE_UP <- 11L; EV_TRIED <- 12L
-EV_TILL_JOINED <- 13L; EV_TILL_BALKED <- 14L; EV_TILL_GAVE_UP <- 15L; EV_PAID <- 16L; EV_LEFT <- 17L
+EV_TILL_JOINED <- 13L; EV_TILL_BALKED <- 14L; EV_TILL_GAVE_UP <- 15L; EV_PAID <- 16L; EV_LEFT <- 17L; EV_RETURNED <- 18L
 
 # Where a decision counts as close.
 CLEAR_MARGIN <- 1       # appeal this far past the bar, or more: a clear pick
@@ -109,16 +118,26 @@ EVENTS <- list(
     think = function(e) sprintf("Paid %s for %d item%s.%s", money(e$a2), e$a1, if (e$a1 == 1) "" else "s",
                                 if (e$saved > 0) sprintf(" Saved %s.", money(e$saved)) else ""),
     detail = function(e) if (e$saved > 0) sprintf("saved %s on markdowns, %s on promotions, %s with a coupon", money(e$a3), money(e$a4), money(e$a5)) else ""),
+  returned = list(code = EV_RETURNED, carries = "items, the refund, the first item's SKU, why it went back, the cashier",
+    log = function(e) sprintf("cashier %d took back %s%s, refunded %s", e$a5, e$item, if (e$a1 > 1) sprintf(" and %d more", e$a1 - 1) else "", money(e$a2)),
+    think = function(e) {
+      why <- switch(e$reason, "didn't fit" = sprintf("The %s didn't fit", tolower_first(e$product)),
+                    "didn't suit them" = sprintf("The %s didn't suit me", tolower_first(e$product)),
+                    sprintf("Changed my mind about the %s", tolower_first(e$product)))
+      if (e$a1 > 1) sprintf("%s, and %d more. %s back in all.", why, e$a1 - 1, money(e$a2)) else sprintf("%s. %s back.", why, money(e$a2))
+    }),
   left = list(code = EV_LEFT, carries = "how the visit ended",
-    log = function(e) sprintf("left: %s", OUTCOMES[e$a1]),
-    think = function(e) if (e$a1 == 1L) "Done. Home." else "Leaving with nothing.")
+    log = function(e) sprintf("left: %s", c(OUTCOMES, TRIP_OUTCOME)[e$a1]),
+    think = function(e) if (e$a1 == 1L) "Done. Home." else if (e$a1 == OUT_RETURNED) "Sorted. Home." else "Leaving with nothing.")
 )
 EVENT_OF <- setNames(names(EVENTS), vapply(EVENTS, `[[`, 0L, "code"))
 
 # The shared sentences of the queues. The longest queue they'd join is
-# a2 - 1: they join while fewer than a2 are ahead.
+# a2 - 1: they join while fewer than a2 are ahead (0: no limit, someone
+# returning items, who waits however long it takes).
 queue_joined <- function(e, where, none) {
   if (e$a1 == 0) return(tone("clear", none))
+  if (e$a2 == 0) return(tone("clear", sprintf("%d ahead of me %s. It has to go back, so I'll wait.", e$a1, where)))
   if (e$a1 >= e$a2 - 1) tone("close", sprintf("%d ahead %s. Any more and I'd have gone.", e$a1, where))
   else tone("clear", sprintf("%d ahead of me %s. I'll wait.", e$a1, where))
 }
@@ -130,7 +149,7 @@ queue_gave_up <- function(e, where) {
   if (e$a2 <= NEAR_WAIT * e$a1) tone("close", sprintf("%s I've waited %s. That's my limit.", capital(mins_text(e$a1)), where))
   else tone("clear", sprintf("%s %s, and it's barely moved. I'm going.", capital(mins_text(e$a1)), where))
 }
-queue_limit <- function(e) sprintf("%d ahead; they join while fewer than %d are", e$a1, e$a2)
+queue_limit <- function(e) if (e$a2 == 0) sprintf("%d ahead; returning items, they wait however long it takes", e$a1) else sprintf("%d ahead; they join while fewer than %d are", e$a1, e$a2)
 queue_wait <- function(e) sprintf("patience %s; the wait would have been %s", mins_text(e$a1), mins_text(e$a2))
 
 tone <- function(t, text) list(tone = t, text = text)
@@ -144,12 +163,14 @@ mins_text <- function(s) if (s < 90) sprintf("%.0f s", s) else sprintf("%.0f min
 # the sentences read it, for a visit to brand b.
 event_view <- function(row, b) {
   e <- list(code = row[3], a1 = row[4], a2 = row[5], a3 = row[6], a4 = row[7], a5 = row[8],
-            product = "", item = "", size = "", category = "", was = "", impulse = FALSE, saved = 0)
+            product = "", item = "", size = "", category = "", was = "", impulse = FALSE, saved = 0, reason = "")
   code <- e$code
-  if (code %in% c(EV_PICKED, EV_NO_SIZE, EV_FETCHED)) {
-    p <- product_of(e$a1)
-    e$product <- PROD_NAME[b, p]; e$size <- SIZES[size_of(e$a1)]; e$item <- sprintf("%s in %s", e$product, e$size)
+  if (code %in% c(EV_PICKED, EV_NO_SIZE, EV_FETCHED, EV_RETURNED)) {
+    k <- if (code == EV_RETURNED) e$a3 else e$a1
+    p <- product_of(k)
+    e$product <- PROD_NAME[b, p]; e$size <- SIZES[size_of(k)]; e$item <- sprintf("%s in %s", e$product, e$size)
   }
+  if (code == EV_RETURNED) e$reason <- RETURN_REASONS[e$a4]
   if (code == EV_PICKED) {
     e$impulse <- e$a4 < IMPULSE_CHANCE
     if (e$a5 > e$a2 + 0.005) e$was <- sprintf("was %s", money(e$a5))

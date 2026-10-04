@@ -1,6 +1,6 @@
 {
   "kind": "fashion-world",
-  "version": 7,
+  "version": 6,
   "name": "Four-district city",
   "seed": 1,
   "season_days": 91,
@@ -729,7 +729,15 @@
       "family": "ours",
       "colour": "#eb6834",
       "fit": {"value_seekers": 0.3, "trend_followers": 0.3, "quality_loyalists": 0.3, "convenience": 0.3},
-      "levers": {"price": 1, "ad": 0.4, "cashiers": 1, "assistants": 1, "skill": 1, "scan_s": 12},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.4,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 1,
+        "scan_s": 12
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -1124,16 +1132,7 @@
             "also_at": []
           }
         ]
-      },
-      "online": {
-        "on": true,
-        "delivery_days": 3,
-        "delivery_charge": 3.95,
-        "fulfilment_cost": 3.5,
-        "shipping_cost": 6,
-        "plan_stores": 2
-      },
-      "returns": {"window_days": 30, "post_cost": 6}
+      }
     },
     {
       "id": "ours_intimates",
@@ -1141,7 +1140,15 @@
       "family": "ours",
       "colour": "#e87ba4",
       "fit": {"value_seekers": 0.3, "trend_followers": 0.3, "quality_loyalists": 0.3, "convenience": 0.3},
-      "levers": {"price": 1, "ad": 0.4, "cashiers": 1, "assistants": 1, "skill": 1, "scan_s": 12},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.2,
+        "ad": 0.4,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 1,
+        "scan_s": 12
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -1442,16 +1449,7 @@
             "also_at": ["ours"]
           }
         ]
-      },
-      "online": {
-        "on": true,
-        "delivery_days": 3,
-        "delivery_charge": 2.95,
-        "fulfilment_cost": 3,
-        "shipping_cost": 4.5,
-        "plan_stores": 1
-      },
-      "returns": {"window_days": 30, "post_cost": 6}
+      }
     },
     {
       "id": "value",
@@ -1459,7 +1457,15 @@
       "family": "value_co",
       "colour": "#2a78d6",
       "fit": {"value_seekers": 0.8, "trend_followers": -0.2, "quality_loyalists": -0.6, "convenience": 0.2},
-      "levers": {"price": 1, "ad": 0.3, "cashiers": 1, "assistants": 0, "skill": 1, "scan_s": 10},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.15,
+        "ad": 0.3,
+        "cashiers": 1,
+        "assistants": 0,
+        "skill": 1,
+        "scan_s": 10
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -1752,16 +1758,7 @@
           }
         ],
         "offers": []
-      },
-      "online": {
-        "on": false,
-        "delivery_days": 4,
-        "delivery_charge": 4.95,
-        "fulfilment_cost": 2.5,
-        "shipping_cost": 5,
-        "plan_stores": 1
-      },
-      "returns": {"window_days": 14, "post_cost": 6}
+      }
     },
     {
       "id": "premium",
@@ -1769,7 +1766,15 @@
       "family": "premium_co",
       "colour": "#4a3aa7",
       "fit": {"value_seekers": -0.8, "trend_followers": 0.1, "quality_loyalists": 0.9, "convenience": -0.1},
-      "levers": {"price": 1, "ad": 0.5, "cashiers": 2, "assistants": 2, "skill": 1.2, "scan_s": 14},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.1,
+        "ad": 0.5,
+        "cashiers": 2,
+        "assistants": 2,
+        "skill": 1.2,
+        "scan_s": 14
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -2004,16 +2009,7 @@
           }
         ],
         "offers": []
-      },
-      "online": {
-        "on": true,
-        "delivery_days": 2,
-        "delivery_charge": 0,
-        "fulfilment_cost": 4.5,
-        "shipping_cost": 7.5,
-        "plan_stores": 1.5
-      },
-      "returns": {"window_days": 60, "post_cost": 6}
+      }
     },
     {
       "id": "fast",
@@ -2021,7 +2017,15 @@
       "family": "fast_co",
       "colour": "#1baf7a",
       "fit": {"value_seekers": 0.1, "trend_followers": 0.9, "quality_loyalists": -0.5, "convenience": 0.1},
-      "levers": {"price": 1, "ad": 0.6, "cashiers": 1, "assistants": 1, "skill": 0.9, "scan_s": 12},
+      "levers": {
+        "price": 1,
+        "promo_depth": 0.25,
+        "ad": 0.6,
+        "cashiers": 1,
+        "assistants": 1,
+        "skill": 0.9,
+        "scan_s": 12
+      },
       "stock": {
         "allocation": "flat",
         "season_buy": 1,
@@ -2380,16 +2384,7 @@
           }
         ],
         "offers": []
-      },
-      "online": {
-        "on": true,
-        "delivery_days": 4,
-        "delivery_charge": 2.95,
-        "fulfilment_cost": 2.5,
-        "shipping_cost": 5,
-        "plan_stores": 2
-      },
-      "returns": {"window_days": 30, "post_cost": 6}
+      }
     }
   ],
   "segments": [
@@ -2420,8 +2415,7 @@
         "sleepwear": 1,
         "loungewear": 1
       },
-      "offer_response": {"shop": 0.9, "appeal": 0.9},
-      "online": -1.4
+      "offer_response": {"shop": 0.9, "appeal": 0.9}
     },
     {
       "id": "trend_followers",
@@ -2450,8 +2444,7 @@
         "sleepwear": 0.5,
         "loungewear": 1.5
       },
-      "offer_response": {"shop": 0.3, "appeal": 0.4},
-      "online": -0.2
+      "offer_response": {"shop": 0.3, "appeal": 0.4}
     },
     {
       "id": "quality_loyalists",
@@ -2480,8 +2473,7 @@
         "sleepwear": 1,
         "loungewear": 1
       },
-      "offer_response": {"shop": 0.05, "appeal": 0.1},
-      "online": -0.8
+      "offer_response": {"shop": 0.05, "appeal": 0.1}
     },
     {
       "id": "convenience",
@@ -2510,8 +2502,7 @@
         "sleepwear": 0.5,
         "loungewear": 1
       },
-      "offer_response": {"shop": 0.35, "appeal": 0.4},
-      "online": 0.2
+      "offer_response": {"shop": 0.35, "appeal": 0.4}
     }
   ],
   "market": {
@@ -2522,6 +2513,7 @@
     "grudge_w": 0.8,
     "wom": 0.35,
     "outside": 2,
+    "promo_days": 7,
     "range_w": 1
   }
 }

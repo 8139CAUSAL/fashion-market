@@ -20,7 +20,10 @@
 # brand measures one: the households sent it against those held out, over
 # the offer's days. Every purchase an audience household makes on those
 # days, at any brand, is logged against the offer, so the reports can say
-# where the extra spend came from.
+# where the extra spend came from. It's measured net of returns: an item
+# returned counts against the purchase it reverses (its refund, and the
+# margin it takes back), even when the return comes after the offer ends
+# (the ledger links each return to its sale: returns.R).
 
 FATIGUE_K <- 0.5                             # response shrinks by exp(-FATIGUE_K * fatigue)
 FATIGUE_DECAY <- 0.94                        # share of fatigue kept each day
@@ -187,15 +190,31 @@ diff_ci <- function(x, a, b) {
   list(diff = ma - mb, lo = ma - mb - 1.96 * se, hi = ma - mb + 1.96 * se, treated = ma, control = mb)
 }
 
+# The returns so far of every purchase, by household and day (a household
+# makes one shopping visit a day): the refunds, and the margin they took
+# back (the refund, less the cost of the units back in stock).
+returns_by_purchase <- function() {
+  if (!ledger$n) return(NULL)
+  I <- ledger$i[seq_len(ledger$n), , drop = FALSE]
+  r <- which(I[, "ret_day"] > 0L)
+  if (!length(r)) return(NULL)
+  paid <- ledger$m[r, "paid"]
+  cost <- PROD_COST[cbind(I[r, "brand"], product_of(I[r, "sku"]))] * (I[r, "fate"] == FATE_RESTOCK)
+  agg <- rowsum(cbind(paid, paid - cost), purchase_key(I[r, "hh"], I[r, "day"]))
+  list(key = as.integer(rownames(agg)), refund = agg[, 1], margin = agg[, 2])
+}
+purchase_key <- function(h, t) (as.integer(h) - 1L) * (MAX_SEASON_DAYS + 1L) + as.integer(t)
+
 # Offer k, as measured so far: its state, audience, coupons used, and what
 # the households sent it did against those held out, per household over
 # the offer's days (to today, while it runs), at the brands its coupon is
 # good at (the brand, and any other it names): spend, how many bought,
-# margin (sales less cost of goods); and from those, its extra sales and
-# extra margin (less what sending cost). With `detail`, also: spend per
-# household day by day, the difference by tier, and where the extra spend
-# came from (every brand, the net for our family).
-offer_results <- function(k, rd = report_day(), detail = FALSE) {
+# margin (sales less cost of goods), each net of returns (`back`,
+# returns_by_purchase()); and from those, its extra sales and extra margin
+# (less what sending cost). With `detail`, also: spend per household day by
+# day, the difference by tier, and where the extra spend came from (every
+# brand, the net for our family).
+offer_results <- function(k, rd = report_day(), detail = FALSE, back = returns_by_purchase()) {
   b <- OFFERS$brand[k]
   o <- OFFERS[k, ]
   done <- days_complete()
@@ -208,6 +227,15 @@ offer_results <- function(k, rd = report_day(), detail = FALSE) {
   if (state == "planned") return(base)
   sent <- ofr$sent[[k]]; held <- !sent; m <- length(sent)
   L <- offer_purchases(k, rd)
+  # Net of returns: each purchase less what has come back of it.
+  refunded <- numeric(dim(L)[1L])
+  if (!is.null(back) && dim(L)[1L]) {
+    j <- match(purchase_key(ofr$members[[k]][L[, "member"]], L[, "day"]), back$key)
+    hit <- !is.na(j)
+    refunded[hit] <- back$refund[j[hit]]
+    L[hit, "sales"] <- L[hit, "sales"] - back$refund[j[hit]]
+    L[hit, "margin"] <- L[hit, "margin"] - back$margin[j[hit]]
+  }
   per <- matrix(bin_sum((L[, "brand"] - 1) * m + L[, "member"], L[, "sales"], m * N_BRANDS), m, N_BRANDS)
   good <- OFFER_GOOD[k, ]
   own <- good[L[, "brand"]]
@@ -219,7 +247,7 @@ offer_results <- function(k, rd = report_day(), detail = FALSE) {
   cost <- o$send_cost * n_sent
   out <- c(base, list(
     measured_to = min(o$to, rd$day), sent = n_sent, held_out = sum(held), used = sum(ofr$used[[k]] > 0L), send_total = cost,
-    discount = sum(L[, "coupon"]),
+    discount = sum(L[, "coupon"]), refunds = sum(refunded[own]),
     spend = spend, conversion = conv, margin = gm,
     lift = if (isTRUE(spend$control > 0)) spend$treated / spend$control - 1 else NA,
     extra_sales = spend$diff * n_sent, extra_margin = gm$diff * n_sent - cost))

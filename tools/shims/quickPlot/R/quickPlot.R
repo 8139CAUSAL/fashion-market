@@ -19,6 +19,6 @@ numLayers <- function(x) UseMethod("numLayers")
 numLayers.default <- function(x) 1L
 
 Plot <- function(...) {
-  stop("quickPlot::Plot() is not available in the NetLogoR Workbench; ",
+  stop("quickPlot::Plot() is not available in Fashion Market; ",
        "the world is drawn on the canvas automatically.", call. = FALSE)
 }

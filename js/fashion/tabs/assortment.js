@@ -2,9 +2,10 @@
 // run it and as it's planned (promotions, markdowns and what each took,
 // replenishment and what each order sent, products landing), its products
 // through their season (on order, full price, markdown, clearance, sold
-// through), which sizes are on the floor, sell-through against cover, and
-// where the stock is, with the brand's stock rules told from its own
-// calendar and settings (they're set on the Setup tab). After the
+// through), which sizes are on the floor, sell-through (net of returns)
+// against cover, and where the stock is (returns included: with shoppers,
+// back in stock, written off), with the brand's stock rules told from its
+// own calendar and settings (they're set on the Setup tab). After the
 // product-portfolio picture: a lifecycle pipeline of bubbles, colour by
 // category, size by revenue.
 
@@ -19,7 +20,7 @@ export class AssortmentTab {
   constructor(root, app) {
     this.app = app; this.brand = 1; this.category = 0; this.sort = { key: "revenue", dir: -1 };
     root.append(el("div", { class: "tab-intro" }, el("h1", { text: "Assortment" }),
-      el("p", { text: "Each brand buys its season up front, holds it at a distribution centre, and sends it to its stores by size. Shoppers only take their own size, and each area runs to different sizes, so how the stock is split decides who finds nothing on the rack." })));
+      el("p", { text: "Each brand buys its season up front, holds it at a distribution centre, and sends it to its stores by size; its online store sells straight from the DC. Shoppers only take their own size, and each area runs to different sizes, so how the stock is split decides who finds nothing on the rack. A returned item goes back into the stock of the store it's returned to (or the DC), unless it's written off, and sells again: sold here is net of returns." })));
     this.brandSel = select({ label: "Brand", value: 1, options: [], onChange: (v) => { this.brand = Number(v); app.view({ brand: this.brand }); } });
     this.catSel = select({ label: "Category", value: 0, options: [{ value: 0, label: "Every category" }], onChange: (v) => { this.category = Number(v); this.#render(); } });
     root.append(el("div", { class: "filters" }, this.brandSel.root, this.catSel.root));
@@ -27,7 +28,7 @@ export class AssortmentTab {
     const cal = card("Calendar", { sub: "the season so far and planned: promotions, markdowns, replenishment, products landing · hover a tick for what it did" });
     this.calBox = el("div", { class: "calendar-box" });
     cal.body.append(this.calBox);
-    const life = card("Product lifecycle", { sub: "bubbles are products · colour: category · size: full-price value sold · height: sell-through" });
+    const life = card("Product lifecycle", { sub: "bubbles are products · colour: category · size: full-price value sold, net of returns · height: sell-through" });
     this.lifeBox = el("div");
     this.lifeLegend = el("div", { class: "legend" });
     life.body.append(this.lifeBox, this.lifeLegend);
@@ -37,12 +38,17 @@ export class AssortmentTab {
     const av = card("Sizes on the floor", { sub: "share of the brand's stores with the size on a rack, by category" });
     this.availBox = el("div");
     av.body.append(this.availBox);
-    const sc = card("Sell-through against cover", { sub: "each product: stock left in weeks of recent demand" });
+    const sc = card("Sell-through against cover", { sub: "each product: sold, net of returns, against the stock left in weeks of recent demand" });
     this.scatter = new Scatter(sc.body, { height: 230, xFormat: fmt.num1, yFormat: (v) => fmt.pct(v), xLabel: "weeks of cover", emptyText: "Products appear once they're in the stores" });
     const rules = card("Stock", { sub: "for the brand above · its rules are set on the Setup tab" });
     const tbox = el("div", { class: "stats" });
-    this.totals = stats(tbox, [{ key: "bought", label: "Bought" }, { key: "sold", label: "Sold" }, { key: "stores", label: "In stores" },
-      { key: "dc", label: "At the DC" }, { key: "transit", label: "On the way" }, { key: "lost", label: "Asked for, not in size" }]);
+    this.totals = stats(tbox, [{ key: "bought", label: "Bought" }, { key: "sold", label: "Sold", title: "Units sold, in the stores and online, before returns" },
+      { key: "returned", label: "Returned" }, { key: "net", label: "Sold, net of returns" },
+      { key: "stores", label: "In stores" }, { key: "dc", label: "At the DC" }, { key: "transit", label: "On the way to stores" },
+      { key: "shoppers", label: "With shoppers", title: "Sold and not returned: on the way to an online shopper, with a shopper and still returnable, or kept" },
+      { key: "back", label: "Back in stock", title: "Returned and put back in a store's stock or the DC's: counted in the stores or at the DC too" },
+      { key: "written_off", label: "Written off", title: "Returned too worn or damaged to sell again" },
+      { key: "lost", label: "Asked for, not in size" }]);
     this.fillBox = el("div");
     this.fill = new LineChart(this.fillBox, { height: 110, format: (v) => fmt.pct(v), yMax: 1, xFormat: (x) => `day ${x}`, tipTitle: (x) => `Day ${x}`, emptyText: "After the first day" });
     this.storyBox = el("div", { class: "stock-story" });
@@ -75,7 +81,11 @@ export class AssortmentTab {
       this.catSel.setOptions([{ value: 0, label: "Every category" }, ...r.sells.map((k) => ({ value: k, label: r.categories[k - 1] }))], this.category);
     }
     const t = r.totals;
-    this.totals.update({ bought: fmt.compact(t.bought), sold: fmt.compact(t.sold), stores: fmt.compact(t.in_stores), dc: fmt.compact(t.at_dc), transit: fmt.compact(t.in_transit), lost: fmt.compact(t.lost) });
+    this.totals.update({ bought: fmt.compact(t.bought), sold: { value: fmt.compact(t.sold), sub: r.online ? `${fmt.compact(t.sold_online)} online` : "" },
+      returned: { value: fmt.compact(t.returned), sub: t.sold ? fmt.pct(t.returned / t.sold, 1) : "" }, net: fmt.compact(t.net_sold),
+      stores: fmt.compact(t.in_stores), dc: fmt.compact(t.at_dc), transit: fmt.compact(t.in_transit),
+      shoppers: { value: fmt.compact(t.with_shoppers), sub: `${fmt.compact(t.returnable)} returnable${t.on_the_way ? `, ${fmt.compact(t.on_the_way)} on the way` : ""}, ${fmt.compact(t.kept)} kept` },
+      back: fmt.compact(t.back_in_stock), written_off: fmt.compact(t.written_off), lost: fmt.compact(t.lost) });
     this.fill.update(r.fill.length ? { x: r.fill.map((_, i) => i + 1), series: [{ name: "Fill rate", colour: `var(--brand-${r.brand})`, values: r.fill }] } : null);
     heatTable(this.availBox, { rows: r.sells.map((k) => r.categories[k - 1]), cols: r.sizes, values: r.availability, title: "Category" });
     this.#calendar(r);
@@ -112,7 +122,7 @@ export class AssortmentTab {
   // lighter. A markdown that changed no price says why.
   #calendar(r) {
     const c = r.calendar; const colour = `var(--brand-${r.brand})`;
-    const from = { plan: "planned", global: "the Market tab's promotion button", local: "a Market tab local promotion" };
+    const from = { plan: "planned" };
     const past = (day) => day <= c.today;
     const mdTicks = (m) => m.days.map((day) => {
       const x = m.done.find((t) => t.day === day);
@@ -172,7 +182,7 @@ export class AssortmentTab {
         c.addEventListener("pointermove", (ev) => tooltip.show(ev, s.name, [
           { colour: `var(--cat-${s.category})`, value: fmt.pct(s.sell_through), name: "sold through" },
           { value: fmt.money2(s.price), name: s.markdown > 0 ? `now (${fmt.pct(s.markdown)} off ${fmt.money2(s.full_price)})` : "full price" },
-          { value: fmt.int(s.sold), name: `sold of ${fmt.int(s.bought)} bought` },
+          { value: fmt.int(s.net_sold), name: `sold, net of ${fmt.int(s.returned)} returned, of ${fmt.int(s.bought)} bought` },
           { value: fmt.int(s.lost), name: "asked for in a size that wasn't there" },
           { value: `day ${s.day}`, name: "in the stores from" }]));
         c.addEventListener("pointerleave", () => tooltip.hide());
@@ -186,9 +196,11 @@ export class AssortmentTab {
       ["name", "Product", (s) => s.name], ["state", "State", (s) => s.state], ["day", "Lands", (s) => `day ${s.day}`, true],
       ["full_price", "Full price", (s) => fmt.money2(s.full_price), true], ["price", "Price now", (s) => fmt.money2(s.price), true],
       ["bought", "Bought", (s) => fmt.int(s.bought), true], ["sold", "Sold", (s) => fmt.int(s.sold), true],
+      ["sold_online", "Of which online", (s) => fmt.int(s.sold_online), true], ["returned", "Returned", (s) => fmt.int(s.returned), true],
+      ["return_rate", "Return rate", (s) => fmt.pct(s.return_rate, 1), true], ["refunds", "Refunds", (s) => fmt.money(s.refunds), true],
       ["in_stores", "In stores", (s) => fmt.int(s.in_stores), true], ["at_dc", "At DC", (s) => fmt.int(s.at_dc), true],
-      ["sell_through", "Sell-through", (s) => fmt.pct(s.sell_through), true], ["lost", "Not in size", (s) => fmt.int(s.lost), true],
-      ["cover", "Weeks of cover", (s) => fmt.num1(s.cover), true], ["revenue", "Revenue at full price", (s) => fmt.money(s.revenue), true],
+      ["sell_through", "Sell-through (net)", (s) => fmt.pct(s.sell_through), true], ["lost", "Not in size", (s) => fmt.int(s.lost), true],
+      ["cover", "Weeks of cover", (s) => fmt.num1(s.cover), true], ["revenue", "Net sold at full price", (s) => fmt.money(s.revenue), true],
     ];
     const { key, dir } = this.sort;
     const sorted = [...styles].sort((a, b) => {

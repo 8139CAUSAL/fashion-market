@@ -1,7 +1,8 @@
 // Setup: every setting of the model, and the world itself, on one tab.
 // Setup (in the header) starts a season from them; Go runs it.
 //
-//   Brands       brands in their families, and each brand's settings
+//   Brands       brands in their families, and each brand's settings (its
+//                online store and return policy among them)
 //   Range and calendar  each brand's products, promotions and markdowns,
 //                and its price rules (range-editor.js)
 //   Shoppers     the categories, segments, and the market's weights
@@ -29,7 +30,7 @@ const SECTIONS = [
   { value: "brands", label: "Brands" }, { value: "range", label: "Range and calendar" }, { value: "shoppers", label: "Shoppers" }, { value: "offers", label: "Offers" },
   { value: "macro", label: "Macro world" }, { value: "micro", label: "Micro world" }, { value: "season", label: "Season" },
 ];
-const MARKET_SHOWN = ["taste_w", "range_w", "km_w", "memory", "wom", "promo_days"];
+const MARKET_SHOWN = ["taste_w", "range_w", "km_w", "memory", "wom"];
 const LIVE = el("span", { class: "tag live", text: "live" });
 const WAITS = el("span", { class: "tag", text: "at Setup" });
 const tag = (live) => (live ? LIVE : WAITS).cloneNode(true);
@@ -219,7 +220,7 @@ export class SetupTab {
     return el("div", { class: `brand-row${b.id === this.brand ? " is-on" : ""}`, dataset: { id: b.id }, vars: { "--brand": b.colour }, onclick: (ev) => {
       if (ev.target.closest("input,button")) return;
       this.#selectBrand(b.id);
-    } }, colour.root, name.root, el("span", { class: "sub", text: `${stores.length} store${stores.length === 1 ? "" : "s"}` }), remove);
+    } }, colour.root, name.root, el("span", { class: "sub", text: `${stores.length} store${stores.length === 1 ? "" : "s"}${b.online?.on ? " · online" : ""}` }), remove);
   }
 
   // A new brand starts as a copy of the one above it: the family's last,
@@ -280,7 +281,7 @@ export class SetupTab {
     } }).root;
 
     const price = card(`${b.name}: price and marketing`, { right: tag(true) });
-    price.body.append(el("div", { class: "settings-grid" }, lev("price"), lev("promo_depth"), lev("ad")));
+    price.body.append(el("div", { class: "settings-grid" }, lev("price"), lev("ad")));
     const staff = card("Staff, in every store of the brand", { right: tag(true) });
     staff.body.append(el("div", { class: "settings-grid" }, lev("cashiers"), lev("assistants"), lev("skill"), lev("scan_s")),
       el("p", { class: "note", text: "Sets every one of the brand's stores; one store can then be changed on its own (Macro world, Stores)." }));
@@ -321,8 +322,24 @@ export class SetupTab {
     fit.body.append(el("div", { class: "settings-grid" }, ...d.segments.map((s) => lever({ label: s.name, min: -3, max: 3, step: 0.1, value: b.fit[s.id] ?? 0, format: fmt.num1,
       onChange: (v) => this.world.edit(() => { b.fit[s.id] = v; }) }).root)));
 
-    out.push(price.root, staff.root, stock.root, fit.root, this.#loyaltyCard(b));
+    out.push(price.root, staff.root, stock.root, this.#onlineCard(b), fit.root, this.#loyaltyCard(b));
     return out;
+  }
+
+  // The brand's online store (if it has one) and its return policy (wait
+  // for Setup).
+  #onlineCard(b) {
+    const F = this.world.schema.fields;
+    const c = card("Online store and returns", { right: tag(false) });
+    const box = el("div", { hidden: !b.online.on });
+    const on = checkbox({ label: `${b.name} sells online`, checked: b.online.on, onChange: (v) => { this.world.edit(() => { b.online.on = v; }); box.hidden = !v; } });
+    const ol = (k) => settingLever(F.online[k], { value: b.online[k], onChange: (v) => this.world.edit(() => { b.online[k] = v; }) }).root;
+    const rt = (k) => settingLever(F.returns[k], { value: b.returns[k], onChange: (v) => this.world.edit(() => { b.returns[k] = v; }) }).root;
+    box.append(el("div", { class: "settings-grid" }, ol("delivery_days"), ol("delivery_charge"), ol("fulfilment_cost"), ol("shipping_cost"), ol("plan_stores")),
+      el("p", { class: "note", text: "Every household can order online: no trip, no queues, no fitting rooms. An order comes from the DC in the shopper's size, and reaches them after the delivery days. Each one costs the brand its picking and packing and its shipping; the shopper pays the delivery charge. The online store's planned sales, as standard stores' worth, are added to the season's buy. Each segment's taste for shopping online is set under Shoppers." }));
+    c.body.append(on.root, box, el("h3", { class: "setup-heading", text: "Returns" }), el("div", { class: "settings-grid" }, rt("window_days"), rt("post_cost")),
+      el("p", { class: "note", text: "Anything bought may come back within the window, counted from the day it reaches the household. It's taken to the brand's nearest store in reach, and back to the tills; with none in reach, it's posted to the DC, the brand paying the postage for each parcel. Items bought online come back most, items tried on in a fitting room least. The refund is what was paid. A window of 0 days takes no returns." }));
+    return c.root;
   }
 
   async #liveStock(b, k, v) {
@@ -366,7 +383,7 @@ export class SetupTab {
     c.body.append(el("div", { class: "table-scroll" }, table), el("div", { class: "row" }, add, total),
       el("p", { class: "note", text: "Pull adds to the appeal of the brand's stores; price sensitivity, memory of bad visits, radius and response to offers multiply the household's usual ones, at this brand." }),
       el("h3", { class: "setup-heading", text: "Earning and losing a tier" }),
-      el("p", { class: "note", text: `A tier is earned by what a household spends with ${b.name} in a season (what it pays, after markdowns, promotions and coupons). Households start where last season's spend put them: in the shares above, those who like ${b.name} most highest, each having spent at least its tier's spend. The evening a household's spend this season reaches a higher tier's, it moves up, and it keeps its tier to the season's end. Then it stands where the season's spend puts it: it kept its tier, moved up, or dropped. The Offers tab counts each, as the season goes.` }));
+      el("p", { class: "note", text: `A tier is earned by what a household spends with ${b.name} in a season (what it pays, after markdowns, promotions and coupons, less what it gets back for returns). Households start where last season's spend put them: in the shares above, those who like ${b.name} most highest, each having spent at least its tier's spend. The evening a household's spend this season reaches a higher tier's, it moves up, and it keeps its tier to the season's end, even if a return takes its spend back below. Then it stands where the season's net spend puts it: it kept its tier, moved up, or dropped. The Offers tab counts each, as the season goes.` }));
     return c.root;
   }
 

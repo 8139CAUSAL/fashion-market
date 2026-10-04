@@ -2,20 +2,25 @@
 // worker on the Store tab's floor and it follows them live. Only what the
 // model uses is shown: no mood or need that doesn't drive a decision.
 //
-// A shopper: what they're doing and where, their basket, the racks still
-// on their list, their patience while they queue, why they came, their
-// tier with the brand and how close they are to moving, the promotions
-// that reach them and any offers they hold, and their visit in the first
-// person, from the model's visit log: each thought's tone comes from how
-// close the decision was, and hovering one shows the numbers behind it.
-// A worker: what they're doing now, and their day so far.
+// A shopper: what they're doing and where, their basket (or what they've
+// come to return), the racks still on their list, their patience while
+// they queue, why they came, their tier with the brand and how close they
+// are to moving, the promotions that reach them and any offers they hold,
+// their visit in the first person, from the model's visit log (each
+// thought's tone comes from how close the decision was, and hovering one
+// shows the numbers behind it), and their household's ledger: what it has
+// bought this season, paid and returned.
+// A worker: what they're doing now, and their day so far (a cashier's
+// sales, and the returns they've taken back).
 
 import { el, fmt, card } from "./ui.js";
 import { tooltip } from "./charts.js";
 import { possessive } from "./entry-text.js";
+import { ledgerView } from "./ledger-view.js";
 
 export class Inspector {
-  constructor({ onClose, onHousehold }) {
+  constructor({ onClose, onHousehold, app }) {
+    this.app = app;
     this.card = card("Inspector", { right: el("button", { type: "button", class: "icon-btn", "aria-label": "Close the inspector", text: "×", onclick: () => onClose?.() }) });
     this.card.root.classList.add("inspector");
     this.card.root.hidden = true;
@@ -46,12 +51,18 @@ export class Inspector {
         el("div", { class: "meter" }, el("span", { style: { width: `${(100 * share).toFixed(1)}%` }, class: share > 0.8 ? "hot" : "" })),
         el("div", { class: "stat-sub", text: `Won't join a queue of more than ${s.queue.max_ahead - 1}.` })));
     }
-    out.push(el("div", { class: "kv" },
-      row("In the store", fmt.mins(s.in_store_s)),
-      row("Budget left", `${fmt.money(s.budget_left)} of ${fmt.money(s.budget)}`),
-      row("Still to browse", s.racks_left.length ? s.racks_left.join(", ") : "nothing: heading on")));
-    out.push(el("h3", { class: "setup-heading", text: "Basket" }),
-      s.basket.length ? el("ul", { class: "plain" }, ...s.basket.map((b) => el("li", { text: `${b.item} · ${fmt.money2(b.price)}` }))) : el("p", { class: "note", text: "Empty." }));
+    if (s.trip) {
+      out.push(el("div", { class: "kv" }, row("In the store", fmt.mins(s.in_store_s))),
+        el("h3", { class: "setup-heading", text: "Bringing back" }),
+        el("ul", { class: "plain" }, ...s.returning.map((b) => el("li", { text: `${b.item} · ${fmt.money2(b.price)}, bought ${b.bought} on day ${b.day}: ${b.reason}` }))));
+    } else {
+      out.push(el("div", { class: "kv" },
+        row("In the store", fmt.mins(s.in_store_s)),
+        row("Budget left", `${fmt.money(s.budget_left)} of ${fmt.money(s.budget)}`),
+        row("Still to browse", s.racks_left.length ? s.racks_left.join(", ") : "nothing: heading on")));
+      out.push(el("h3", { class: "setup-heading", text: "Basket" }),
+        s.basket.length ? el("ul", { class: "plain" }, ...s.basket.map((b) => el("li", { text: `${b.item} · ${fmt.money2(b.price)}` }))) : el("p", { class: "note", text: "Empty." }));
+    }
     // Their head.
     const t = s.tier;
     const moves = [`${fmt.money2(t.spend)} spent this season`];
@@ -60,12 +71,13 @@ export class Inspector {
     if (t.keep_spend > 0) moves.push(t.requalified ? `re-qualified for ${t.started}` : `${fmt.money2(t.keep_spend - t.spend)} more to keep ${t.started}, where the season started`);
     out.push(el("h3", { class: "setup-heading", text: "Their head" }),
       el("div", { class: "kv" },
-        row("Why they came", s.reasons.length ? capital(s.reasons.join(" and ")) : "Nothing stood out: a random draw of taste"),
+        row("Why they came", s.trip ? "To return what they bought" : s.reasons.length ? capital(s.reasons.join(" and ")) : "Nothing stood out: a random draw of taste"),
         row(`Loyalty to ${s.brand}`, `${t.name}: ${moves.join("; ")}`),
         row("Promotions for them", s.promotions?.length ? s.promotions.join("; ") : "none today"),
         row("Offers held", s.offers.length ? s.offers.map((o) => `${possessive(o.brand)} ${o.name}, ${fmt.pct(o.depth)} off until day ${o.until}${o.good_here ? " (good here)" : ""}`).join("; ") : "none")));
     out.push(el("h3", { class: "setup-heading", text: "Thoughts" }),
       this.#thoughts(s));
+    out.push(el("h3", { class: "setup-heading", text: "Their household's season" }), ledgerView(s.ledger, this.app, { compact: true }));
     out.push(el("button", { type: "button", class: "btn small", text: `Their household (#${s.household}) on the Market tab`, onclick: () => this.onHousehold?.(s.household) }));
     return out;
   }
@@ -91,7 +103,9 @@ export class Inspector {
     if (w.kind === "cashier") {
       if (!w.open) out.push(el("p", { class: "note", text: "This till is closed: the store has fewer cashiers on than tills." }));
       out.push(el("div", { class: "kv" }, row("Till", String(w.till)), row("Waiting at the tills", fmt.int(w.queue)),
-        row("Customers served today", fmt.int(w.served)), row("Items scanned", fmt.int(w.items)), row("Busy", fmt.pct(w.busy))));
+        row("Customers served today", fmt.int(w.served)), row("Items scanned", fmt.int(w.items)),
+        row("Returns taken back today", `${fmt.int(w.returns)} (${fmt.int(w.returned)} item${w.returned === 1 ? "" : "s"})`),
+        row("Busy", `${fmt.pct(w.busy)}${w.refund_busy > 0 ? `, ${fmt.pct(w.refund_busy)} on returns` : ""}`)));
     } else {
       out.push(el("div", { class: "kv" }, row("Sizes fetched today", fmt.int(w.fetched)), row("Shoppers advised", fmt.int(w.advised)), row("Busy", fmt.pct(w.busy))));
     }

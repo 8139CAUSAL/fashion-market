@@ -12,7 +12,8 @@
 #   brands       who sells: prices, staff, stock, taste by segment, loyalty
 #                tiers (earned by spend), and the brand's own range (its
 #                products) and calendar (its promotions, offers, markdowns
-#                and replenishment), with its price rules
+#                and replenishment), with its price rules; its online store
+#                (if it has one) and its return policy
 #   segments     who shops: how they behave, and how far they'll travel
 #   market       market-wide weights
 #
@@ -29,11 +30,13 @@
 # version 4 chose stores without regard to what their brands sell;
 # version 5 earned loyalty tiers by paid visits and ran each brand's offers
 # as a programme outside the calendar (a policy choosing among three kinds
-# of offer for its daily contacts).
+# of offer for its daily contacts); version 6 had a promotion depth for each
+# brand and a promotion length for the market, for the Market tab's
+# promotion buttons, and no online stores or returns.
 
 WORLD_KIND <- "fashion-world"
 LAYOUT_KIND <- "fashion-layout"
-WORLD_VERSION <- 6L
+WORLD_VERSION <- 7L
 LAYOUT_VERSION <- 2L                 # a layout file's own version (its format hasn't changed since the world's version 2)
 NO_DAY <- 1e6                        # the landing day of a product slot a brand's range doesn't fill
 
@@ -158,7 +161,8 @@ world_upgrade <- function(W) {
   if (identical(version, 2L)) { W <- upgrade_v2(W); version <- 3L }
   if (identical(version, 3L)) { W <- upgrade_v3(W); version <- 4L }
   if (identical(version, 4L)) { W <- upgrade_v4(W); version <- 5L }
-  if (identical(version, 5L)) W <- upgrade_v5(W)
+  if (identical(version, 5L)) { W <- upgrade_v5(W); version <- 6L }
+  if (identical(version, 6L)) W <- upgrade_v6(W)
   W
 }
 
@@ -361,6 +365,37 @@ upgrade_v5 <- function(W) {
   W
 }
 
+# A version 6 world, as version 7.
+#   promotions  the Market tab's promotion buttons started promotions
+#               mid-season, at each brand's promotion depth, for the
+#               market's promotion length. The buttons have gone
+#               (promotions are set on the calendar), so those two
+#               settings go too.
+#   online      no brand had an online store, and no one returned
+#               anything: each brand gets an online store that's off, and
+#               a return window of no days; each segment a taste for
+#               shopping online of 0.
+# A season without a button pressed runs as it did.
+V6_ONLINE <- list(on = FALSE, delivery_days = 3L, delivery_charge = 4.95, fulfilment_cost = 3, shipping_cost = 5, plan_stores = 1)
+V6_RETURNS <- list(window_days = 0L, post_cost = 6)
+
+upgrade_v6 <- function(W) {
+  W$version <- 7L
+  if (is.list(W$market) && !is.null(names(W$market))) W$market$promo_days <- NULL
+  if (is.list(W$brands)) W$brands <- lapply(W$brands, function(b) {
+    if (!is.list(b) || is.null(names(b))) return(b)
+    if (is.list(b$levers) && !is.null(names(b$levers))) b$levers$promo_depth <- NULL
+    if (is.null(b$online)) b$online <- V6_ONLINE
+    if (is.null(b$returns)) b$returns <- V6_RETURNS
+    b
+  })
+  if (is.list(W$segments)) W$segments <- lapply(W$segments, function(s) {
+    if (is.list(s) && !is.null(names(s)) && is.null(s$online)) s$online <- 0
+    s
+  })
+  W
+}
+
 # ---- Checking --------------------------------------------------------------------------
 
 # Every problem with a world, as list(path, message, tiles), where `tiles`
@@ -556,13 +591,16 @@ check_families <- function(fams, pb) {
 # Every brand. Returns, for the store checks, each brand's id, name and the
 # categories it sells.
 check_brands <- function(brands, fam, seg_ids, cats, area_ids, days, pb) {
-  if (!isTRUE(pb$list_of(brands, "brands", 1, MAX_BRANDS))) return(list(ids = character(), names = character(), sells = list()))
+  if (!isTRUE(pb$list_of(brands, "brands", 1, MAX_BRANDS))) return(list(ids = character(), names = character(), sells = list(), online = logical()))
   ids <- unique_ids(brands, "brands", pb)
   sells <- vector("list", length(brands))
+  online <- logical(length(brands))
   for (i in seq_along(brands)) {
     b <- brands[[i]]; p <- item_path("brands", i)
     if (!is.list(b)) { pb$add(p, "must be an object"); next }
-    pb$keys(b, p, c("id", "name", "family", "colour", "fit", "levers", "stock", "pricing", "loyalty", "range", "calendar"))
+    pb$keys(b, p, c("id", "name", "family", "colour", "fit", "levers", "stock", "pricing", "loyalty", "range", "calendar", "online", "returns"))
+    online[i] <- check_online(b$online, join_path(p, "online"), pb)
+    if (!is.null(b$returns)) pb$fields(b$returns, join_path(p, "returns"), FIELDS$returns)
     pb$str(b$name, join_path(p, "name")); pb$colour(b$colour, join_path(p, "colour"))
     if (!is.null(b$family) && !(is.character(b$family) && b$family %in% fam$ids)) {
       pb$add(join_path(p, "family"), sprintf("no family called %s", json_value(b$family, "")))
@@ -591,7 +629,19 @@ check_brands <- function(brands, fam, seg_ids, cats, area_ids, days, pb) {
   fam_of <- vapply(brands, function(b) if (is.list(b)) text_of(b$family) else "", "")
   if (nzchar(fam$ours) && !any(fam_of == fam$ours)) pb$add("families", "our family has no brands")
   list(ids = ids, names = vapply(seq_along(brands), function(i) if (is.list(brands[[i]]) && nzchar(text_of(brands[[i]]$name))) brands[[i]]$name else ids[i], ""),
-       sells = sells)
+       sells = sells, online = online)
+}
+
+# A brand's online store: whether it has one, and, either way, its delivery
+# days, the delivery charge to the shopper, what each order costs the brand
+# (picking and packing, and shipping), and the sales it plans, as standard
+# stores' worth. Returns TRUE when it's on.
+check_online <- function(x, path, pb) {
+  if (is.null(x)) return(FALSE)
+  pb$fields(x, path, FIELDS$online, extra = "on")
+  if (!is.list(x)) return(FALSE)
+  if (is.null(x$on)) pb$add(join_path(path, "on"), "missing") else pb$bool(x$on, join_path(path, "on"))
+  isTRUE(x$on)
 }
 
 # A brand's plan: the units a standard store sells a week of each category
@@ -908,9 +958,15 @@ check_stores <- function(stores, brands, layouts, W, pb) {
       }
     }
   }
+  # A brand sells somewhere: in its stores, or online. One with no stores
+  # buys only what its online store plans to sell.
   for (i in seq_along(W$brands)) {
     b <- W$brands[[i]]
-    if (is.list(b) && is.character(b$id) && !(b$id %in% runs)) pb$add(item_path("brands", i), sprintf("%s runs no stores", b$name %||% b$id))
+    if (!is.list(b) || !is.character(b$id) || b$id %in% runs) next
+    if (!isTRUE(brands$online[i])) pb$add(item_path("brands", i), sprintf("%s runs no stores and has no online store: it needs one or the other", b$name %||% b$id))
+    else if (identical(b$online$plan_stores, 0) || identical(b$online$plan_stores, 0L)) {
+      pb$add(join_path(item_path("brands", i), "online", "plan_stores"), sprintf("%s runs no stores, and its online store plans to sell nothing, so it buys nothing to sell", b$name %||% b$id))
+    }
   }
 }
 
@@ -981,6 +1037,9 @@ world_install <- function(W) {
   pri <- lapply(br, `[[`, "pricing")
   P_PRICE <<- data.frame(promos_on_markdowns = vapply(pri, function(x) isTRUE(x$promos_on_markdowns), TRUE),
                          md_target = num(pri, "md_target"))
+  onl <- lapply(br, `[[`, "online")
+  ONLINE <<- data.frame(on = vapply(onl, function(x) isTRUE(x$on), TRUE), lapply(setNames(names(FIELDS$online), names(FIELDS$online)), function(k) num(onl, k)))
+  RETURNS <<- data.frame(lapply(setNames(names(FIELDS$returns), names(FIELDS$returns)), function(k) num(lapply(br, `[[`, "returns"), k)))
   PLAN_UNITS <<- matrix(vapply(stk, function(s) vapply(CATEGORY_IDS, function(k) as.numeric(s$plan[[k]] %||% 0), 0), numeric(N_CATS)),
                        N_BRANDS, N_CATS, byrow = TRUE)                  # 0 for a category the brand doesn't sell
   range_install(br)
@@ -1009,6 +1068,11 @@ world_install <- function(W) {
                         x = num(st, "x"), y = num(st, "y"), stringsAsFactors = FALSE)
   N_STORES <<- nrow(STORES)
   STORES$area <<- store_area(STORES$x, STORES$y)
+  # Where a sale is made: a store, or a brand's online store (outlet
+  # N_STORES + b). The tallies keep sales, refunds and visits by outlet.
+  N_OUTLETS <<- N_STORES + N_BRANDS
+  OUTLET_BRAND <<- c(STORES$brand, seq_len(N_BRANDS))
+  OUTLET_ONLINE <<- seq_len(N_OUTLETS) > N_STORES
   space_install()
   S <<- data.frame(lapply(setNames(names(FIELDS$staff), names(FIELDS$staff)), function(k) num(lapply(st, `[[`, "staff"), k)))
   TILL_ROW <<- N_STORES; STAFF_ROW <<- 2L * N_STORES

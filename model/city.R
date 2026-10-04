@@ -306,27 +306,32 @@ macro_preview <- function(W) {
 
 # ---- Trips on the map, for the page ---------------------------------------------------------
 
-# The day's trips, each as the tiles along its route with the driving time
-# from home to each, worked out the first time the map is drawn that day.
-# route_of(v, s) then gives where visit v is after s seconds of driving.
+# The day's trips (every visit to a store, to shop or to return items;
+# online visits make none), each as the tiles along its route with the
+# driving time from home to each, worked out the first time the map is
+# drawn that day. route_of(v, s) then gives where visit v is after s
+# seconds of driving.
 trips <- NULL
 
 build_trips <- function() {
   if (!is.null(trips) && identical(trips$day, day) && identical(trips$v, d$v)) return(invisible())
   hh <- mk$hh
-  if (!d$v) { trips <<- list(day = day, v = 0L); return(invisible()) }
-  from <- hh$tile[d$hh]; k <- d$store
+  drive <- which(d$store > 0L)
+  if (!length(drive)) { trips <<- list(day = day, v = d$v); return(invisible()) }
+  from <- hh$tile[d$hh[drive]]; k <- d$store[drive]
   r <- grid_routes(city$fields, from, k)
   total <- city$fields$time[cbind(from, k)]
   t_at <- total[r$owner] - city$fields$time[cbind(r$cells, k[r$owner])]       # seconds from home
   ny <- city$ny; p <- MACRO$patch_m
   x <- ((r$cells - 1L) %/% ny + 0.5) * p; y <- (ny - (r$cells - 1L) %% ny - 0.5) * p
   # The route starts at the home itself and ends at the store's door.
-  x[r$first] <- hh$x[d$hh]; y[r$first] <- hh$y[d$hh]
+  x[r$first] <- hh$x[d$hh[drive]]; y[r$first] <- hh$y[d$hh[drive]]
   last <- r$first + r$n - 1L
   x[last] <- STORES$x[k]; y[last] <- STORES$y[k]
-  key <- r$owner * 1e5 + t_at
-  trips <<- list(day = day, v = d$v, key = key, x = x, y = y, first = r$first, last = last, total = total)
+  key <- drive[r$owner] * 1e5 + t_at
+  # By visit: where each route starts and ends among the cells, and its time.
+  at <- function(x) { out <- integer(d$v); out[drive] <- x; out }
+  trips <<- list(day = day, v = d$v, key = key, x = x, y = y, first = at(r$first), last = at(last), total = { tt <- numeric(d$v); tt[drive] <- total; tt })
 }
 
 # Where visits `v` are after `s` seconds of driving from home.

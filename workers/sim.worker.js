@@ -22,11 +22,14 @@
 // page → worker   BOOT {world}: the world to open with (null: the default),
 //                 then requests, each answered with a RESULT (see `handlers`), and ACK
 
-import { WEBR_BASE_URL, VFS_IMAGE_URL, VFS_MOUNT_POINT } from "../js/config.js";
-import { rString, rNumber } from "../js/r-code.js";
-
 const ROOT_URL = new URL("../", import.meta.url).href;
 const MODEL_URL = new URL("model/", ROOT_URL).href;
+// The webR release, pinned. The NetLogoR library image (tools/build-vfs.R)
+// is built for the R version this release ships.
+const WEBR_VERSION = "0.6.0";
+const WEBR_BASE_URL = `https://webr.r-wasm.org/v${WEBR_VERSION}/`;
+const VFS_IMAGE_URL = new URL("vfs/netlogor-lib", ROOT_URL).href;
+const VFS_MOUNT_POINT = "/netlogor-lib";
 const R_EVAL = { captureStreams: false };
 const WATCH_FPS = 30;
 const REPORT_MS = 250;          // the visible tab's numbers, at most this often
@@ -206,7 +209,7 @@ async function sendGeometry() {
 const view = {
   tab: "market", store: 1, brand: 1, heat: false, homesMode: "brand", homesBrand: 1, mapOn: true,
   offers: { brand: 1, offer: 0 },
-  funnel: { brand: 0, area: 0, store: 0, scope: "season" },
+  funnel: { brand: 0, area: 0, store: 0, scope: "season", channel: "store" },
 };
 const homes_ = { version: -1, mode: null, brand: null };
 const reports = { at: 0, slowAt: 0 };
@@ -220,7 +223,7 @@ function reportExpr() {
     case "offers": return `report_offers(${rNumber(view.offers.brand)}, ${rNumber(view.offers.offer)})`;
     case "funnel": {
       const f = view.funnel;
-      return `report_funnel(${rNumber(f.brand)}, ${rNumber(f.area)}, ${rNumber(f.store)}, ${rString(f.scope)})`;
+      return `report_funnel(${rNumber(f.brand)}, ${rNumber(f.area)}, ${rNumber(f.store)}, ${rString(f.scope)}, ${rString(f.channel)})`;
     }
     case "store": return `report_store(${rNumber(view.store)}, heat = ${view.heat ? "TRUE" : "FALSE"})`;
     case "assortment": return `report_assortment(${rNumber(view.brand)})`;
@@ -316,7 +319,10 @@ async function runLoop() {
 // ---- Requests -------------------------------------------------------------------------------
 
 // Values from the page as R literals: numbers, text, true/false, or a list
-// of text. Page input is only ever data.
+// of text. Page input is only ever data: text is quoted and escaped, and
+// anything that isn't a number becomes NULL.
+const rString = (value) => `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+const rNumber = (value) => (value === undefined || value === null || Number.isNaN(Number(value)) ? "NULL" : Number(value));
 const rArg = (value) => {
   if (Array.isArray(value)) return `c(${value.map((v) => rString(v)).join(", ")})`;
   if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
@@ -326,8 +332,6 @@ const rArg = (value) => {
 
 // Levers and actions the page may call, and the R code each runs.
 const ACTIONS = {
-  global_promo: ({ brand }) => `global_promo(${rNumber(brand)})`,
-  local_promo: ({ brand, area }) => `local_promo(${rNumber(brand)}, ${rNumber(area)})`,
   pick_household: ({ household }) => `pick_household(${household ? rNumber(household) : "NA"})`,
   pick_home_at: ({ x, y }) => `pick_household(which.min((mk$hh$x - ${rNumber(x)})^2 + (mk$hh$y - ${rNumber(y)})^2))`,
   follow_visit: ({ store }) => `follow_visit(${rNumber(store)})`,

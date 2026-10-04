@@ -12,19 +12,16 @@ const LAND_VARS = ["--map-land", "--map-water", "--map-park", null, "--map-shops
 const storeSize = (space) => 7 * Math.max(0.3, space ?? 1) ** 0.45;
 
 export class CityView {
-  constructor(wrap, { onStore, onHome, onLocalPromo, promoPads = true } = {}) {
+  constructor(wrap, { onStore, onHome } = {}) {
     this.wrap = wrap;
     this.canvas = el("canvas", { "aria-label": "Map of the market: its areas, households and stores" });
-    this.overlay = el("div", { class: "map-overlay" });
     this.caption = el("div", { class: "view-caption" });
-    wrap.append(this.canvas, this.overlay, this.caption);
+    wrap.append(this.canvas, this.caption);
     this.ctx = this.canvas.getContext("2d");
     this.geo = null; this.homes = null; this.codes = null; this.mode = "brand";
     this.travellers = null; this.storeStats = null; this.selected = null; this.hover = -1;
-    this.onStore = onStore; this.onHome = onHome; this.onLocalPromo = onLocalPromo; this.withPads = promoPads;
-    this.promoBrand = 1; this.brands = null;
+    this.onStore = onStore; this.onHome = onHome;
     this.layers = { base: null, homes: null };
-    this.pads = [];
     new ResizeObserver(() => this.#resize()).observe(wrap);
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { this.layers.base = null; this.layers.homes = null; this.paint(); });
     this.canvas.addEventListener("pointermove", (ev) => this.#pointer(ev));
@@ -38,8 +35,6 @@ export class CityView {
     this.homes = { n, x: homesXY.subarray(0, n), y: homesXY.subarray(n) };
     this.codes = null;
     this.layers.base = null; this.layers.homes = null;
-    if (this.promoBrand > geo.brands.length) this.promoBrand = 1;
-    if (this.withPads) this.#buildPads();
     this.wrap.style.aspectRatio = `${geo.width} / ${geo.height}`;
     this.#resize();
   }
@@ -49,24 +44,6 @@ export class CityView {
   setStores(stats) { this.storeStats = stats; this.paint(); }
   setSelected(h) { this.selected = h; this.paint(); }
   setCaption(text) { this.caption.textContent = text; this.caption.hidden = !text; }
-
-  // The local promotion pads: one per area, starting or stopping the
-  // chosen brand's promotion there.
-  setPromoBrand(b) { this.promoBrand = b; this.setPromos(this.brands); }
-  setPromos(brands) {
-    this.brands = brands;
-    const br = brands?.[this.promoBrand - 1];
-    for (const pad of this.pads) {
-      const left = br?.local_left?.[pad.area] ?? 0;
-      const block = left > 0 ? "" : br?.local_block?.[pad.area] ?? "";
-      pad.button.setAttribute("aria-pressed", String(left > 0));
-      pad.button.disabled = !!block;
-      pad.button.textContent = left > 0 ? `Stop (${left} d)` : "Start";
-      pad.button.style.setProperty("--brand", `var(--brand-${this.promoBrand})`);
-      pad.button.title = block ? `${br?.name ?? ""} can't start a promotion in ${this.geo.areas[pad.area].name}: it would overlap ${block}`
-        : `${br?.name ?? ""} local promotion in ${this.geo.areas[pad.area].name}${left > 0 ? `: ${left} days left (click to stop)` : " (click to start, from tomorrow)"}`;
-    }
-  }
 
   // ---- Geometry ---------------------------------------------------------------
 
@@ -82,33 +59,7 @@ export class CityView {
       this.canvas.width = w; this.canvas.height = h;
       this.layers.base = null; this.layers.homes = null;
     }
-    this.#placePads();
     this.paint();
-  }
-
-  #buildPads() {
-    this.overlay.replaceChildren();
-    this.pads = this.geo.areas.map((area, k) => {
-      if (!Number.isFinite(area.x)) return null;
-      const button = el("button", { type: "button", "aria-pressed": "false", text: "Start",
-        onclick: (ev) => { ev.stopPropagation(); this.onLocalPromo?.(this.promoBrand, k + 1); } });
-      const node = el("div", { class: "promo-pad" }, el("div", { class: "pad-title", text: area.name }), button);
-      this.overlay.append(node);
-      return { node, button, area: k };
-    }).filter(Boolean);
-    this.#placePads();
-    if (this.brands) this.setPromos(this.brands);
-  }
-
-  // Each area's pad sits where its name goes.
-  #placePads() {
-    if (!this.geo || !this.pads.length || !this.canvas.width) return;
-    const dpr = window.devicePixelRatio || 1;
-    for (const pad of this.pads) {
-      const a = this.geo.areas[pad.area];
-      const [px, py] = this.toPx(a.x, a.y);
-      Object.assign(pad.node.style, { left: `${px / dpr}px`, top: `${py / dpr}px` });
-    }
   }
 
   // ---- Painting ---------------------------------------------------------------
@@ -161,9 +112,9 @@ export class CityView {
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     ctx.strokeStyle = cssVar("--map-road-edge", root); ctx.lineWidth = rw + Math.max(1, 2 * dpr); ctx.stroke(roads);
     ctx.strokeStyle = cssVar("--map-road", root); ctx.lineWidth = rw; ctx.stroke(roads);
-    // Area names (where there are pads, the pad carries the name).
+    // Area names.
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    for (const a of this.withPads ? [] : g.areas) {
+    for (const a of g.areas) {
       if (!Number.isFinite(a.x)) continue;
       const [px, py] = this.toPx(a.x, a.y);
       ctx.font = `650 ${Math.round(14 * dpr)}px ${cssVar("--font", root) || "system-ui"}`;
@@ -307,7 +258,7 @@ export class CityView {
       { colour: this.geo.brands[st.brand - 1]?.colour, value: this.geo.brands[st.brand - 1]?.name, name: `${st.format} layout · ${st.area ? this.geo.areas[st.area - 1]?.name : "outside every area"}` },
       { value: fmt.int(stat?.visits), name: "visits today" },
       { value: fmt.int(stat?.inside), name: "in the store now" },
-      { value: fmt.money(stat?.sales), name: "sales this season" },
+      { value: fmt.money(stat?.sales), name: "net sales this season (after refunds)" },
       { value: "Click", name: "to open its floor" },
     ]);
   }

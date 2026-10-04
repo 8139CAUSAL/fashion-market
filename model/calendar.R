@@ -2,8 +2,7 @@
 # the season.
 #
 # The world's calendar is the plan (world.R checks it). The running
-# calendar starts from it at Setup, and the season adds to it: the Market
-# tab's buttons add promotions. What each markdown and each order did on
+# calendar starts from it at Setup. What each markdown and each order did on
 # its days is recorded beside the plan.
 #
 # A promotion takes a share off some products (the whole range, some
@@ -42,7 +41,7 @@ calendar_install <- function(brands, W) {
     for (x in cal$promotions) pr[[length(pr) + 1L]] <- list(
       brand = b, id = x$id, name = x$name, from = as.integer(x$from), to = as.integer(x$to), depth = as.numeric(x$depth),
       cover = calendar_cover(b, x), tiers = match(unlist(x$tiers), TIER_IDS_OF(brands[[b]])),
-      areas = match(unlist(x$areas), area_ids), source = "plan", area = 0L)
+      areas = match(unlist(x$areas), area_ids), source = "plan")
     for (x in cal$markdowns) md[[length(md) + 1L]] <- c(entry_when(x), list(
       brand = b, id = x$id, name = x$name, which = x$which, by = as.numeric(x$by), min_days = as.numeric(x$min_days),
       rest_days = as.numeric(x$rest_days), mode = x$mode, depth = as.numeric(x$depth), max = as.numeric(x$max),
@@ -84,112 +83,30 @@ calendar_cover <- function(b, x) {
 # At Setup: the plan, as matrices the day's work indexes. Promotions: brand,
 # days, depth, the products each covers (cover: promotions x products), the
 # tiers (promotions x MAX_TIERS) and area bins (promotions x AREA_BINS) it
-# reaches, and where it came from ("plan", "global" or "local" from the
-# Market tab, with the area). The records of what markdowns and orders did
-# start empty.
+# reaches, and where it came from (the plan). The records of what markdowns
+# and orders did start empty.
 init_calendar <- function() {
   cal <<- list(pr = promo_table(CAL_PLAN$promotions),
                taken = list(entry = integer(), day = integer(), took = integer(), deeper = integer(), on_plan = integer(),
                             too_new = integer(), rested = integer(), not_in = integer()),
-               orders = list(entry = integer(), day = integer(), units = numeric(), arrive = integer()),
-               done = integer(N_BRANDS), local_done = matrix(0L, N_BRANDS, N_AREAS))
+               orders = list(entry = integer(), day = integer(), units = numeric(), arrive = integer()))
   prices_today()
 }
 
 promo_table <- function(entries) {
   k <- length(entries)
   t <- list(n = k, brand = integer(k), name = character(k), from = integer(k), to = integer(k), depth = numeric(k),
-            source = character(k), area = integer(k),
+            source = character(k),
             cover = matrix(FALSE, k, N_PROD), tiers = matrix(FALSE, k, MAX_TIERS), bins = matrix(FALSE, k, AREA_BINS))
   for (i in seq_len(k)) {
     x <- entries[[i]]
     t$brand[i] <- x$brand; t$name[i] <- x$name; t$from[i] <- x$from; t$to[i] <- x$to; t$depth[i] <- x$depth
-    t$source[i] <- x$source; t$area[i] <- x[["area"]]
+    t$source[i] <- x$source
     t$cover[i, ] <- x$cover
     t$tiers[i, x$tiers] <- TRUE
     t$bins[i, ] <- if (length(x$areas)) seq_len(AREA_BINS) %in% x$areas else TRUE
   }
   t
-}
-
-# Adds a promotion to the running calendar.
-promo_add <- function(brand, name, from, to, depth, cover, tiers, bins, source, area = 0L) {
-  t <- cal$pr
-  t$n <- t$n + 1L
-  t$brand <- c(t$brand, brand); t$name <- c(t$name, name); t$from <- c(t$from, from); t$to <- c(t$to, to)
-  t$depth <- c(t$depth, depth); t$source <- c(t$source, source); t$area <- c(t$area, area)
-  t$cover <- rbind(t$cover, cover); t$tiers <- rbind(t$tiers, tiers); t$bins <- rbind(t$bins, bins)
-  cal$pr <<- t
-}
-
-# The running promotions that a new one (brand, days, products, tiers,
-# bins) would share a product, a day and a household with.
-promo_clashes <- function(brand, from, to, cover, tiers, bins) {
-  t <- cal$pr
-  if (!t$n) return(integer())
-  k <- seq_len(t$n)
-  hit <- t$brand == brand & t$from <= to & t$to >= from & t$from <= t$to
-  hit[hit] <- vapply(k[hit], function(i) any(t$cover[i, ] & cover) && any(t$tiers[i, ] & tiers) && any(t$bins[i, ] & bins), TRUE)
-  k[hit]
-}
-
-clash_text <- function(i) {
-  t <- cal$pr
-  sprintf("%s is on %s", t$name[i], if (t$from[i] == t$to[i]) sprintf("day %d", t$from[i]) else sprintf("days %d to %d", t$from[i], t$to[i]))
-}
-
-# The Market tab's buttons. A brand's promotion across the market, on its
-# whole range, from tomorrow for P$promo_days, at its promotion depth, for
-# every tier. Refused (with the reason) while one it would overlap is on.
-global_promo_entry <- function(b) list(brand = b, from = day + 1L, to = day + as.integer(P$promo_days), cover = PROD_OK[b, ],
-                                       tiers = seq_len(MAX_TIERS) <= TIER_N[b], bins = rep(TRUE, AREA_BINS))
-
-global_promo_block <- function(b) {
-  e <- global_promo_entry(b)
-  hit <- promo_clashes(b, e$from, e$to, e$cover, e$tiers, e$bins)
-  if (length(hit)) clash_text(hit[1]) else NA_character_
-}
-
-global_promo <- function(brand) {
-  b <- brand_index(brand)
-  if (is.na(b) || !is.na(global_promo_block(b))) return(invisible(FALSE))
-  e <- global_promo_entry(b)
-  promo_add(b, sprintf("%s promotion", BRANDS$name[b]), e$from, e$to, LEVERS$promo_depth$value[b], e$cover, e$tiers, e$bins, "global")
-  cal$done[b] <<- cal$done[b] + 1L
-  invisible(TRUE)
-}
-
-# A brand's local promotion in one area (flyers and coupons to the
-# households who live there): started as the global one is, but only in the
-# area; pressed again while it runs, it ends today.
-local_promo_entry <- function(b, area) list(brand = b, from = day + 1L, to = day + as.integer(P$promo_days), cover = PROD_OK[b, ],
-                                            tiers = seq_len(MAX_TIERS) <= TIER_N[b], bins = seq_len(AREA_BINS) == area)
-
-local_running <- function(b, area) {
-  t <- cal$pr
-  which(t$brand == b & t$source == "local" & t$area == area & t$to > day & t$from <= t$to)
-}
-
-local_promo_block <- function(b, area) {
-  if (length(local_running(b, area))) return(NA_character_)
-  e <- local_promo_entry(b, area)
-  hit <- promo_clashes(b, e$from, e$to, e$cover, e$tiers, e$bins)
-  if (length(hit)) clash_text(hit[1]) else NA_character_
-}
-
-local_promo <- function(brand, area) {
-  b <- brand_index(brand); area <- as.integer(area)
-  if (is.na(b) || is.na(area) || area < 1L || area > N_AREAS) return(invisible(FALSE))
-  run <- local_running(b, area)
-  if (length(run)) {
-    cal$pr$to[run] <<- day
-    return(invisible(TRUE))
-  }
-  if (!is.na(local_promo_block(b, area))) return(invisible(FALSE))
-  e <- local_promo_entry(b, area)
-  promo_add(b, sprintf("%s in %s", BRANDS$name[b], AREAS$name[area]), e$from, e$to, LEVERS$promo_depth$value[b], e$cover, e$tiers, e$bins, "local", area)
-  cal$local_done[b, area] <<- cal$local_done[b, area] + 1L
-  invisible(TRUE)
 }
 
 # ---- Today ---------------------------------------------------------------------------
@@ -311,11 +228,10 @@ markdowns_today <- function() {
   }
 }
 
-# Brand x product: each product's sell-through (sold of what was bought)
-# and its planned sell-through, by last night.
+# Brand x product: each product's sell-through (sold, net of returns, of
+# what was bought) and its planned sell-through, by last night.
 sell_through_now <- function() {
-  sold <- prod_totals(stock$sold)
   bought <- prod_totals(stock$bought, by_brand = TRUE)
-  list(st = sold / pmax(bought, 1), plan = planned_by(day - 1L))
+  list(st = net_sold() / pmax(bought, 1), plan = planned_by(day - 1L))
 }
 

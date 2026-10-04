@@ -1,11 +1,13 @@
 // Funnel: where shoppers are lost between being in the market and paying,
-// and why. After the sales-funnel picture: stages as circles holding live
-// dots, conversion between stages, losses by reason above each, and the
-// two teams that move it — sales assistants and cashiers (set on the
-// Setup tab).
+// and why, in the stores or online. After the sales-funnel picture: stages
+// as circles holding live dots, conversion between stages, losses by
+// reason above each, and the two teams that move it — sales assistants
+// and cashiers (set on the Setup tab). After paying, a step of its own:
+// what the items bought did next (kept, still returnable, or returned, and
+// why), which doesn't change the visit's stages.
 
-import { el, fmt, select, card, brandVar } from "../ui.js";
-import { tooltip } from "../charts.js";
+import { el, fmt, select, card, stats, brandVar } from "../ui.js";
+import { tooltip, BarChart } from "../charts.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const LOSS_COLOURS = ["var(--cat-4)", "var(--cat-2)", "var(--cat-5)"];
@@ -14,9 +16,9 @@ const LIVE_LABELS = ["on the way to a store", "browsing", "carrying items", "at 
 export class FunnelTab {
   constructor(root, app) {
     this.app = app;
-    this.filter = { brand: 1, area: 0, store: 0, scope: "season" };
+    this.filter = { brand: 1, area: 0, store: 0, scope: "season", channel: "store" };
     root.append(el("div", { class: "tab-intro" }, el("h1", { text: "Funnel" }),
-      el("p", { text: "From households in the market for clothes to receipts. Every loss is one shopper's visit going wrong, recorded with its reason at the moment it happened: nothing appealed, nothing in their size, a queue too long." })));
+      el("p", { text: "From households in the market for clothes to receipts, in the stores or online. Every loss is one shopper's visit going wrong, recorded with its reason at the moment it happened: nothing appealed, nothing in their size, a queue too long. Online there's no floor, queue or fitting room: a visit is ordered or lost at once. Returns come after the visit, so they have a step of their own." })));
 
     const f = this.filter;
     this.brandSel = select({ label: "Brand", value: 1, options: [{ value: 0, label: "All brands" }],
@@ -24,15 +26,28 @@ export class FunnelTab {
     this.distSel = select({ label: "Households living in", value: 0, options: [{ value: 0, label: "Every area" }],
       onChange: (v) => this.#set({ area: Number(v) }) });
     this.storeSel = select({ label: "Store", value: 0, options: [{ value: 0, label: "Every store" }], onChange: (v) => this.#set({ store: Number(v) }) });
+    this.channelSel = select({ label: "Channel", value: "store", options: [{ value: "store", label: "In the stores" }, { value: "online", label: "Online" }],
+      onChange: (v) => this.#set({ channel: v }) });
     this.scopeSel = select({ label: "Period", value: "season", options: [{ value: "season", label: "Season so far" }, { value: "day", label: "Today (or yesterday)" }],
       onChange: (v) => this.#set({ scope: v }) });
-    root.append(el("div", { class: "filters" }, this.brandSel.root, this.distSel.root, this.storeSel.root, this.scopeSel.root));
+    root.append(el("div", { class: "filters" }, this.channelSel.root, this.brandSel.root, this.distSel.root, this.storeSel.root, this.scopeSel.root));
 
     const main = card("The sales funnel", { sub: "" });
     this.mainCard = main;
     this.svgBox = el("div", { class: "funnel-svg" });
     main.body.append(this.svgBox);
     root.append(main.root);
+
+    // After paying: what the items bought did next.
+    this.retCard = card("After paying: returns", { sub: "" });
+    const rs = el("div", { class: "stats" });
+    this.ret = stats(rs, [{ key: "items", label: "Items bought" }, { key: "returned", label: "Returned" }, { key: "returnable", label: "With the shopper, returnable" },
+      { key: "on_way", label: "On the way to the shopper" }, { key: "kept", label: "Kept" }, { key: "refunds", label: "Refunded" }]);
+    const rbox = el("div");
+    this.reasons = new BarChart(rbox, { height: 110, horizontal: true, labelWidth: 150, format: fmt.int, valueLabels: true, emptyText: "Nothing returned yet" });
+    this.retCard.body.append(rs, rbox,
+      el("p", { class: "note", text: "Items bought by the shoppers in the funnel above (in the period), and what has happened to each since. An item can come back within its brand's return window, from the day it reaches the shopper; once the window closes, it's kept. Returns don't change the visit's stages: the shopper paid." }));
+    root.append(this.retCard.root);
 
     const bottom = el("div", { class: "grid funnel-bottom" });
     const sa = card("Sales assistants", { sub: "for the brand in the filter · set on the Setup tab" });
@@ -51,7 +66,8 @@ export class FunnelTab {
 
   #set(part) {
     Object.assign(this.filter, part);
-    this.brandSel.node.disabled = this.filter.store > 0;
+    this.brandSel.node.disabled = this.filter.store > 0 && this.filter.channel === "store";
+    this.storeSel.node.disabled = this.filter.channel === "online";
     this.app.view({ funnel: { ...this.filter } });
   }
 
@@ -73,17 +89,31 @@ export class FunnelTab {
   update(r) {
     const st = r.stages;
     const scope = r.scope === "season" ? "season so far" : r.day_label.toLowerCase();
-    const who = r.filter.store ? this.geo?.stores[r.filter.store - 1]?.name : r.filter.brand ? `${this.app.brandName(r.filter.brand)} stores` : "all stores";
+    const online = r.channel === "online";
+    const who = online ? (r.filter.brand ? `${this.app.brandName(r.filter.brand)} online` : "every online store")
+      : r.filter.store ? this.geo?.stores[r.filter.store - 1]?.name : r.filter.brand ? `${this.app.brandName(r.filter.brand)} stores` : "all stores";
     const areaName = r.filter.area > (this.geo?.areas.length ?? 0) ? "outside every area" : this.geo?.areas[r.filter.area - 1]?.name;
     const where = r.filter.area ? `households ${r.filter.area > (this.geo?.areas.length ?? 0) ? "living" : "in"} ${areaName}` : "every area";
     this.mainCard.setSub(`${who} · ${where} · ${scope}`);
-    this.#draw(st, r.live);
+    if (online && r.filter.brand && !r.online_brands.includes(r.filter.brand)) {
+      this.svgBox.replaceChildren(el("p", { class: "empty", text: `${this.app.brandName(r.filter.brand)} has no online store: give it one on the Setup tab (Brands).` }));
+    } else this.#draw(st, r.live);
+    this.#returns(r.returns, `${who} · ${where} · ${scope}`);
     const s = r.staff;
     const n = s.stores;
     this.saText.textContent = `${fmt.int(s.assistants)} per store in ${fmt.int(n)} stores · skill ${fmt.num1(s.skill)}`;
     this.caText.textContent = `${fmt.int(s.cashiers)} per store in ${fmt.int(n)} stores · ${fmt.int(s.scan_s)} s to scan an item`;
     const dots = (box, k, colour) => box.replaceChildren(...Array.from({ length: Math.round(k * n) }, () => el("i", { vars: { "--c": colour } })));
     dots(this.saDots, s.assistants, brandVar(s.brand)); dots(this.caDots, s.cashiers, "var(--ink-2)");
+  }
+
+  #returns(x, sub) {
+    this.retCard.setSub(sub);
+    const n = x.returned.reduce((a, r) => a + r.n, 0);
+    const of = (k) => (x.items ? ` (${fmt.pct(k / x.items, 1)})` : "");
+    this.ret.update({ items: fmt.int(x.items), returned: { value: fmt.int(n), sub: of(n) }, returnable: { value: fmt.int(x.returnable), sub: of(x.returnable) },
+      on_way: fmt.int(x.on_the_way), kept: { value: fmt.int(x.kept), sub: of(x.kept) }, refunds: { value: fmt.money(x.refunds), sub: x.value ? `of ${fmt.money(x.value)} paid` : "" } });
+    this.reasons.update(n ? { categories: x.returned.map((r) => r.reason), series: [{ name: "Items returned", colour: "var(--critical)", values: x.returned.map((r) => r.n) }] } : null);
   }
 
   #draw(stages, live) {

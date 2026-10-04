@@ -9,6 +9,6 @@ desktop.ini
 .Ruserdata
 .Rproj.user/
 
-# Build caches: wasm package binaries, OSM download, local NetLogoR test library
+# Build caches: wasm package binaries (tools/build-vfs.R), local NetLogoR test library
 tools/.cache/
 node_modules/
