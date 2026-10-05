@@ -174,9 +174,9 @@ stages.
 Everything is set on the **Setup** tab, in seven sections:
 
 - **Brands.** Families (exactly one is ours) and their brands, each with its
-  price change, marketing, staffing, stock rules, plan by category, taste by
-  segment, and loyalty tiers: the share of households that starts in each,
-  and the season's spend that earns it. Each brand may run an online store
+  price change, marketing, staffing, stock rules, plan by category, and
+  loyalty tiers: the share of households that starts in each, and the
+  season's spend that earns it. Each brand may run an online store
   (off unless switched on): its delivery days, the delivery charge to the
   shopper, picking and packing and shipping per order, and how much it plans
   to sell (as standard stores). Each has a return window in days (0: no
@@ -188,8 +188,8 @@ Everything is set on the **Setup** tab, in seven sections:
   landing days, each entry edited in a panel that says in one line what it
   does. Problems show in red as you edit.
 - **Shoppers.** The categories; the segments (how they shop, how far they'll
-  travel, their taste for each category and for shopping online, their
-  hidden response to offers); and the market-wide weights.
+  travel, their taste for each category, for each brand and for shopping
+  online, their hidden response to offers); and the market-wide weights.
 - **Offers.** Each brand's named coupons: days, discount, cost to send, the
   share of households reached that it's sent to and the share of those held
   out, the tiers and areas it reaches, and the brands where it's good.

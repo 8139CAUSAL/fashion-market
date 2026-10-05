@@ -281,7 +281,8 @@ export class SetupTab {
     } }).root;
 
     const price = card(`${b.name}: price and marketing`, { right: tag(true) });
-    price.body.append(el("div", { class: "settings-grid" }, lev("price"), lev("ad")));
+    price.body.append(el("div", { class: "settings-grid" }, lev("price"), lev("ad")),
+      el("p", { class: "note", text: "How much each segment likes this brand is set under Shoppers." }));
     const staff = card("Staff, in every store of the brand", { right: tag(true) });
     staff.body.append(el("div", { class: "settings-grid" }, lev("cashiers"), lev("assistants"), lev("skill"), lev("scan_s")),
       el("p", { class: "note", text: "Sets every one of the brand's stores; one store can then be changed on its own (Macro world, Stores)." }));
@@ -318,11 +319,7 @@ export class SetupTab {
       el("div", { class: "field" }, el("span", { text: "Planned units a week in a standard store, for each category it sells (the plan the season's buy is made from), shared among the category's products in the stores that week" }), plan, unplanned),
       el("p", { class: "note", text: "Its products, their prices and costs, its calendar and price rules: Range and calendar." }));
 
-    const fit = card("Taste by segment", { sub: "how much each segment likes the brand's look", right: tag(false) });
-    fit.body.append(el("div", { class: "settings-grid" }, ...d.segments.map((s) => lever({ label: s.name, min: -3, max: 3, step: 0.1, value: b.fit[s.id] ?? 0, format: fmt.num1,
-      onChange: (v) => this.world.edit(() => { b.fit[s.id] = v; }) }).root)));
-
-    out.push(price.root, staff.root, stock.root, this.#onlineCard(b), fit.root, this.#loyaltyCard(b));
+    out.push(price.root, staff.root, stock.root, this.#onlineCard(b), this.#loyaltyCard(b));
     return out;
   }
 
@@ -432,11 +429,15 @@ export class SetupTab {
       const taste = card("Taste for each category", { sub: "how likely they browse it", right: tag(false) });
       taste.body.append(el("div", { class: "settings-grid two-col" }, ...d.categories.map((c) => settingLever(F.taste, { label: c.name, value: seg.category_taste[c.id] ?? 0,
         onChange: (v) => this.world.edit(() => { seg.category_taste[c.id] = v; }) }).root)));
+      // Held by each brand in the world file (its fit), set here per segment.
+      const fit = card("Taste for each brand", { sub: "how much they like each brand's look", right: tag(false) });
+      fit.body.append(el("div", { class: "settings-grid two-col" }, ...d.brands.map((b) => lever({ label: b.name, min: -3, max: 3, step: 0.1, value: b.fit[seg.id] ?? 0, format: fmt.num1,
+        onChange: (v) => this.world.edit(() => { b.fit[seg.id] = v; }) }).root)));
       const resp = card("How they respond to an offer", { sub: "while they hold its coupon · hidden: offers are measured against their holdout", right: tag(false) });
       resp.body.append(el("div", { class: "settings-grid two-col" }, ...Object.keys(F.response).map((f) => settingLever(F.response[f], {
         value: seg.offer_response[f], onChange: (v) => this.world.edit(() => { seg.offer_response[f] = v; }) }).root)),
         el("p", { class: "note", text: "The lift in their daily chance of shopping, and the pull toward the brands the coupon is good at, beside the discount itself. Their tier's response to offers multiplies both, and both fade as a brand sends them more." }));
-      right.append(cols.root, taste.root, resp.root);
+      right.append(cols.root, taste.root, fit.root, resp.root);
     }
     this.panels.shoppers.replaceChildren(this.#categoriesCard(), el("div", { class: "grid setup-two" }, el("div", { class: "grid" }, left.root, market.root), right));
   }
