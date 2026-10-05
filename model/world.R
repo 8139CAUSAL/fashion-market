@@ -3,7 +3,6 @@
 #   season_days  how long the season runs
 #   demand_events  days the season's demand is lifted or suppressed: each
 #                a solid strength on its days, or a ramp walking up to it
-#                (MODIFIED: added in version 9)
 #   categories   what's sold, market-wide: each category's name, colour,
 #                the key its racks are painted with, whether it's tried
 #                on, and its typical price
@@ -37,11 +36,11 @@
 # brand and a promotion length for the market, for the Market tab's
 # promotion buttons, and no online stores or returns; version 7 had every
 # segment return what it bought at the same rates; version 8 had no demand
-# events (MODIFIED: version 9 adds them).
+# events.
 
 WORLD_KIND <- "fashion-world"
 LAYOUT_KIND <- "fashion-layout"
-WORLD_VERSION <- 9L                  # MODIFIED: 9 adds the season's demand events
+WORLD_VERSION <- 9L
 LAYOUT_VERSION <- 2L                 # a layout file's own version (its format hasn't changed since the world's version 2)
 NO_DAY <- 1e6                        # the landing day of a product slot a brand's range doesn't fill
 
@@ -169,7 +168,7 @@ world_upgrade <- function(W) {
   if (identical(version, 5L)) { W <- upgrade_v5(W); version <- 6L }
   if (identical(version, 6L)) { W <- upgrade_v6(W); version <- 7L }
   if (identical(version, 7L)) { W <- upgrade_v7(W); version <- 8L }
-  if (identical(version, 8L)) W <- upgrade_v8(W)                 # MODIFIED: demand events
+  if (identical(version, 8L)) W <- upgrade_v8(W)
   W
 }
 
@@ -417,7 +416,6 @@ upgrade_v7 <- function(W) {
   W
 }
 
-# MODIFIED: version 8 -> 9, for the Season tab's demand events.
 # A version 8 world, as version 9.
 #   demand_events  the season had no demand events: every day ran at the
 #                  demand the model sets. It gets none, placed after its
@@ -442,12 +440,12 @@ world_check <- function(W) {
   if (!identical(W$kind, WORLD_KIND)) pb$add("kind", sprintf("must be \"%s\"", WORLD_KIND))
   if (!identical(as.integer(W$version), WORLD_VERSION)) pb$add("version", sprintf("must be %d", WORLD_VERSION))
   pb$keys(W, "", c("kind", "version", "name", "seed", "season_days", "demand_events", "categories", "macro", "layouts", "stores", "families",
-                   "brands", "segments", "market"))                 # MODIFIED: demand_events
+                   "brands", "segments", "market"))
   pb$str(W$name, "name")
   pb$int(W$seed, "seed", 1, .Machine$integer.max)
   days <- if (isTRUE(pb$int(W$season_days, "season_days", FIELDS$season$days$min, FIELDS$season$days$max))) W$season_days else MAX_SEASON_DAYS
   pb$fields(W$market, "market", FIELDS$market)
-  check_demand_events(W$demand_events, days, pb)                     # MODIFIED: the season's demand events
+  check_demand_events(W$demand_events, days, pb)
 
   cats <- check_categories(W$categories, pb)
   seg_ids <- check_segments(W$segments, cats$ids, pb)
@@ -565,8 +563,6 @@ unique_ids <- function(items, path, pb) {
 
 text_of <- function(x) if (is.character(x) && length(x) == 1L) x else ""
 
-# MODIFIED: the season's demand events, checked and turned into each day's
-# demand (Setup > Season).
 # The season's demand events: each a solid strength on its days, or a ramp
 # walking up to its strength on each of its days over its ramp days. A
 # strength is a signed fold change (FIELDS$demand_event): 1 or more lifts
@@ -1119,7 +1115,7 @@ world_install <- function(W) {
   # The season, and what's sold.
   SEASON_DAYS <<- as.integer(W$season_days)
   SEASON_WEEKS <<- as.integer(ceiling(SEASON_DAYS / 7))
-  DEMAND_EVENT <<- demand_multipliers(W$demand_events, SEASON_DAYS)   # MODIFIED: each day's demand multiplier
+  DEMAND_EVENT <<- demand_multipliers(W$demand_events, SEASON_DAYS)   # each day's demand multiplier
   cats <- W$categories
   CATEGORY_IDS <<- chr(cats, "id"); CATEGORIES <<- chr(cats, "name"); FIXTURES <<- chr(cats, "key")
   CATEGORY_COLOURS <<- chr(cats, "colour"); TRY_ON <<- vapply(cats, function(c) isTRUE(c$try_on), TRUE)

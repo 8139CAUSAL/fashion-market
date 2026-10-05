@@ -1,5 +1,5 @@
-# MODIFIED: new file. The Strategy tab's forecast of daily net sales, by a
-# seasonal ARIMA model with the season's demand events as a regressor.
+# The Strategy tab's forecast of daily net sales, by a seasonal ARIMA model
+# with the season's demand events as a regressor.
 #
 # The series is daily net sales (gross sales less the day's refunds, as
 # every report counts them) of our family ("ours"), the whole market

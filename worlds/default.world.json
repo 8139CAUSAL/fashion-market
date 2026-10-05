@@ -4,7 +4,26 @@
   "name": "Four-district city",
   "seed": 1,
   "season_days": 91,
-  "demand_events": [],
+  "demand_events": [
+    {
+      "id": "spike_days",
+      "name": "Spike days",
+      "shape": "solid",
+      "days": [3, 23],
+      "strength": 1.3,
+      "ramp_days": 7,
+      "from": 1
+    },
+    {
+      "id": "slump_to_day_90",
+      "name": "Slump into day 90",
+      "shape": "ramp",
+      "days": [90],
+      "strength": -2,
+      "ramp_days": 7,
+      "from": -1.4
+    }
+  ],
   "categories": [
     {"id": "denim", "name": "Denim", "key": "D", "colour": "#2a78d6", "try_on": true, "price": 60},
     {"id": "tops", "name": "Tops", "key": "T", "colour": "#eb6834", "try_on": true, "price": 30},

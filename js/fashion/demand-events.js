@@ -1,4 +1,4 @@
-// MODIFIED: new file. The season's demand events, as the Season section of
+// The season's demand events, as the Season section of
 // the Setup tab reads them from the draft world: each day's demand
 // multiplier, and the line that says what an event does. The same rules as
 // model/world.R (fold_multiplier, ramp_walk, demand_multipliers), which is

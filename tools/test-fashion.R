@@ -28,7 +28,7 @@
 # file (every segment returning at the same rates) upgrades to a tendency
 # to return of 1 and runs the season the version 7 model ran, returns
 # included (both with word of mouth not spreading, as in those models);
-# (MODIFIED:) a version 8 file (no demand events) upgrades and runs the
+# a version 8 file (no demand events) upgrades and runs the
 # season the version 8 model ran; demand events: a solid event's strength
 # and a ramp's walk on the days they touch (the user's examples: days 3
 # and 23 at 1.3, day 90 at -2 over 7 days from -1.4), overlaps multiply,
@@ -1104,7 +1104,6 @@ check(r$ok && same7 && sum(rec$returned[dd, ]) > 0,
 
 # ---- A version 8 world ------------------------------------------------------------------
 
-# MODIFIED: version 9 adds the season's demand events (Setup > Season).
 # A version 8 world upgrades: it gets no demand events, placed after the
 # season's length. It runs the season the version 8 model ran, recorded in
 # tools/fixtures/v8-season.json: the same visits by outcome, and the same
@@ -1133,7 +1132,6 @@ check(r$ok && same8 && all(DEMAND_EVENT == 1),
 
 # ---- Demand events ----------------------------------------------------------------------
 
-# MODIFIED: the season's demand events (world.R, market.R).
 # A solid event puts its strength on each of its days; a ramp walks in equal
 # steps from its start, on the first of its ramp days, to its strength on
 # its day. A strength is a signed fold change: 1.3 is x1.3, -2 is /2. The
@@ -1178,7 +1176,6 @@ check(all(want %in% msgs), sprintf("broken demand events are refused, each where
 
 # ---- The forecast -----------------------------------------------------------------------
 
-# MODIFIED: the Strategy tab's ARIMA forecast (forecast.R).
 cat("The forecast\n")
 # The machinery recovers what it's given: 70 days of a weekly pattern
 # (DOW_TRAFFIC), AR(1) noise and demand events whose effect on the log

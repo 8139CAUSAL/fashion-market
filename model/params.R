@@ -17,8 +17,7 @@ STEP_S <- 60                       # one simulation step: a minute of store time
 MIN_BROWSE_S <- 60                 # the shortest stop at a rack (>= STEP_S keeps decisions in time order)
 SEASON_DAYS <- 91L                 # the season's length: the world's (world_install sets it)
 SEASON_WEEKS <- 13L                # ... and its weeks, the last one maybe short
-# MODIFIED: the season's demand events, as each day's demand multiplier.
-DEMAND_EVENT <- rep(1, SEASON_DAYS)  # each day's: the world's demand events (world_install sets it), 1 on a day none touches
+DEMAND_EVENT <- rep(1, SEASON_DAYS)  # each day's demand multiplier, from the world's demand events (world_install sets it)
 MAX_SEASON_DAYS <- 182
 DAYS <- c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 HOURLY <- c(4, 7, 10, 12, 12, 11, 11, 11, 12, 10)        # % of a day's visits arriving in each hour from 10:00
@@ -96,7 +95,6 @@ MAX_SEGMENTS <- 12
 MAX_TIERS <- 6
 MAX_LEAD_DAYS <- 14
 MAX_OFFERS <- 40                # on one brand's calendar
-# MODIFIED: limit for the Season tab's demand events.
 MAX_DEMAND_EVENTS <- 40         # on the season's calendar of demand events
 
 # ---- Settings: the range of each ---------------------------------------------------
@@ -118,7 +116,6 @@ LEVERS <- list(
   scan_s      = setting("Scan time (s per item)", 4, 30, 1, "int")
 )
 ALLOCATIONS <- c("flat", "learned")
-# MODIFIED: the two shapes of a demand event (Setup > Season).
 DEMAND_SHAPES <- c("solid", "ramp")         # a demand event: its strength on each of its days, or a walk up to it
 REPLENISH_RULES <- c("top_up", "replace")   # top up to cover (with a reorder point), or replace what sold
 MARKDOWN_WHICH <- c("all", "behind")        # every product an entry is on, or only those behind plan
@@ -135,7 +132,6 @@ FIELDS <- list(
     wom = setting("Word of mouth", 0, 1.5, 0.05, "num2"),
     outside = setting("Appeal of staying home", 0, 5, 0.1, "num1")),
   season = list(days = setting("Season length (days)", 7, MAX_SEASON_DAYS, 1, "int")),
-  # MODIFIED: the settings of a demand event (Setup > Season).
   # A demand event's strength is a signed fold change of the day's demand
   # (world.R, demand_multipliers): 1.3 is x1.3, -2 is /2; 1 and -1 are no
   # change, and nothing lies between them. A ramp walks from its start to

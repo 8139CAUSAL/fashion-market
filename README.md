@@ -56,7 +56,8 @@ button shows the files that are running, and the world they run in.
    first visit downloads about 17 MB (R and the NetLogoR library), which the
    browser then caches. It opens on the default world: five brands in four
    families running 19 stores and four online stores across a city of four
-   areas and 24,000 households, over a 13-week season.
+   areas and 24,000 households, over a 13-week season with two demand
+   events: spikes on days 3 and 23, and a slump into day 90.
 2. **Press Go.** The speed menu runs store time from real time to 3,600×,
    or *Fastest*: a market day per tick, without drawing.
 3. **Click any store** on the map to watch its floor, then **click a
@@ -225,6 +226,10 @@ Everything is set on the **Setup** tab, in seven sections:
   signed fold change: 1.3 is ×1.3, -2 is ÷2 (×0.5), and 1 and -1 are no
   change; nothing lies between them. A chart shows each day's demand as
   the events add up, and the model checks the events as they're edited.
+  The default world has both kinds: days 3 and 23 at 1.3, and that slump
+  into day 90.
+
+![Setup, Season: the default world's demand events, spikes on days 3 and 23 and a slump ramped into day 90, each day's demand as they add up, and the ramp's panel walking -1.4, -1.5 ... -2 on days 84 to 90](screenshots/season.png)
 
 **Rack faces set capacity.** A rack tile with floor beside it is a face. A
 store's space for a category is that category's faces against a standard
@@ -646,8 +651,9 @@ return of 1: up to 30% bought online, 9% bought in a store untried, 4%
 tried on, before the window), the share written off (10%), the cashier's
 time on a return, and how far word of mouth spreads each evening (a fifth
 of each patch's buzz, to its neighbours). Rent and overheads are left out
-of contribution. The default world has no demand events: they're yours to
-set. The forecast's settings (three weeks before it starts, the 0.64
+of contribution. So are the default world's demand events (demand ×1.3
+on days 3 and 23, and a slump into day 90 at -2, ramped over 7 days from
+-1.4). The forecast's settings (three weeks before it starts, the 0.64
 seasonal strength and the KPSS test at 5%) are `auto.arima`'s conventions,
 not tuned to this model; ARIMA carries the days run forward, so it can't
 see a change those days don't show (in the default world, sales fall over

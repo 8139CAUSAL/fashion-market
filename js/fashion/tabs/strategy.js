@@ -3,13 +3,13 @@
 // customer, all net of refunds. After the strategy-control picture: our
 // bars beside the competitors' average, the market share history as a
 // stacked area (addressable, ours, other), and revenue per customer with
-// its history; then each brand's online share and return rate.
-// MODIFIED: and the forecast of daily net sales for the rest of the season
-// (a seasonal ARIMA with the season's demand events, model/forecast.R), for
-// our family, the whole market or one brand.
+// its history; then each brand's online share and return rate; and the
+// forecast of daily net sales for the rest of the season (a seasonal ARIMA
+// with the season's demand events, model/forecast.R), for our family, the
+// whole market or one brand.
 
-import { el, fmt, card, brandVar, formatOf, select } from "../ui.js";   // MODIFIED: select, for the forecast's series
-import { dayName } from "../demand-events.js";   // MODIFIED: the forecast's days
+import { el, fmt, card, brandVar, formatOf, select } from "../ui.js";
+import { dayName } from "../demand-events.js";
 import { LineChart, BarChart, Donut } from "../charts.js";
 
 const SHORT = { price: "Price position", ad: "Marketing reach", cashiers: "Cashiers / store", assistants: "Assistants / store" };
@@ -52,10 +52,10 @@ export class StrategyTab {
     const ch = card("Online and returns, by brand", { sub: "this season · a refund comes off on the day of the return", cls: "span-all" });
     this.channelBox = el("div", { class: "table-scroll" });
     ch.body.append(this.channelBox, el("p", { class: "note", text: "Online share is the brand's online sales, net of refunds, of all its net sales. Return rate is the units returned this season against the units sold, so early in the season it trails what's still to come back." }));
-    root.append(top, bottom, el("div", { class: "grid" }, this.#forecastCard()), el("div", { class: "grid" }, ch.root));   // MODIFIED: the forecast
+    root.append(top, bottom, el("div", { class: "grid" }, this.#forecastCard()), el("div", { class: "grid" }, ch.root));
   }
 
-  // MODIFIED: the forecast card: daily net sales so far, and the ARIMA
+  // The forecast card: daily net sales so far, and the ARIMA
   // model's forecast to the season's end with its 80% and 95% intervals;
   // the days a demand event touches tinted (lift green, suppression red).
   #forecastCard() {
@@ -76,11 +76,11 @@ export class StrategyTab {
     return `${dayName(x)}${Number.isFinite(m) && m !== 1 ? ` · demand ×${m.toFixed(2)}` : ""}`;
   }
 
-  // MODIFIED: the forecast's series: ours, the market, or a brand of the world installed.
+  // The forecast's series: ours, the market, or a brand of the world installed.
   viewState() { return { strategy: { forecast: this.forecastKey } }; }
 
   onGeometry() {
-    // MODIFIED: the forecast's series, for the world installed.
+    // The forecast's series, for the world installed.
     const order = this.app.brandOrder;
     if (!["ours", "market"].includes(this.forecastKey) && !order.some((b) => String(b.index) === this.forecastKey)) this.forecastKey = "ours";
     this.fcSeries.setOptions([{ value: "ours", label: this.app.oursName }, { value: "market", label: "The whole market" },
@@ -133,7 +133,7 @@ export class StrategyTab {
       { name: oursName, short: "ours", colour: "var(--ours)", values: rh.map((w) => w.ours ?? w[0]) },
       { name: "Competitors", short: "rivals", colour: "var(--ink-2)", values: rh.map((w) => w.competitors ?? w[1]) },
     ] } : null);
-    this.#updateForecast(r.forecast);   // MODIFIED: the forecast
+    this.#updateForecast(r.forecast);
     this.wallet.update({ categories: r.wallet.map((w) => w.segment), series: [
       ...order.map((b) => ({ name: b.name, colour: brandVar(b.index), values: r.wallet.map((w) => w.spend[b.index - 1]) })),
       { name: "Not spent yet", colour: "var(--surface-3)", values: r.wallet.map((w) => Math.max(0, w.budget - w.spend.reduce((a, x) => a + x, 0))) },
@@ -156,7 +156,7 @@ export class StrategyTab {
       }))));
   }
 
-  // MODIFIED: the forecast, drawn: so far (solid), the forecast from the
+  // The forecast, drawn: so far (solid), the forecast from the
   // last day run (dashed) and its intervals, the event days tinted.
   #updateForecast(f) {
     if (!f) return;

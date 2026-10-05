@@ -1,4 +1,4 @@
-// MODIFIED: new file. The Setup tab's Season section: the season's demand
+// The Setup tab's Season section: the season's demand
 // events, days whose demand is lifted or suppressed. Each event is solid
 // (its strength on each of its days: days 3 and 23 at 1.3, demand ×1.3) or
 // a ramp (on each of its days, a walk over its ramp days from where it

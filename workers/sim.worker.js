@@ -210,7 +210,7 @@ const view = {
   tab: "market", store: 1, brand: 1, heat: false, homesMode: "brand", homesBrand: 1, mapOn: true,
   offers: { brand: 1, offer: 0 },
   funnel: { brand: 0, area: 0, store: 0, scope: "season", channel: "store" },
-  strategy: { forecast: "ours" },     // MODIFIED: the series the Strategy tab's forecast is for
+  strategy: { forecast: "ours" },
 };
 const homes_ = { version: -1, mode: null, brand: null };
 const reports = { at: 0, slowAt: 0 };
@@ -220,7 +220,7 @@ function reportExpr() {
   switch (view.tab) {
     case "setup": return "report_setup()";
     case "market": return "report_market()";
-    case "strategy": return `report_strategy(${rString(view.strategy.forecast)})`;   // MODIFIED: the forecast's series
+    case "strategy": return `report_strategy(${rString(view.strategy.forecast)})`;
     case "offers": return `report_offers(${rNumber(view.offers.brand)}, ${rNumber(view.offers.offer)})`;
     case "funnel": {
       const f = view.funnel;
@@ -452,7 +452,7 @@ const handlers = {
     Object.assign(view, next);
     if (next.funnel) view.funnel = { ...view.funnel, ...next.funnel };
     if (next.offers) view.offers = { ...view.offers, ...next.offers };
-    if (next.strategy) view.strategy = { ...view.strategy, ...next.strategy };   // MODIFIED: the forecast's series
+    if (next.strategy) view.strategy = { ...view.strategy, ...next.strategy };
     view.mapOn = view.tab === "market";
     if (!run.active) return between(async () => { await sendAll(true); return { ok: true }; });
     reports.at = 0; reports.slowAt = 0;

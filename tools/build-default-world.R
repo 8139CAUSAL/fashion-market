@@ -570,6 +570,17 @@ for (b in seq_along(W$brands)) {
 }
 for (g in seq_along(W$segments)) W$segments[[g]]$online <- ONLINE_TASTE[[W$segments[[g]]$id]]
 
+# ---- Demand events --------------------------------------------------------------------------
+
+# Since version 9 the season may have demand events (Setup > Season). The
+# default world has two, illustrative: a lift of 1.3 (demand x1.3) on days
+# 3 and 23, and a slump into day 90 at -2 (demand /2), ramped over 7 days
+# from -1.4, so it walks -1.4, -1.5 ... -2 on days 84 to 90. The plans and
+# tiers above were measured without them.
+W$demand_events <- list(
+  list(id = "spike_days", name = "Spike days", shape = "solid", days = list(3L, 23L), strength = 1.3, ramp_days = 7L, from = 1),
+  list(id = "slump_to_day_90", name = "Slump into day 90", shape = "ramp", days = list(90L), strength = -2, ramp_days = 7L, from = -1.4))
+
 # ---- Write --------------------------------------------------------------------------------
 
 dir.create(file.path(root, "worlds"), showWarnings = FALSE)
