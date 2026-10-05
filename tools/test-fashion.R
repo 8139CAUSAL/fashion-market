@@ -28,6 +28,16 @@
 # file (every segment returning at the same rates) upgrades to a tendency
 # to return of 1 and runs the season the version 7 model ran, returns
 # included (both with word of mouth not spreading, as in those models);
+# (MODIFIED:) a version 8 file (no demand events) upgrades and runs the
+# season the version 8 model ran; demand events: a solid event's strength
+# and a ramp's walk on the days they touch (the user's examples: days 3
+# and 23 at 1.3, day 90 at -2 over 7 days from -1.4), overlaps multiply,
+# an event scales the day's households in the market, and broken events
+# are refused; the forecast: on a known series it sees the weekly season
+# and recovers the events' coefficient, in a season it waits three weeks,
+# then forecasts every day left with nested intervals, keeps its fit
+# between days, draws no random numbers, and with no event run yet moves
+# its median one for one with the events to come;
 # online stores and returns: every unit sold has one ledger
 # line, a segment's tendency to return multiplies its chances of sending
 # an item back, the ledger reconciles
@@ -1091,6 +1101,129 @@ same7 <- identical(visits7, rec$visits[dd, , drop = FALSE]) &&
 check(r$ok && same7 && sum(rec$returned[dd, ]) > 0,
       sprintf("at a tendency to return of 1, the upgraded version 7 world runs the season the version 7 model ran: %d days, %s visits, %s items returned, identical by day and outcome, and in gross sales, units, refunds and returns by brand",
               n7, format(sum(visits7), big.mark = ","), format(sum(rec$returned[dd, ]), big.mark = ",")))
+
+# ---- A version 8 world ------------------------------------------------------------------
+
+# MODIFIED: version 9 adds the season's demand events (Setup > Season).
+# A version 8 world upgrades: it gets no demand events, placed after the
+# season's length. It runs the season the version 8 model ran, recorded in
+# tools/fixtures/v8-season.json: the same visits by outcome, and the same
+# gross sales, units, refunds and returned units by brand, day by day.
+cat("A version 8 world\n")
+V8 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v8-default.world.json")), collapse = "\n"))
+U <- world_resolve(world_upgrade(V8), file.path(root, "layouts"))
+check(identical(U$version, WORLD_VERSION) && !length(world_check(U)) && identical(U$demand_events, list()) &&
+      identical(names(U)[match("season_days", names(U)) + 1L], "demand_events"),
+      "a version 8 world upgrades: it gets no demand events, after the season's length")
+rec <- jsonlite::fromJSON(file.path(root, "tools", "fixtures", "v8-season.json"))
+world_install(U); P$pace <- "season"; setup(rec$seed)
+n8 <- min(n_season, rec$days)
+r <- run_season_days(n8)
+dd <- seq_len(n8)
+per_brand <- function(m) t(vapply(dd, function(i) brand_of_stores(m[i, ]), numeric(N_BRANDS)))
+visits8 <- t(vapply(dd, function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
+same8 <- identical(visits8, rec$visits[dd, , drop = FALSE]) &&
+  max(abs(per_brand(apply(tally$sales[dd, , , drop = FALSE], c(1, 3), sum)) - rec$sales[dd, , drop = FALSE])) < 1e-6 &&
+  identical(round(per_brand(apply(tally$units[dd, , , drop = FALSE], c(1, 3), sum))), rec$units[dd, , drop = FALSE] + 0) &&
+  max(abs(per_brand(tally$refunds) - rec$refunds[dd, , drop = FALSE])) < 1e-6 &&
+  identical(round(per_brand(tally$ret_units)), rec$returned[dd, , drop = FALSE] + 0)
+check(r$ok && same8 && all(DEMAND_EVENT == 1),
+      sprintf("with no demand events, the upgraded version 8 world runs the season the version 8 model ran: %d days, %s visits, identical by day and outcome, and in gross sales, units, refunds and returns by brand",
+              n8, format(sum(visits8), big.mark = ",")))
+
+# ---- Demand events ----------------------------------------------------------------------
+
+# MODIFIED: the season's demand events (world.R, market.R).
+# A solid event puts its strength on each of its days; a ramp walks in equal
+# steps from its start, on the first of its ramp days, to its strength on
+# its day. A strength is a signed fold change: 1.3 is x1.3, -2 is /2. The
+# user's examples: days 3 and 23 at 1.3, and day 90 at -2 ramped over 7
+# days from -1.4, walking -1.4, -1.5 ... -2 on days 84 to 90.
+cat("Demand events\n")
+ev <- function(id, shape, days, strength, ramp_days = 7, from = 1) {
+  list(id = id, name = id, shape = shape, days = as.list(days), strength = strength, ramp_days = ramp_days, from = from)
+}
+m <- demand_multipliers(list(ev("spikes", "solid", c(3, 23), 1.3), ev("storm", "ramp", 90, -2, 7, -1.4)), 91)
+walk <- c(1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2)
+check(isTRUE(all.equal(m[c(3, 23)], c(1.3, 1.3))) && isTRUE(all.equal(m[84:90], 1 / walk)) && all(m[-c(3, 23, 84:90)] == 1),
+      "days 3 and 23 at 1.3 take demand x1.3; day 90 at -2, ramped over 7 days from -1.4, walks -1.4, -1.5 ... -2 on days 84 to 90 (demand /1.4 to /2); every other day x1")
+# Where events overlap their multipliers multiply; a ramp's days before
+# day 1 are cut off; a ramp from 1 (no change) to -3 walks from -1.
+m2 <- demand_multipliers(list(ev("a", "ramp", 3, 2, 7, 1), ev("b", "solid", 3, -2), ev("c", "ramp", 10, -3, 4, 1)), 14)
+check(isTRUE(all.equal(m2[1:3], c(5 / 3, 11 / 6, 1))) && isTRUE(all.equal(m2[7:10], 1 / c(1, 5 / 3, 7 / 3, 3))) && all(m2[c(4:6, 11:14)] == 1),
+      "overlapping events multiply (day 3: x2 and /2 is x1), a ramp's days before day 1 are cut off, and a ramp from 1 (no change) to -3 walks from -1")
+# Demand is each household's daily chance of going shopping: an event's
+# multiplier scales it. With the same seed, day 1 at -2 has about half the
+# households in the market that day 1 at no event has, and day 1 at 2
+# about twice as many.
+W <- default_world()
+in_market <- function(events) { W$demand_events <- events; world_install(W); P$pace <- "season"; setup(5); sum(today$in_market) }
+n_base <- in_market(list()); n_half <- in_market(list(ev("down", "solid", 1, -2))); n_twice <- in_market(list(ev("up", "solid", 1, 2)))
+check(abs(n_half / n_base - 0.5) < 0.05 && abs(n_twice / n_base - 2) < 0.1,
+      sprintf("an event scales the day's demand: day 1 has %s households in the market, %s at -2 (%.2f of them) and %s at 2 (%.2f)",
+              format(n_base, big.mark = ","), format(n_half, big.mark = ","), n_half / n_base, format(n_twice, big.mark = ","), n_twice / n_base))
+# Broken events are refused, each where it is.
+W <- default_world()
+W$demand_events <- list(ev("weak", "solid", c(3, 3), 0.5), ev("cross", "ramp", 90, -2, 1, 1.5), ev("late", "solid", c(0, 92), 1.3),
+                        list(id = "odd", name = "Odd", shape = "wave", days = list(), strength = 20, ramp_days = 7), ev("weak", "solid", 5, 1.2))
+msgs <- problem_text(W)
+want <- c("demand_events[1].strength: 0.5 is between -1 and 1: a strength is 1 or more (a lift) or -1 or less (a suppression); 1 and -1 are no change",
+          "demand_events[1].days: lists a day twice", "demand_events[2].ramp_days: 1 is outside 2 to 182",
+          "demand_events[2].from: starts at 1.5 and walks to -2: a ramp stays on one side, both lifts or both suppressions (start it at -1, no change, to walk from no change)",
+          "demand_events[3].days[1]: 0 is outside 1 to 91", "demand_events[3].days[2]: 92 is outside 1 to 91",
+          "demand_events[4].from: missing", "demand_events[4].shape: must be \"solid\" or \"ramp\"", "demand_events[4].days: lists no days",
+          "demand_events[4].strength: 20 is outside -10 to 10", "demand_events[5].id: \"weak\" is used twice")
+check(all(want %in% msgs), sprintf("broken demand events are refused, each where it is (%d problems)%s", length(msgs),
+                                   if (all(want %in% msgs)) "" else paste(": missing", paste(setdiff(want, msgs), collapse = "; "))))
+
+# ---- The forecast -----------------------------------------------------------------------
+
+# MODIFIED: the Strategy tab's ARIMA forecast (forecast.R).
+cat("The forecast\n")
+# The machinery recovers what it's given: 70 days of a weekly pattern
+# (DOW_TRAFFIC), AR(1) noise and demand events whose effect on the log
+# scale has a coefficient of 1. The weekly season is seen (differenced by
+# week) and the events' coefficient is estimated near 1.
+set.seed(11)
+nz <- 70; xz <- numeric(nz); xz[c(10, 30, 31, 50)] <- log(c(1.5, 0.5, 0.6, 2))
+z <- 9 + log(DOW_TRAFFIC)[dow_of(seq_len(nz))] + xz + as.numeric(stats::arima.sim(list(ar = 0.5), nz, sd = 0.05))
+fz <- forecast_fit(z, matrix(xz, ncol = 1, dimnames = list(NULL, "events")))
+check(!is.null(fz) && fz$seasonal[2] == 1 && abs(fz$fit$coef[["events"]] - 1) < 0.15,
+      sprintf("on a known series it sees the weekly season and estimates the events' coefficient at %.3f (it was 1): ARIMA(%s)(%s)[7]",
+              fz$fit$coef[["events"]], paste(fz$order, collapse = ","), paste(fz$seasonal, collapse = ",")))
+# A season with the user's spikes (days 3 and 23 at 1.3) and events to
+# come (days 40 and 41 at 1.5, a ramp to -2 on day 60): it waits for three
+# weeks, then forecasts every day left, the 80% interval inside the 95%
+# around the median, the events' coefficient estimated from days 3 and 23.
+# A second report between days is the same fit, kept; each series is its
+# own; the forecast draws no random numbers.
+W <- default_world()
+W$demand_events <- list(ev("spikes", "solid", c(3, 23), 1.3), ev("sale", "solid", c(40, 41), 1.5), ev("storm", "ramp", 60, -2, 5, -1.2))
+world_install(W); P$pace <- "season"; setup(9)
+r20 <- run_season_days(20)
+waiting <- forecast_report("ours")$status == "waiting"
+r <- run_season_days(8)
+seed0 <- .Random.seed
+t0 <- proc.time()[["elapsed"]]; f <- forecast_report("ours"); t_fit <- proc.time()[["elapsed"]] - t0
+t0 <- proc.time()[["elapsed"]]; f2 <- forecast_report("ours"); t_kept <- proc.time()[["elapsed"]] - t0
+a <- f$ahead
+nest <- all(a$lo95 <= a$lo80 + 1e-9 & a$lo80 <= a$mid + 1e-9 & a$mid <= a$hi80 + 1e-9 & a$hi80 <= a$hi95 + 1e-9)
+fm <- forecast_report("market"); fb <- forecast_report("3")
+check(waiting && r20$ok && r$ok && f$status == "ok" && f$done == 28L && identical(as.integer(a$day), 29:91) && nest && isTRUE(f$event_estimated) &&
+      is.finite(f$event_coef) && abs(f$total_season - f$total_so_far - f$total_ahead) < 1e-6 && identical(f, f2) && t_kept < 0.05 &&
+      identical(.Random.seed, seed0) && fm$total_so_far > f$total_so_far && fb$key == "3" && fb$total_so_far < fm$total_so_far &&
+      forecast_report("99")$key == "ours" && isTRUE(tryCatch(nchar(to_json(report_strategy("market"))) > 0, error = function(e) FALSE)),
+      sprintf("after 28 days (none forecast at 20), %s forecasts days 29 to 91 for our family in %.2f s, kept after (%.3f s), intervals nested, the events' coefficient %.2f estimated from days 3 and 23; the market and one brand have their own; no random numbers drawn",
+              f$model, t_fit, t_kept, f$event_coef))
+# With no event among the days run, an event to come moves the forecast's
+# median one for one: on the log scale, by the log of its multiplier.
+keep <- DEMAND_EVENT
+DEMAND_EVENT[seq_len(28)] <- 1; f_off <- forecast_report("ours")
+DEMAND_EVENT[] <- 1; f_none <- forecast_report("ours")
+DEMAND_EVENT <- keep
+shift <- log1p(as.numeric(f_off$ahead$mid)) - log1p(as.numeric(f_none$ahead$mid))
+check(!isTRUE(f_off$event_estimated) && identical(f_off$event_coef, 1) && isTRUE(all.equal(shift, log(keep[29:91]))) && any(keep[29:91] != 1),
+      sprintf("with no event run yet, events to come move the median one for one: days 40 and 41 x%.2f, day 60 x%.2f", exp(shift[40 - 28]), exp(shift[60 - 28])))
 
 # ---- A version 1 world ------------------------------------------------------------------
 

@@ -1,6 +1,9 @@
 # The world file: everything the end user builds, in one JSON document.
 #
 #   season_days  how long the season runs
+#   demand_events  days the season's demand is lifted or suppressed: each
+#                a solid strength on its days, or a ramp walking up to it
+#                (MODIFIED: added in version 9)
 #   categories   what's sold, market-wide: each category's name, colour,
 #                the key its racks are painted with, whether it's tried
 #                on, and its typical price
@@ -33,11 +36,12 @@
 # of offer for its daily contacts); version 6 had a promotion depth for each
 # brand and a promotion length for the market, for the Market tab's
 # promotion buttons, and no online stores or returns; version 7 had every
-# segment return what it bought at the same rates.
+# segment return what it bought at the same rates; version 8 had no demand
+# events (MODIFIED: version 9 adds them).
 
 WORLD_KIND <- "fashion-world"
 LAYOUT_KIND <- "fashion-layout"
-WORLD_VERSION <- 8L
+WORLD_VERSION <- 9L                  # MODIFIED: 9 adds the season's demand events
 LAYOUT_VERSION <- 2L                 # a layout file's own version (its format hasn't changed since the world's version 2)
 NO_DAY <- 1e6                        # the landing day of a product slot a brand's range doesn't fill
 
@@ -164,7 +168,8 @@ world_upgrade <- function(W) {
   if (identical(version, 4L)) { W <- upgrade_v4(W); version <- 5L }
   if (identical(version, 5L)) { W <- upgrade_v5(W); version <- 6L }
   if (identical(version, 6L)) { W <- upgrade_v6(W); version <- 7L }
-  if (identical(version, 7L)) W <- upgrade_v7(W)
+  if (identical(version, 7L)) { W <- upgrade_v7(W); version <- 8L }
+  if (identical(version, 8L)) W <- upgrade_v8(W)                 # MODIFIED: demand events
   W
 }
 
@@ -412,6 +417,20 @@ upgrade_v7 <- function(W) {
   W
 }
 
+# MODIFIED: version 8 -> 9, for the Season tab's demand events.
+# A version 8 world, as version 9.
+#   demand_events  the season had no demand events: every day ran at the
+#                  demand the model sets. It gets none, placed after its
+#                  length, so it runs the season it ran.
+upgrade_v8 <- function(W) {
+  W$version <- 9L
+  if (is.list(W) && !is.null(names(W)) && is.null(W$demand_events)) {
+    at <- match("season_days", names(W))
+    W <- if (is.na(at)) c(W, list(demand_events = list())) else append(W, list(demand_events = list()), after = at)
+  }
+  W
+}
+
 # ---- Checking --------------------------------------------------------------------------
 
 # Every problem with a world, as list(path, message, tiles), where `tiles`
@@ -422,12 +441,13 @@ world_check <- function(W) {
   if (!is.list(W) || is.null(names(W))) { pb$add("", "a world file is a JSON object"); return(pb$get()) }
   if (!identical(W$kind, WORLD_KIND)) pb$add("kind", sprintf("must be \"%s\"", WORLD_KIND))
   if (!identical(as.integer(W$version), WORLD_VERSION)) pb$add("version", sprintf("must be %d", WORLD_VERSION))
-  pb$keys(W, "", c("kind", "version", "name", "seed", "season_days", "categories", "macro", "layouts", "stores", "families",
-                   "brands", "segments", "market"))
+  pb$keys(W, "", c("kind", "version", "name", "seed", "season_days", "demand_events", "categories", "macro", "layouts", "stores", "families",
+                   "brands", "segments", "market"))                 # MODIFIED: demand_events
   pb$str(W$name, "name")
   pb$int(W$seed, "seed", 1, .Machine$integer.max)
   days <- if (isTRUE(pb$int(W$season_days, "season_days", FIELDS$season$days$min, FIELDS$season$days$max))) W$season_days else MAX_SEASON_DAYS
   pb$fields(W$market, "market", FIELDS$market)
+  check_demand_events(W$demand_events, days, pb)                     # MODIFIED: the season's demand events
 
   cats <- check_categories(W$categories, pb)
   seg_ids <- check_segments(W$segments, cats$ids, pb)
@@ -544,6 +564,87 @@ unique_ids <- function(items, path, pb) {
 }
 
 text_of <- function(x) if (is.character(x) && length(x) == 1L) x else ""
+
+# MODIFIED: the season's demand events, checked and turned into each day's
+# demand (Setup > Season).
+# The season's demand events: each a solid strength on its days, or a ramp
+# walking up to its strength on each of its days over its ramp days. A
+# strength is a signed fold change (FIELDS$demand_event): 1 or more lifts
+# demand, -1 or less suppresses it, and nothing lies between -1 and 1. A
+# ramp walks on one side: its start and its strength are both lifts or
+# both suppressions, unless one of them is 1 or -1 (no change).
+DEMAND_EVENT_KEYS <- c("id", "name", "shape", "days", "strength", "ramp_days", "from")
+
+check_demand_events <- function(evs, days, pb) {
+  path <- "demand_events"
+  if (!isTRUE(pb$list_of(evs, path, 0, MAX_DEMAND_EVENTS))) return(invisible())
+  unique_ids(evs, path, pb)
+  F <- FIELDS$demand_event
+  fold <- function(x, p) {
+    if (!isTRUE(pb$setting(x, p, F$strength))) return(FALSE)
+    if (abs(x) < 1) return(pb$add(p, sprintf("%s is between -1 and 1: a strength is 1 or more (a lift) or -1 or less (a suppression); 1 and -1 are no change", json_number(x))))
+    TRUE
+  }
+  for (k in seq_along(evs)) {
+    x <- evs[[k]]; p <- item_path(path, k)
+    if (!isTRUE(pb$keys(x, p, DEMAND_EVENT_KEYS))) next
+    pb$str(x$name, join_path(p, "name"), 60)
+    one_of(x$shape, join_path(p, "shape"), DEMAND_SHAPES, pb)
+    dp <- join_path(p, "days"); dl <- x$days
+    if (is.null(dl)) {                                    # missing: reported with the event's keys
+    } else if (!is.list(dl) || (length(dl) && !is.null(names(dl)))) pb$add(dp, "must be a list of days")
+    else if (!length(dl)) pb$add(dp, "lists no days")
+    else {
+      ok <- vapply(seq_along(dl), function(j) {
+        if (is.null(dl[[j]])) return(pb$add(item_path(dp, j), "must be a whole number"))
+        isTRUE(pb$int(dl[[j]], item_path(dp, j), 1, days))
+      }, TRUE)
+      if (all(ok) && anyDuplicated(unlist(dl))) pb$add(dp, "lists a day twice")
+    }
+    s_ok <- fold(x$strength, join_path(p, "strength"))
+    f_ok <- fold(x$from, join_path(p, "from"))
+    pb$setting(x$ramp_days, join_path(p, "ramp_days"), F$ramp_days)
+    if (identical(x$shape, "ramp") && s_ok && f_ok && abs(x$strength) > 1 && abs(x$from) > 1 && sign(x$strength) != sign(x$from)) {
+      pb$add(join_path(p, "from"), sprintf("starts at %s and walks to %s: a ramp stays on one side, both lifts or both suppressions (start it at %s, no change, to walk from no change)",
+                                           json_number(x$from), json_number(x$strength), if (x$strength < 0) "-1" else "1"))
+    }
+  }
+  invisible()
+}
+
+# A strength as a multiplier of demand: 1.3 is x1.3, -2 is /2 (x0.5), and
+# 1 and -1 are x1.
+fold_multiplier <- function(f) ifelse(f >= 0, pmax(f, 1), 1 / pmax(-f, 1))
+
+# A ramp's strengths on its n days, first to last: `from` on the first,
+# `strength` on the last, in equal steps between. A start (or a strength)
+# of 1 or -1, no change, is taken on the other's side, so a ramp from no
+# change to -2 walks from -1 to -2.
+ramp_walk <- function(from, strength, n) {
+  if (abs(from) == 1) {
+    from <- if (strength < 0) -1 else 1
+  } else if (abs(strength) == 1) {
+    strength <- if (from < 0) -1 else 1
+  }
+  from + (strength - from) * (seq_len(n) - 1) / max(1, n - 1)
+}
+
+# Each day's demand multiplier, days 1 to n_days, from a world's demand
+# events: a solid event's on each of its days, a ramp's on each of its
+# days and the ramp days up to it (those before day 1 cut off). Where
+# events overlap, their multipliers multiply; a day none touches is 1.
+demand_multipliers <- function(events, n_days) {
+  m <- rep(1, n_days)
+  for (e in events) {
+    walk <- if (identical(e$shape, "ramp")) ramp_walk(e$from, e$strength, as.integer(e$ramp_days)) else e$strength
+    for (D in as.integer(unlist(e$days))) {
+      at <- D - length(walk) + seq_along(walk)
+      ok <- at >= 1L & at <= n_days
+      m[at[ok]] <- m[at[ok]] * fold_multiplier(walk[ok])
+    }
+  }
+  m
+}
 
 # The world's categories: their ids, keys and names (as far as they're
 # sound), for the checks that refer to them.
@@ -1018,6 +1119,7 @@ world_install <- function(W) {
   # The season, and what's sold.
   SEASON_DAYS <<- as.integer(W$season_days)
   SEASON_WEEKS <<- as.integer(ceiling(SEASON_DAYS / 7))
+  DEMAND_EVENT <<- demand_multipliers(W$demand_events, SEASON_DAYS)   # MODIFIED: each day's demand multiplier
   cats <- W$categories
   CATEGORY_IDS <<- chr(cats, "id"); CATEGORIES <<- chr(cats, "name"); FIXTURES <<- chr(cats, "key")
   CATEGORY_COLOURS <<- chr(cats, "colour"); TRY_ON <<- vapply(cats, function(c) isTRUE(c$try_on), TRUE)

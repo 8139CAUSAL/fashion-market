@@ -106,8 +106,11 @@ class Chart {
 
 // ---- Lines and areas --------------------------------------------------------------
 
-// data: { x: labels, series: [{ name, colour, values }] }
+// data: { x: labels, series: [{ name, colour, values }], ribbons? }
 // opts: stacked, normalize, area, yMax, yMin, format, xFormat, bands, endLabels
+// MODIFIED: ribbons, [{ name, colour, lo, hi, opacity? }]: a shaded range
+// under the lines where lo and hi are both given (a forecast's intervals),
+// in the y range and in the tooltip as "lo – hi".
 export class LineChart extends Chart {
   render() {
     const { W, H } = this.clear();
@@ -117,6 +120,8 @@ export class LineChart extends Chart {
     this.setLegend(d.series, !o.stacked);
     const n = d.x.length;
     const series = d.series.map((sr) => ({ ...sr, values: sr.values.map((v) => (Number.isFinite(v) ? v : null)) }));
+    const finite = (v) => (Number.isFinite(v) ? v : null);   // MODIFIED: ribbons
+    const ribbons = (d.ribbons ?? []).map((rb) => ({ ...rb, lo: rb.lo.map(finite), hi: rb.hi.map(finite) }));
     // Stacks: each series' base and top.
     let tops = series.map((sr) => sr.values);
     let bases = series.map(() => new Array(n).fill(0));
@@ -131,7 +136,7 @@ export class LineChart extends Chart {
         bases.push(b); tops.push(t);
       }
     }
-    const all = tops.flat().filter((v) => v !== null);
+    const all = [...tops.flat(), ...ribbons.flatMap((rb) => [...rb.lo, ...rb.hi])].filter((v) => v !== null);   // MODIFIED: ribbons in the range
     let yMax = o.yMax ?? Math.max(...all, 0);
     let yMin = o.yMin ?? Math.min(0, ...all);
     if (o.normalize) { yMax = 1; yMin = 0; }
@@ -151,6 +156,17 @@ export class LineChart extends Chart {
     for (const t of ticks) {
       s("line", { x1: left, x2: W - right, y1: Y(t), y2: Y(t), class: t === 0 ? "axis-line" : "grid-line" }, this.svg);
       text(this.svg, left - 6, Y(t) + 4, f(t), { "text-anchor": "end" });
+    }
+    // MODIFIED: each ribbon, over each run of days with both ends.
+    for (const rb of ribbons) {
+      let run = [];
+      const flush = () => {
+        if (run.length > 1) s("path", { d: `M${run.map((i) => `${X(i).toFixed(1)},${Y(rb.hi[i]).toFixed(1)}`).join("L")}L${run.slice().reverse().map((i) => `${X(i).toFixed(1)},${Y(rb.lo[i]).toFixed(1)}`).join("L")}Z`,
+          fill: rb.colour, opacity: rb.opacity ?? 0.15 }, this.svg);
+        run = [];
+      };
+      for (let i = 0; i < n; i++) { if (rb.lo[i] !== null && rb.hi[i] !== null) run.push(i); else flush(); }
+      flush();
     }
     const xf = o.xFormat ?? ((l) => l);
     const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((W - left - right) / 70))));
@@ -204,7 +220,9 @@ export class LineChart extends Chart {
       cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("visibility", "visible");
       const rows = series.map((sr, k) => ({ colour: sr.colour, name: sr.name,
         value: o.stacked && o.normalize ? fmt.pct((tops[k][i] - bases[k][i]), 0) : tf(sr.values[i]) })).reverse();
-      tooltip.show(ev, o.tipTitle ? o.tipTitle(d.x[i], i) : xf(d.x[i], i), o.stacked ? rows : rows.reverse());
+      // MODIFIED: a ribbon's range on the day, where it has one.
+      const ranges = ribbons.filter((rb) => rb.lo[i] !== null && rb.hi[i] !== null).map((rb) => ({ colour: rb.colour, name: rb.name, value: `${tf(rb.lo[i])} – ${tf(rb.hi[i])}` }));
+      tooltip.show(ev, o.tipTitle ? o.tipTitle(d.x[i], i) : xf(d.x[i], i), [...(o.stacked ? rows : rows.reverse()).filter((r) => o.stacked || r.value !== "—" || !ranges.length), ...ranges]);
     });
     hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); tooltip.hide(); });
   }

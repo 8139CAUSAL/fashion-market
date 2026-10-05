@@ -1,10 +1,11 @@
 # The market: each day, which households go clothes shopping and where.
 #
 # A household is in the market today with a chance that depends on its
-# segment, the day of the week, the point in the season, how much of its
-# season budget is left, promotions and marketing it has heard of, and any
-# offers it holds, as long as some store is within its reach, or some brand
-# has an online store. In the market, it weighs every store within its
+# segment, the day of the week, the point in the season, the season's
+# demand events (MODIFIED: added; world.R, demand_multipliers), how much of
+# its season budget is left, promotions and marketing it has heard of, and
+# any offers it holds, as long as some store is within its reach, or some
+# brand has an online store. In the market, it weighs every store within its
 # radius, and every online store, against staying home (a multinomial
 # logit). The radius is its segment's, stretched brand by brand by its
 # loyalty tier with the brand (a loyal shopper goes further). A store's
@@ -95,7 +96,8 @@ start_day <- function() {
   # radius), or any online store.
   reach_any <- .rowSums(mk$near_km <= radius_km(all_h), n, N_BRANDS) > 0 | any(ONLINE$on)
   ad <- LEVERS$ad$value
-  shop <- SEGMENTS$shop[seg] * DOW_TRAFFIC[dow] * season_curve(day) *
+  # MODIFIED: today's demand multiplier from the season's demand events (1 on a day none touches).
+  shop <- SEGMENTS$shop[seg] * DOW_TRAFFIC[dow] * season_curve(day) * DEMAND_EVENT[day] *
     sqrt(pmax(0, mk$budget_left / hh$budget)) *
     (1 + AD_SHOP * mean(ad) + PROMO_SHOP * SEGMENTS$promo[seg] * heard) * mk$at$shop * reach_any
   i <- which(runif(n) < shop)

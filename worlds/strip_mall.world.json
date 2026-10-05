@@ -1,9 +1,10 @@
 {
   "kind": "fashion-world",
-  "version": 8,
+  "version": 9,
   "name": "Strip Mall",
   "seed": 1,
   "season_days": 91,
+  "demand_events": [],
   "categories": [
     {
       "id": "apparel",

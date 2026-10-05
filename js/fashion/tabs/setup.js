@@ -10,7 +10,8 @@
 //                (offer-editor.js)
 //   Macro world  the market map, its areas, and where each store stands
 //   Micro world  the stores (name, brand, layout, staff) and the layouts
-//   Season       its length, and the seed
+//   Season       its length, the seed, and its demand events: days whose
+//                demand is lifted or suppressed (season-editor.js; MODIFIED)
 //
 // Live settings (a brand's prices, staff, stock and price rules, a store's
 // staffing, the market's weights) act from the moment they change.
@@ -23,6 +24,7 @@ import { LayoutEditor, layoutCapacity } from "../layout-editor.js";
 import { RangeEditor } from "../range-editor.js";
 import { OfferEditor } from "../offer-editor.js";
 import { StoreEditor } from "../store-editor.js";
+import { DemandEventEditor } from "../season-editor.js";   // MODIFIED: the Season section's demand events
 import { clone, newId, newName, slug, download, pickFile, worldText, LIVE_STOCK } from "../world-store.js";
 import { unreplenished, plural } from "../entry-text.js";
 
@@ -67,6 +69,7 @@ export class SetupTab {
     this.layoutEditor.onStaff = () => this.storeEditor.show();
     this.rangeEditor = new RangeEditor(this.panels.range, app, { goTo: (p) => this.#goTo(p) });
     this.offerEditor = new OfferEditor(this.panels.offers, app);
+    this.eventEditor = new DemandEventEditor(app);   // MODIFIED: the Season section's demand events
 
     this.world.addEventListener("change", ({ detail }) => this.#changed(detail));
   }
@@ -74,7 +77,9 @@ export class SetupTab {
   onSchema() { this.#render(); }
   onGeometry() { this.#render(); }
   onShow() { this.#render(); }
-  update(r) { this.facts = r; if (this.section === "season") this.#renderSeason(); }
+  // MODIFIED: a report refreshes only the Season card's line about the season
+  // running, so the demand events being edited beside it keep their focus.
+  update(r) { this.facts = r; if (this.section === "season") this.#seasonFacts(); }
 
   // Problems with the world: from a refused Setup, or a file that can't be
   // imported. Clicking one goes to where it is.
@@ -105,6 +110,7 @@ export class SetupTab {
     }
     else if (path.startsWith("macro")) { this.#show("macro"); if (p.tiles) this.mapEditor.editor.setHighlights(p.tiles); }
     else if (path === "seed" || path === "season_days") this.#show("season");
+    else if (path.startsWith("demand_events")) { this.eventEditor.goTo(path); this.#show("season"); }   // MODIFIED: demand events
   }
 
   #show(section) {
@@ -548,10 +554,21 @@ export class SetupTab {
     const L = this.world.schema.fields.season.days;
     const length = numberField({ label: `${L.label} (at Setup)`, value: d.season_days, min: L.min, max: L.max, onChange: (v) => this.world.edit(() => { d.season_days = Math.round(v); }) });
     const c = card("Season", { right: tag(false) });
+    // MODIFIED: a season length change redraws the demand events (their days run to it).
+    length.input.addEventListener("change", () => this.eventEditor.show());
+    this.factsLine = el("p", { class: "note" });   // MODIFIED: refreshed by update(), not redrawn
+    c.body.append(length.root, el("p", { class: "note", text: "Products land and calendar entries run within the season's days. Day 1 is a Monday." }), seed.root, el("p", { class: "note", text: "The same world and seed give the same season. Households are drawn from the map the same way whatever the seed." }), this.factsLine);
+    this.#seasonFacts();
+    // MODIFIED: the season's demand events beside its length and seed.
+    this.panels.season.replaceChildren(el("div", { class: "grid season-grid" }, c.root, this.eventEditor.show()));
+  }
+
+  // MODIFIED: the line about the season running now, from the last report.
+  #seasonFacts() {
     const f = this.facts;
-    c.body.append(length.root, el("p", { class: "note", text: "Products land and calendar entries run within the season's days. Day 1 is a Monday." }), seed.root, el("p", { class: "note", text: "The same world and seed give the same season. Households are drawn from the map the same way whatever the seed." }));
-    if (f) c.body.append(el("p", { class: "note", text: `Running now: ${f.world}, ${fmt.int(f.households)} households, ${f.stores.length} stores${f.stranded ? `; ${fmt.int(f.stranded)} households have no store in reach` : ""}.` }));
-    this.panels.season.replaceChildren(el("div", { class: "grid setup-three" }, c.root));
+    if (!this.factsLine) return;
+    this.factsLine.hidden = !f;
+    if (f) this.factsLine.textContent = `Running now: ${f.world}, ${fmt.int(f.households)} households, ${f.stores.length} stores${f.stranded ? `; ${fmt.int(f.stranded)} households have no store in reach` : ""}.`;
   }
 }
 

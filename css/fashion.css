@@ -423,7 +423,9 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .setup-section { display: grid; gap: 14px; }
 .setup-two { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); align-items: start; }
 .setup-three { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
-@media (max-width: 1100px) { .setup-two, .setup-three { grid-template-columns: minmax(0, 1fr); } }
+/* MODIFIED: Setup > Season: the season's length and seed beside its demand events. */
+.season-grid { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 1100px) { .setup-two, .setup-three, .season-grid { grid-template-columns: minmax(0, 1fr); } }
 .tag { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--surface-3); color: var(--ink-2); white-space: nowrap; }
 .tag.live { background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--good-ink); }
 .setup-heading { font-size: 12.5px; font-weight: 650; margin: 12px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--hairline); display: flex; gap: 8px; align-items: baseline; }

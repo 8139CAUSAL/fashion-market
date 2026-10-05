@@ -1,10 +1,9 @@
 {
   "kind": "fashion-world",
-  "version": 9,
+  "version": 8,
   "name": "Four-district city",
   "seed": 1,
   "season_days": 91,
-  "demand_events": [],
   "categories": [
     {"id": "denim", "name": "Denim", "key": "D", "colour": "#2a78d6", "try_on": true, "price": 60},
     {"id": "tops", "name": "Tops", "key": "T", "colour": "#eb6834", "try_on": true, "price": 30},

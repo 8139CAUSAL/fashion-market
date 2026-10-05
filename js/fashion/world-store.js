@@ -109,6 +109,7 @@ export function countChanges(draft, installed) {
   if (JSON.stringify(md.default_makeup) !== JSON.stringify(mi.default_makeup)) n++;
   n += listChanges(md.areas, mi.areas);
   for (const k of ["categories", "layouts", "stores", "families", "brands", "segments"]) n += listChanges(d[k], i[k]);
+  n += listChanges(d.demand_events, i.demand_events);   // MODIFIED: the season's demand events
   const catOrder = (w) => JSON.stringify((w.categories ?? []).map((c) => c.id));
   if (!listChanges(d.categories, i.categories) && catOrder(d) !== catOrder(i)) n++;
   const order = (w) => JSON.stringify((w.brands ?? []).map((b) => b.id));

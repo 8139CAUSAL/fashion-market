@@ -92,7 +92,8 @@ world_schema <- function() {
        calendar_on = CALENDAR_ON, world_version = WORLD_VERSION, layout_version = LAYOUT_VERSION,
        limits = list(brands = MAX_BRANDS, stores = MAX_STORES, segments = MAX_SEGMENTS, tiers = MAX_TIERS, areas = MAX_AREAS,
                      map_tiles = MAX_MAP_TILES, households = MAX_HOUSEHOLDS, layout_w = MAX_LAYOUT_W, layout_h = MAX_LAYOUT_H,
-                     categories = MAX_CATEGORIES, products = MAX_PRODUCTS, offers = MAX_OFFERS),
+                     categories = MAX_CATEGORIES, products = MAX_PRODUCTS, offers = MAX_OFFERS,
+                     demand_events = MAX_DEMAND_EVENTS),                 # MODIFIED: the Season tab's demand events
        wages = as.list(WAGE), return_reasons = RETURN_REASONS, line_states = LINE_STATES)
 }
 
@@ -234,7 +235,8 @@ shopper_panel <- function(h) {
 
 # ---- Strategy ------------------------------------------------------------------------------
 
-report_strategy <- function() {
+# MODIFIED: `forecast` picks the series the ARIMA forecast is for (forecast.R).
+report_strategy <- function(forecast = "ours") {
   dd <- days_so_far()
   # Price is the brands' price position: their prices against the market's.
   pos <- price_position()
@@ -275,7 +277,8 @@ report_strategy <- function() {
     wallet = lapply(seq_len(N_SEGMENTS), function(g) list(segment = SEGMENTS$name[g], budget = budget[g], spend = I(wallet[g, ]))),
     # Households that have bought: from our family (whatever else), or only from competitors.
     customers = list(ours = households_bought_ours(), rivals_only = ever[N_BRANDS + 1L]),
-    contribution = contribution(dd)
+    contribution = contribution(dd),
+    forecast = forecast_report(forecast)                               # MODIFIED: daily net sales and their ARIMA forecast
   )
 }
 

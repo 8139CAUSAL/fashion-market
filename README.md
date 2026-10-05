@@ -46,6 +46,7 @@ button shows the files that are running, and the world they run in.
 | Store network | Where should the next store go? Which households have no store in reach? | where stores stand on the map, its areas, each segment's travel radius | Setup (Macro world) |
 | Floor plan | What does a different layout do to queues, walks and sales? | a layout (Micro world) | Store, Scorecard |
 | Conversion | Where are shoppers lost between walking in and paying, and why? | nothing: filter by brand, area, store and period | Funnel |
+| Seasonal demand | What does a spike day, or a suppressed week, do to sales, stock and share? What will the rest of the season sell? | demand events on the season's calendar: solid days, or a ramp up to a day | Strategy (the forecast), Market, Scorecard |
 
 ---
 
@@ -110,7 +111,13 @@ average, market share over time (addressable, ours, other brands), revenue,
 spend per customer, average receipt by week, and each segment's share of
 wallet, all net of refunds. A table by brand gives its gross sales,
 refunds and net sales, its online share of net sales, and its return
-rate.
+rate. Below it, a forecast of daily net sales to the season's end, for
+our family, the whole market or one brand: a seasonal ARIMA model, fitted
+again as each day ends, with the season's demand events built in. It
+draws the days run, the forecast's median from the next day on, its 80%
+and 95% prediction intervals, and the days an event touches; it names
+the model, how much sales moved with the events, and what the season
+comes to. It starts once three weeks have run.
 
 ### Offers
 
@@ -209,7 +216,15 @@ Everything is set on the **Setup** tab, in seven sections:
   floor area, fitting rooms, tills, rack space against a standard store, and
   the longest walk from a door. A new store goes on the map from the Macro
   world's Stores layer. Layouts export and import one at a time.
-- **Season.** Its length in days, and the seed.
+- **Season.** Its length in days, the seed, and its demand events: days
+  whose demand is lifted or suppressed. An event is solid (its strength on
+  each of its days: days 3 and 23 at 1.3 take demand ×1.3) or a ramp (a
+  walk in equal steps, over its ramp days, from where it starts to its
+  strength on its day: day 90 at -2 over 7 days from -1.4 walks -1.4,
+  -1.5, -1.6, -1.7, -1.8, -1.9, -2 on days 84 to 90). A strength is a
+  signed fold change: 1.3 is ×1.3, -2 is ÷2 (×0.5), and 1 and -1 are no
+  change; nothing lies between them. A chart shows each day's demand as
+  the events add up, and the model checks the events as they're edited.
 
 **Rack faces set capacity.** A rack tile with floor beside it is a face. A
 store's space for a category is that category's faces against a standard
@@ -265,7 +280,7 @@ also built as a NetLogoR world (`model/floors.R`), which nothing reads.
 <details>
 <summary><b>The world</b>: one JSON document, checked before it runs (<code>model/world.R</code>)</summary>
 
-The world holds the season's length, the categories, the map with its areas
+The world holds the season's length and demand events, the categories, the map with its areas
 and household make-up, the layouts, the stores, the families and brands
 (each with its range, calendar, stock settings and price rules), the
 segments, and the market's weights. `world_check()` lists every problem in a
@@ -299,6 +314,8 @@ Older files are upgraded as they're read or imported, a version at a time:
   a taste for shopping online of 0. It runs the season it ran.
 - Version 7 (every segment returning what it bought at the same rates) gets
   a tendency to return of 1 for each segment. It runs the season it ran.
+- Version 8 (no demand events) gets none, after the season's length. It
+  runs the season it ran.
 
 </details>
 
@@ -338,7 +355,8 @@ shoppers in by each, in proportion to its width, and out by the nearest.
 
 1. Each household with a store in reach (or any online store) is in the
    market for clothes with a chance that depends on its segment, the
-   weekday, the point in the season, how much budget is left, the promotions
+   weekday, the point in the season, the season's demand events (the day's
+   multiplier), how much budget is left, the promotions
    that reach it (by how much of each brand's range in the stores they
    cover), marketing, and any offers it holds.
 2. A household in the market weighs every store in its reach, and every
@@ -373,6 +391,50 @@ shoppers in by each, in proportion to its width, and out by the nearest.
    word of mouth reaches (Macro world) is a patch's width, and it must be
    less than the map's width and height: `diffuse()` needs two patches
    each way.
+
+</details>
+
+<details>
+<summary><b>Demand events and the forecast</b>: the season's spikes and suppressions, and ARIMA on daily net sales (<code>model/world.R</code>, <code>model/market.R</code>, <code>model/forecast.R</code>)</summary>
+
+A demand event multiplies each household's daily chance of being in the
+market for clothes (in a store or online) on the days it touches, on top
+of everything else that sets it. Its strength is a signed fold change: a
+strength `f` of 1 or more multiplies demand by `f`, and one of -1 or less
+divides it by `-f`. A solid event puts its strength on each of its days. A
+ramp has, for each of its days, ramp days ending on it (7 is the day and
+the six before), and walks over them in equal steps from its start (on the
+first) to its strength (on the day); a start of 1 or -1 is no change on
+the strength's side, and ramp days before day 1 are cut off. Where events
+overlap, their multipliers multiply. Setup refuses a strength between -1
+and 1, a ramp whose start and strength are on opposite sides, a day
+outside the season and a day listed twice, each where it is. With no
+events, every day's multiplier is exactly 1 and a world runs the season it
+ran.
+
+The forecast (Strategy) is fitted to the daily net sales of the days run
+so far, for our family, the whole market or one brand, once 21 days have
+run. It's a seasonal ARIMA model, chosen as `auto.arima` chooses one but
+with base R's `stats::arima`, which runs in webR:
+
+- on the log of daily net sales (`log(1 + sales)`), so the weekday pattern
+  and the events act as sums
+- with a weekly season (period 7): differenced by week if the weekly
+  pattern's strength (STL) is over 0.64, then differenced again if the
+  KPSS test rejects a level series at 5%
+- with the season's demand events as a regressor: the log of each day's
+  multiplier, known for every day, past and to come. Once an event has
+  touched a day run, its coefficient is estimated with the model (1: sales
+  move with demand one for one); until then, it's taken as 1
+- with the autoregressive and moving-average orders (`p + q` at most 2, a
+  seasonal `P` or `Q` of at most 1) of the lowest AICc
+
+The forecast for each day left is the model's median, back on the scale
+of sales, with its 80% and 95% prediction intervals; the season's total is
+the days run plus the forecast days' medians. A fit is kept until the
+series changes (a day ends, a season starts, another series is picked), so
+it's fitted once a day, and only while the Strategy tab is open. It draws
+no random numbers, so it never changes the season.
 
 </details>
 
@@ -584,7 +646,12 @@ return of 1: up to 30% bought online, 9% bought in a store untried, 4%
 tried on, before the window), the share written off (10%), the cashier's
 time on a return, and how far word of mouth spreads each evening (a fifth
 of each patch's buzz, to its neighbours). Rent and overheads are left out
-of contribution.
+of contribution. The default world has no demand events: they're yours to
+set. The forecast's settings (three weeks before it starts, the 0.64
+seasonal strength and the KPSS test at 5%) are `auto.arima`'s conventions,
+not tuned to this model; ARIMA carries the days run forward, so it can't
+see a change those days don't show (in the default world, sales fall over
+the season's last weeks).
 
 ### Performance
 
@@ -595,6 +662,7 @@ of contribution.
 | Default world in webR: a market day (about 3,600 visits: 3,000 to 19 stores, 600 to 4 online stores) | about 0.6 s at the fastest speed; a 13-week season in about a minute |
 | Largest world (24 brands, 80 stores, 60,000 tiles, 60,000 households), native R | Setup about 2 s, a market day about 0.4 s (about 10,000 visits) with no online stores; about a fifth longer with half the brands online; webR runs R about 3–4 times slower |
 | A 120 × 80 layout, read and routed, native R | 0.1 s |
+| The forecast, fitted again as each day ends (only while the Strategy tab is open) | in webR, about 0.3–0.6 s at day 61 of the default world, a series; native R, about 0.1–0.25 s; between days it's kept, and costs nothing |
 
 Those are the largest a world can be: 24 brands, 80 stores, 12 segments, 6
 tiers a brand, 40 areas, a map of 60,000 tiles, 60,000 households, and
@@ -768,7 +836,25 @@ the shims' (`tools/test-shims.R`).
   (`tools/fixtures/v7-season.json`), identical by day and outcome, and in
   gross sales, units, refunds and returns by brand. Those two seasons were
   recorded before word of mouth spread between patches, so they're run
-  with `WOM_SPREAD` at 0
+  with `WOM_SPREAD` at 0; and the version 8 default world
+  (`tools/fixtures/v8-default.world.json`) upgrades to no demand events
+  and runs the season the version 8 model ran
+  (`tools/fixtures/v8-season.json`), identical by day and outcome, and in
+  gross sales, units, refunds and returns by brand
+- demand events do what they say: days 3 and 23 at 1.3 are demand ×1.3,
+  and day 90 at -2, ramped over 7 days from -1.4, walks -1.4, -1.5 … -2 on
+  days 84 to 90; overlapping events multiply, ramp days before day 1 are
+  cut off, and a ramp from no change starts at it; with the same seed, a
+  day at -2 has about half the households in the market, and at 2 about
+  twice as many; and every broken event is refused, where it is
+- the forecast: on a known series (a weekly pattern, AR(1) noise and
+  events) it sees the weekly season and estimates the events' coefficient
+  near the 1 it was given; in a season it waits three weeks, then
+  forecasts every day left with the 80% interval inside the 95% around the
+  median, estimates the events' coefficient from the days run, keeps its
+  fit between days, gives each series its own, and draws no random
+  numbers; and with no event run yet, an event to come moves its median
+  one for one
 
 </details>
 
@@ -802,7 +888,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `index.html`, `css/fashion.css`, `js/fashion/` | the page |
 | `coi-serviceworker.js` | cross-origin isolation on hosts that can't send the headers, and a cache for the large downloads |
 | `workers/sim.worker.js` | the webR session and the run loop |
-| `model/` | the model, in R (`index.json` gives the order; `events.R` is what's said about a visit, `calendar.R` the calendar and its markdowns, `stock.R` replenishment, `online.R` the online stores, `returns.R` the ledger and returns) |
+| `model/` | the model, in R (`index.json` gives the order; `events.R` is what's said about a visit, `calendar.R` the calendar and its markdowns, `stock.R` replenishment, `online.R` the online stores, `returns.R` the ledger and returns, `forecast.R` the Strategy tab's forecast) |
 | `worlds/default.world.json` | the world the app opens with |
 | `layouts/` | the four prefab layouts (`index.json` lists them) |
 | `vfs/` | the pre-built NetLogoR library image for webR (`tools/build-vfs.R`) |
