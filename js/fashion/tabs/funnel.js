@@ -34,7 +34,7 @@ export class FunnelTab {
 
     const main = card("The sales funnel", { sub: "" });
     this.mainCard = main;
-    this.svgBox = el("div", { class: "funnel-svg" });
+    this.svgBox = el("div", { class: "chart funnel-svg" });
     main.body.append(this.svgBox);
     root.append(main.root);
 
@@ -127,7 +127,7 @@ export class FunnelTab {
     const liveArr = Array.isArray(live) ? live : Object.values(live ?? {});
     const anyLive = liveArr.some((v) => v > 0);
     const maxN = Math.max(1, ...stages.map((s) => s.n));
-    const keys = []; // MODIFIED: each loss key's text, its reason, its share and the room it has, to fit after drawing
+    const names = []; const keys = []; // fitted to their columns once drawn
     stages.forEach((s, i) => {
       const cx = band * (i + 0.5);
       // Arrow to the next stage: its width is the share that makes it.
@@ -135,7 +135,7 @@ export class FunnelTab {
         const nx = band * (i + 1.5);
         const share = s.n ? stages[i + 1].n / s.n : 0;
         const w = Math.max(5, 34 * Math.sqrt(stages[i + 1].n / n0));
-        add("path", { d: `M${cx + r + 4},${cy - w / 2}H${nx - r - 16}V${cy - w / 2 - 6}L${nx - r - 3},${cy}L${nx - r - 16},${cy + w / 2 + 6}V${cy + w / 2}H${cx + r + 4}Z`, class: "flow-arrow" }); // MODIFIED: was fill var(--surface-3), near-invisible on the dark card
+        add("path", { d: `M${cx + r + 4},${cy - w / 2}H${nx - r - 16}V${cy - w / 2 - 6}L${nx - r - 3},${cy}L${nx - r - 16},${cy + w / 2 + 6}V${cy + w / 2}H${cx + r + 4}Z`, class: "flow-arrow" });
         add("text", { x: (cx + nx) / 2 - 6, y: cy + Math.max(w / 2, 10) + 26, "text-anchor": "middle", class: "value-ink", style: "font-size:18px" }, fmt.pct(share, 0));
       }
       add("circle", { cx, cy, r, fill: `var(--stage-${i + 1})`, "fill-opacity": 0.2, stroke: `var(--stage-${i + 1})`, "stroke-width": 2 });
@@ -147,8 +147,8 @@ export class FunnelTab {
         const a = j * 2.39996; const rr = (r - 6) * Math.sqrt((j + 0.5) / Math.max(shown, 1));
         add("circle", { cx: cx + rr * Math.cos(a), cy: cy + rr * Math.sin(a), r: 2.3, fill: `var(--stage-${Math.min(6, i + 2)})` });
       }
-      add("text", { x: cx, y: cy + r + 20, "text-anchor": "middle", class: "label-ink", style: "font-weight:650;font-size:14px" }, s.name); // MODIFIED: 12.5px -> 14px
-      add("text", { x: cx, y: cy + r + 38, "text-anchor": "middle" }, fmt.int(s.n)); // MODIFIED: 2px lower for the larger name above
+      names.push(add("text", { x: cx, y: cy + r + 20, "text-anchor": "middle", class: "label-ink", style: "font-weight:650;font-size:14px" }, s.name));
+      add("text", { x: cx, y: cy + r + 38, "text-anchor": "middle" }, fmt.int(s.n));
       const hit = add("circle", { cx, cy, r: r + 6, fill: "transparent" });
       hit.addEventListener("pointermove", (ev) => tooltip.show(ev, s.name, [
         { colour: `var(--stage-${i + 1})`, value: fmt.int(s.n), name: "shoppers" },
@@ -171,19 +171,19 @@ export class FunnelTab {
         const hitB = add("rect", { x: x - 2, y: baseY - hMax - 6, width: bw + 4, height: hMax + 10, fill: "transparent" });
         hitB.addEventListener("pointermove", (ev) => { bar.classList.add("is-hover"); tooltip.show(ev, `Lost at "${s.name}"`, [{ colour: LOSS_COLOURS[j], value: `${fmt.pct(v, 1)} · ${fmt.int(l.n)}`, name: l.reason }]); });
         hitB.addEventListener("pointerleave", () => { bar.classList.remove("is-hover"); tooltip.hide(); });
-        const ky = baseY + 16 + j * 18; // MODIFIED: rows 15px -> 18px apart for the larger text
-        add("rect", { x: cx - band * 0.44, y: ky - 10, width: 10, height: 10, rx: 2, fill: LOSS_COLOURS[j] }); // MODIFIED: key 9px -> 10px
-        // MODIFIED: 11px -> 13px (the .funnel-svg text size in css/fashion.css)
+        const ky = baseY + 16 + j * 18;
+        add("rect", { x: cx - band * 0.44, y: ky - 10, width: 10, height: 10, rx: 2, fill: LOSS_COLOURS[j] });
         keys.push([add("text", { x: cx - band * 0.44 + 15, y: ky, class: "label-ink" }, `${l.reason} ${fmt.pct(v, 0)}`), l.reason, fmt.pct(v, 0), band - 23]);
       });
-      const ay = baseY + 16 + s.lost.length * 18; // MODIFIED: matches the 18px key rows
-      add("path", { d: `M${cx - 7},${cy - r - 4}V${ay + 18}H${cx - 13}L${cx},${ay + 4}L${cx + 13},${ay + 18}H${cx + 7}V${cy - r - 4}Z`, class: "flow-arrow" }); // MODIFIED: was fill var(--surface-3)
+      const ay = baseY + 16 + s.lost.length * 18;
+      add("path", { d: `M${cx - 7},${cy - r - 4}V${ay + 18}H${cx - 13}L${cx},${ay + 4}L${cx + 13},${ay + 18}H${cx + 7}V${cy - r - 4}Z`, class: "flow-arrow" });
       add("text", { x: cx + 18, y: ay + 34, class: "value-ink", style: "font-size:15px" }, `${fmt.pct(share, 0)} lost`);
     });
     this.svgBox.replaceChildren(svg);
-    // MODIFIED: a key too long for its stage's column at the larger size
-    // shortens its reason with "…" (keeping the share) rather than running
-    // into the next stage's keys; the bar's tooltip has the full reason.
+    // A stage name too wide for its column drops to a smaller size, and a
+    // loss reason too long for it ends in "…", keeping its share, rather
+    // than running into the next stage's (its bar's tooltip has it in full).
+    for (const t of names) if (t.getComputedTextLength() > band - 10) t.style.fontSize = "12px";
     for (const [t, reason, pct, room] of keys) {
       for (let c = reason.length - 1; c > 0 && t.getComputedTextLength() > room; c--) t.textContent = `${reason.slice(0, c).trimEnd()}… ${pct}`;
     }

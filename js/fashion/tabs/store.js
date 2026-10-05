@@ -44,7 +44,7 @@ export class StoreTab {
     // The floor, heat map or flow.
     this.viewCard = card("Floor", { sub: "" });
     this.floorWrap = el("div", { class: "canvas-wrap floor-wrap" });
-    this.flowBox = el("div", { class: "flow-svg", hidden: true });
+    this.flowBox = el("div", { class: "chart flow-svg", hidden: true });
     this.floorLegend = el("div", { class: "map-legend" },
       ...LOOK_NAMES.map((n, i) => el("span", {}, el("i", { class: "legend-swatch", vars: { "--c": `var(--look-${i + 1})` } }), n)),
       el("span", {}, el("i", { class: "legend-swatch square", vars: { "--c": "var(--ink)" } }), "cashier"),
@@ -249,7 +249,7 @@ export class StoreTab {
         add("path", { d: `M${cx - 5},${by + bh + 34}L${cx},${by + bh + 44}L${cx + 5},${by + bh + 34}Z`, fill: "var(--critical)" });
         add("text", { x: cx, y: by + bh + 62, "text-anchor": "middle", class: "value-ink" }, fmt.int(l[0]));
         add("text", { x: cx, y: by + bh + 78, "text-anchor": "middle", class: "label-ink" }, l[1]);
-        add("text", { x: cx, y: by + bh + 93, "text-anchor": "middle", style: "font-size:10px" }, l[2]);
+        add("text", { x: cx, y: by + bh + 94, "text-anchor": "middle" }, l[2]);
       }
     });
     add("text", { x: 4, y: H - 8 }, `Counts are ${r.day_label.toLowerCase()}; busy and waiting are right now, while the floor is drawn.`);

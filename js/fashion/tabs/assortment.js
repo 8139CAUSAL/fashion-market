@@ -29,7 +29,7 @@ export class AssortmentTab {
     this.calBox = el("div", { class: "calendar-box" });
     cal.body.append(this.calBox);
     const life = card("Product lifecycle", { sub: "bubbles are products · colour: category · size: full-price value sold, net of returns · height: sell-through" });
-    this.lifeBox = el("div");
+    this.lifeBox = el("div", { class: "chart" });
     this.lifeLegend = el("div", { class: "legend" });
     life.body.append(this.lifeBox, this.lifeLegend);
     root.append(el("div", { class: "grid assort-top" }, cal.root, life.root));
@@ -167,7 +167,7 @@ export class AssortmentTab {
       for (const [f, lbl] of [[0, "0%"], [0.5, "50%"], [1, "100%"]]) {
         const y = bottom - 12 - f * (bottom - top - 24);
         add("line", { x1: x + 4, x2: x + laneW - 4, y1: y, y2: y, class: "grid-line" });
-        if (i === 0) add("text", { x: x + 4, y: y - 3, style: "font-size:9px" }, lbl);
+        if (i === 0) add("text", { x: x + 4, y: y - 3 }, lbl);
       }
       if (i < lanes.length - 1) {
         const ax = x + laneW + 4;
