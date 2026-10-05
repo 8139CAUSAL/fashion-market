@@ -548,10 +548,11 @@ for (b in seq_len(N_BRANDS)) {
 # online (Value doesn't), each with its own delivery days, delivery charge
 # and costs an order, planning its online sales as some standard stores'
 # worth (added to its season's buy); every brand takes returns, Value for
-# 14 days, Premium for 60 and the rest for 30, and a parcel posted back
-# costs the brand $6. Each segment has a taste for shopping online:
-# convenience shoppers like it most, value seekers least. The plans and
-# tiers above were measured without them.
+# 14 days, Premium for 60 and the rest for 30, a parcel posted back costs
+# the brand $6, and a tenth of what comes back is written off. Each
+# segment has a taste for shopping online: convenience shoppers like it
+# most, value seekers least. The plans and tiers above were measured
+# without them.
 online_store <- function(on, days, charge, fulfilment, shipping, plan) {
   list(on = on, delivery_days = days, delivery_charge = charge, fulfilment_cost = fulfilment, shipping_cost = shipping, plan_stores = plan)
 }
@@ -566,7 +567,7 @@ ONLINE_TASTE <- list(value_seekers = -1.4, trend_followers = -0.2, quality_loyal
 for (b in seq_along(W$brands)) {
   id <- W$brands[[b]]$id
   W$brands[[b]]$online <- ONLINE_OF[[id]]
-  W$brands[[b]]$returns <- list(window_days = RETURNS_OF[[id]], post_cost = 6)
+  W$brands[[b]]$returns <- list(window_days = RETURNS_OF[[id]], post_cost = 6, write_off_rate = 0.1)
 }
 for (g in seq_along(W$segments)) W$segments[[g]]$online <- ONLINE_TASTE[[W$segments[[g]]$id]]
 

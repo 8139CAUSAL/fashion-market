@@ -36,11 +36,11 @@
 # brand and a promotion length for the market, for the Market tab's
 # promotion buttons, and no online stores or returns; version 7 had every
 # segment return what it bought at the same rates; version 8 had no demand
-# events.
+# events; version 9 had every brand write off the same share of its returns.
 
 WORLD_KIND <- "fashion-world"
 LAYOUT_KIND <- "fashion-layout"
-WORLD_VERSION <- 9L
+WORLD_VERSION <- 10L
 LAYOUT_VERSION <- 2L                 # a layout file's own version (its format hasn't changed since the world's version 2)
 NO_DAY <- 1e6                        # the landing day of a product slot a brand's range doesn't fill
 
@@ -168,7 +168,8 @@ world_upgrade <- function(W) {
   if (identical(version, 5L)) { W <- upgrade_v5(W); version <- 6L }
   if (identical(version, 6L)) { W <- upgrade_v6(W); version <- 7L }
   if (identical(version, 7L)) { W <- upgrade_v7(W); version <- 8L }
-  if (identical(version, 8L)) W <- upgrade_v8(W)
+  if (identical(version, 8L)) { W <- upgrade_v8(W); version <- 9L }
+  if (identical(version, 9L)) W <- upgrade_v9(W)
   W
 }
 
@@ -426,6 +427,23 @@ upgrade_v8 <- function(W) {
     at <- match("season_days", names(W))
     W <- if (is.na(at)) c(W, list(demand_events = list())) else append(W, list(demand_events = list()), after = at)
   }
+  W
+}
+
+# A version 9 world, as version 10.
+#   returns  every brand wrote off the same share of the items returned to
+#            it, too worn or damaged to sell again: a tenth. Now each brand
+#            has its own write-off rate. Each brand gets a tenth, so the
+#            world runs the season it ran.
+V9_WRITE_OFF <- 0.1
+
+upgrade_v9 <- function(W) {
+  W$version <- 10L
+  if (is.list(W$brands)) W$brands <- lapply(W$brands, function(b) {
+    if (!is.list(b) || is.null(names(b)) || !is.list(b$returns) || is.null(names(b$returns))) return(b)
+    if (is.null(b$returns$write_off_rate)) b$returns$write_off_rate <- V9_WRITE_OFF
+    b
+  })
   W
 }
 

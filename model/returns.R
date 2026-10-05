@@ -33,8 +33,8 @@
 # posts them back to the brand's DC the morning they're due, one parcel a
 # household, at the brand's return postage. A returned unit goes back on
 # the floor (with the items left behind, reshelved on the hour) or into the
-# DC, unless it's one of the RETURN_WRITE_OFF share too worn to sell again,
-# written off at cost.
+# DC, unless it's one of the share too worn to sell again (the brand's
+# write-off rate), written off at cost.
 #
 # Returns the window would allow after the season's last day never happen
 # in the season: the season's figures end with it. The reports count what's
@@ -118,7 +118,7 @@ returns_evening <- function() {
   if (!n) return(invisible())
   u <- runif(n)
   wait <- 1L + as.integer(floor(rexp(n, 1 / RETURN_DAYS)))
-  lost <- runif(n) < RETURN_WRITE_OFF
+  lost <- runif(n) < RETURNS$write_off_rate[ledger$i[rows, "brand"]]
   # Each item's chance of coming back, by reason (cumulated), for how it
   # was bought, times its household's segment's tendency to return; where
   # that would be more than certain, scaled down to certain, the reasons in

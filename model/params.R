@@ -82,7 +82,6 @@ RETURN_KINDS <- c("bought online", "bought in a store, not tried on", "tried on 
 RETURN_P <- matrix(c(0.14, 0.11, 0.05,
                      0.04, 0.03, 0.02,
                      0.005, 0.01, 0.025), 3, byrow = TRUE, dimnames = list(c("online", "untried", "tried"), RETURN_REASONS))
-RETURN_WRITE_OFF <- 0.1         # share of returned items too worn or damaged to sell again: written off at cost
 RETURN_PULL <- c(store = 0.15, online = 0.4)   # pull of a return window that covers every return a shopper might want, in utility
 REFUND_BASE_S <- 60             # a cashier taking returns back: finding the sale, giving the refund
 REFUND_ITEM_S <- 30             # ... and checking and tagging each item
@@ -172,7 +171,8 @@ FIELDS <- list(
     plan_stores = setting("Plans to sell as much as (standard stores)", 0, 20, 0.25, "num2")),
   returns = list(
     window_days = setting("Return window (days; 0: no returns)", 0, 365, 1, "int"),
-    post_cost = setting("Return postage, per parcel ($)", 0, 50, 0.05, "money")),
+    post_cost = setting("Return postage, per parcel ($)", 0, 50, 0.05, "money"),
+    write_off_rate = setting("Return write-off rate", 0, 1, 0.01, "pct")),   # share of returned items too worn or damaged to sell again: written off at cost
   plan = setting("Planned units a week, standard store", 0, 5000, 1, "int"),
   staff = list(
     cashiers = setting("Cashiers on the tills", 1, 12, 1, "int"),

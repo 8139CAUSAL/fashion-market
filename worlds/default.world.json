@@ -1,6 +1,6 @@
 {
   "kind": "fashion-world",
-  "version": 9,
+  "version": 10,
   "name": "Four-district city",
   "seed": 1,
   "season_days": 91,
@@ -1153,7 +1153,7 @@
         "shipping_cost": 6,
         "plan_stores": 2
       },
-      "returns": {"window_days": 30, "post_cost": 6}
+      "returns": {"window_days": 30, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "ours_intimates",
@@ -1471,7 +1471,7 @@
         "shipping_cost": 4.5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 30, "post_cost": 6}
+      "returns": {"window_days": 30, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "value",
@@ -1781,7 +1781,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 14, "post_cost": 6}
+      "returns": {"window_days": 14, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "premium",
@@ -2033,7 +2033,7 @@
         "shipping_cost": 7.5,
         "plan_stores": 1.5
       },
-      "returns": {"window_days": 60, "post_cost": 6}
+      "returns": {"window_days": 60, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "fast",
@@ -2409,7 +2409,7 @@
         "shipping_cost": 5,
         "plan_stores": 2
       },
-      "returns": {"window_days": 30, "post_cost": 6}
+      "returns": {"window_days": 30, "post_cost": 6, "write_off_rate": 0.1}
     }
   ],
   "segments": [
