@@ -1,6 +1,6 @@
 {
   "kind": "fashion-world",
-  "version": 7,
+  "version": 8,
   "name": "Strip Mall",
   "seed": 1,
   "season_days": 91,
@@ -2839,7 +2839,8 @@
         "slippers": 1.5
       },
       "offer_response": {"shop": 0.9, "appeal": 0.9},
-      "online": 0
+      "online": 0,
+      "returns": 1
     },
     {
       "id": "young_families",
@@ -2874,7 +2875,8 @@
         "slippers": 2
       },
       "offer_response": {"shop": 0.4, "appeal": 0.5},
-      "online": 0
+      "online": 0,
+      "returns": 1
     },
     {
       "id": "collectors",
@@ -2909,7 +2911,8 @@
         "slippers": 0.5
       },
       "offer_response": {"shop": 0.1, "appeal": 0.2},
-      "online": 0
+      "online": 0,
+      "returns": 1
     },
     {
       "id": "style_seekers",
@@ -2944,7 +2947,8 @@
         "slippers": 2
       },
       "offer_response": {"shop": 0.35, "appeal": 0.4},
-      "online": 0
+      "online": 0,
+      "returns": 1
     },
     {
       "id": "home_nesters",
@@ -2979,7 +2983,8 @@
         "slippers": 3
       },
       "offer_response": {"shop": 0.3, "appeal": 0.35},
-      "online": 0
+      "online": 0,
+      "returns": 1
     }
   ],
   "market": {

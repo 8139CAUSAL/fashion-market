@@ -41,7 +41,7 @@ button shows the files that are running, and the world they run in.
 | Markdowns | When to mark down, how deep, and everything or only what's behind plan? Should promotions also come off marked-down prices? | markdown entries on the calendar, sell-through target, price rules | Assortment, Scorecard |
 | Promotions and price | A category or the whole range? Members or everyone? One area or the whole market? Whose share does it take, and what does it do to margin? | promotions on the calendar, a brand's price change and marketing | Market, Strategy, Scorecard |
 | Offers and loyalty | What did a coupon add, against the households held out, net of what came back? When it's also good at a sister brand, where does the extra spend go? Who kept their tier, who moved up, who dropped? | offers on the calendar (audience, holdout, tiers and areas reached, where it's good); each tier's starting share and qualifying spend | Offers |
-| Online store and returns | Does an online store win new spend, or take it from our own stores? What do delivery days and a delivery charge do to it? Does a longer return window win more than it costs in refunds, write-offs and cashier time? | a brand's online store (on or off, delivery days, delivery charge, picking and packing, shipping, its plan), its return window and return postage; each segment's taste for shopping online | Market, Strategy, Funnel, Assortment, Scorecard |
+| Online store and returns | Does an online store win new spend, or take it from our own stores? What do delivery days and a delivery charge do to it? Does a longer return window win more than it costs in refunds, write-offs and cashier time? | a brand's online store (on or off, delivery days, delivery charge, picking and packing, shipping, its plan), its return window and return postage; each segment's taste for shopping online and tendency to return | Market, Strategy, Funnel, Assortment, Scorecard |
 | Competition | What do a rival's prices, categories and launch dates do to us? | a brand's range: products, prices, costs, the day each lands | Market, Strategy, Assortment |
 | Store network | Where should the next store go? Which households have no store in reach? | where stores stand on the map, its areas, each segment's travel radius | Setup (Macro world) |
 | Floor plan | What does a different layout do to queues, walks and sales? | a layout (Micro world) | Store, Scorecard |
@@ -189,7 +189,8 @@ Everything is set on the **Setup** tab, in seven sections:
   does. Problems show in red as you edit.
 - **Shoppers.** The categories; the segments (how they shop, how far they'll
   travel, their taste for each category, for each brand and for shopping
-  online, their hidden response to offers); and the market-wide weights.
+  online, how often they return what they buy, their hidden response to
+  offers); and the market-wide weights.
 - **Offers.** Each brand's named coupons: days, discount, cost to send, the
   share of households reached that it's sent to and the share of those held
   out, the tiers and areas it reaches, and the brands where it's good.
@@ -263,6 +264,8 @@ Older files are upgraded as they're read or imported, a version at a time:
   promotions are set on the calendar. Each brand gets an online store,
   switched off, and a return window of 0 days (no returns), and each segment
   a taste for shopping online of 0. It runs the season it ran.
+- Version 7 (every segment returning what it bought at the same rates) gets
+  a tendency to return of 1 for each segment. It runs the season it ran.
 
 </details>
 
@@ -440,8 +443,9 @@ didn't suit them, changed their mind), and after how many days (8 on
 average, counted from the day it reached the household). Items bought
 online come back most, then those bought in a store without trying them
 on, and least those tried on in a fitting room (`RETURN_P` in
-`model/params.R`). A return the brand's window has closed on doesn't happen:
-the household keeps the item.
+`model/params.R`); the tendency to return of the household's segment
+multiplies each chance, which never goes above certain. A return the
+brand's window has closed on doesn't happen: the household keeps the item.
 
 On the day a return is due, the household takes it, with any others for
 the brand due that day, to the brand's store nearest by route, if one is
@@ -530,8 +534,9 @@ left at the season's end (20% of cost) are assumptions, not sourced figures.
 So are the online stores (four brands of five run one, delivering in 2 to 4
 days for $0 to $3.95, at $2.50 to $4.50 picking and packing and $4.50 to
 $7.50 shipping an order), the return windows (14 to 60 days), the return
-postage ($6 a parcel), the chance an item comes back (up to 30% bought
-online, 9% bought in a store untried, 4% tried on, before the window), the
+postage ($6 a parcel), the chance an item comes back (at a tendency to
+return of 1: up to 30% bought online, 9% bought in a store untried, 4%
+tried on, before the window), the
 share written off (10%) and the cashier's time on a return. Rent and
 overheads are left out of contribution.
 
@@ -676,6 +681,9 @@ the shims' (`tools/test-shims.R`).
   online stores and returns on
 - a brand with no stores and no online store is refused, and every broken
   online or return setting is refused, each where it is
+- a segment's tendency to return multiplies its chances of sending an item
+  back: of the same day's items, a segment at 0 wants none back, one at 2
+  wants back every item it would at 1 and more, and the others the same
 - a brand with no stores, only an online store, sells, and its returns go
   by post to its DC (in the 16-brand world)
 - older worlds upgrade and run: the version 1 default world
@@ -687,7 +695,11 @@ the shims' (`tools/test-shims.R`).
   default world (`tools/fixtures/v6-default.world.json`) upgrades and runs
   the season the version 6 model ran (`tools/fixtures/v6-season.json`),
   identical by day and outcome, and in sales and units by brand, with no
-  online orders and no returns
+  online orders and no returns; and the version 7 default world
+  (`tools/fixtures/v7-default.world.json`) upgrades to a tendency to return
+  of 1 for every segment and runs the season the version 7 model ran
+  (`tools/fixtures/v7-season.json`), identical by day and outcome, and in
+  gross sales, units, refunds and returns by brand
 
 </details>
 

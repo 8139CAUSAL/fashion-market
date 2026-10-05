@@ -21,8 +21,12 @@
 # (tiers by visits, an offers programme) upgrades and runs; a version 6
 # file (a promotion depth and length for the Market tab's old promotion
 # buttons, no online stores, no returns) upgrades and runs the season the
-# version 6 model ran, with no online orders and no returns; online stores
-# and returns: every unit sold has one ledger line, the ledger reconciles
+# version 6 model ran, with no online orders and no returns; a version 7
+# file (every segment returning at the same rates) upgrades to a tendency
+# to return of 1 and runs the season the version 7 model ran, returns
+# included; online stores and returns: every unit sold has one ledger
+# line, a segment's tendency to return multiplies its chances of sending
+# an item back, the ledger reconciles
 # (every unit is where its line says, every return came once, after
 # delivery and within its window, to a store of the selling brand or by
 # post, refunds are what was paid, net sales are gross sales less refunds
@@ -895,11 +899,12 @@ W$brands[[3]]$returns$post_cost <- "free"
 W$brands[[4]]$online <- NULL
 W$brands[[5]]$returns$extra <- 1
 W$segments[[1]]$online <- 5
+W$segments[[2]]$returns <- 4
 msgs <- problem_text(W)
 want <- c("brands[1].online.delivery_days: 0 is outside 1 to 14", "brands[1].online.on: must be true or false",
           "brands[2].online.shipping_cost: -1 is outside 0 to 50", "brands[2].returns.window_days: 400 is outside 0 to 365",
           "brands[3].returns.post_cost: must be a number", "brands[4].online: missing", "brands[5].returns.extra: not a setting the world file has",
-          "segments[1].online: 5 is outside -3 to 3")
+          "segments[1].online: 5 is outside -3 to 3", "segments[2].returns: 4 is outside 0 to 3")
 check(all(want %in% msgs), sprintf("broken online and return settings are refused, each where it is (%d problems)%s", length(msgs),
                                    if (all(want %in% msgs)) "" else paste(": missing", paste(setdiff(want, msgs), collapse = "; "))))
 # A brand with no stores needs an online store that plans to sell something.
@@ -913,6 +918,26 @@ msgs2 <- problem_text(W)
 check(sprintf("brands[%d]: Fast runs no stores and has no online store: it needs one or the other", fast) %in% msgs &&
       sprintf("brands[%d].online.plan_stores: Fast runs no stores, and its online store plans to sell nothing, so it buys nothing to sell", fast) %in% msgs2,
       "a brand with no stores and no online store is refused, and so is one with no stores whose online store plans to sell nothing")
+
+# A segment's tendency to return multiplies its chances of sending each
+# item back. Day 1 sells the same items whatever the tendencies, and its
+# evening draws the same numbers: at 0 the first segment wants nothing
+# back, at 2 the second wants back every item it did at 1 and more, and
+# the others want back exactly the same items.
+wanted_back <- function(W) {
+  world_install(W); P$pace <- "season"; setup(4); advance(Inf); end_day()
+  I <- ledger$i[seq_len(ledger$n), , drop = FALSE]
+  list(sold = I[, c("hh", "brand", "sku")], seg = mk$hh$segment[I[, "hh"]], back = I[, "due"] > 0L)
+}
+W <- default_world()
+base <- wanted_back(W)
+W$segments[[1]]$returns <- 0; W$segments[[2]]$returns <- 2
+tend <- wanted_back(W)
+s1 <- base$seg == 1L; s2 <- base$seg == 2L; rest <- base$seg > 2L
+check(identical(tend$sold, base$sold) && any(base$back[s1]) && !any(tend$back[s1]) && all(tend$back[base$back & s2]) &&
+      sum(tend$back[s2]) > sum(base$back[s2]) && identical(tend$back[rest], base$back[rest]),
+      sprintf("a segment's tendency to return multiplies its chances: of day 1's items, %s at 0 want none back (%d at 1), %s at 2 want back %d (%d at 1, all among them), the rest the same %d",
+              SEGMENTS$name[1], sum(base$back[s1]), SEGMENTS$name[2], sum(tend$back[s2]), sum(base$back[s2]), sum(base$back[rest])))
 
 # An offer's lift is measured net of returns, a return counted against the
 # purchase it reverses even when it comes after the offer has ended: a
@@ -957,6 +982,34 @@ none6 <- !any(ONLINE$on) && all(RETURNS$window_days == 0) && sum(stock$online) =
   all(ledger$i[seq_len(ledger$n), "store"] > 0L) && all(ledger$i[seq_len(ledger$n), "due"] == 0L)
 check(r$ok && same6 && none6, sprintf("the upgraded version 6 world runs the season the version 6 model ran, with no online orders and no returns: %d days, %s visits, identical by day and outcome, and sales and units by brand",
                                       n6, format(sum(visits6), big.mark = ",")))
+
+# ---- A version 7 world ------------------------------------------------------------------
+
+# A version 7 world upgrades: each segment gets a tendency to return of 1.
+# At 1, it runs the season the version 7 model ran (every shopper returning
+# at the same rates), recorded in tools/fixtures/v7-season.json: the same
+# visits by outcome, and the same gross sales, units, refunds and returned
+# units by brand, day by day, with online stores and returns on.
+cat("A version 7 world\n")
+V7 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v7-default.world.json")), collapse = "\n"))
+U <- world_resolve(world_upgrade(V7), file.path(root, "layouts"))
+check(identical(U$version, WORLD_VERSION) && !length(world_check(U)) && all(vapply(U$segments, function(s) identical(s$returns, 1), TRUE)),
+      "a version 7 world upgrades: each segment gets a tendency to return of 1")
+rec <- jsonlite::fromJSON(file.path(root, "tools", "fixtures", "v7-season.json"))
+world_install(U); P$pace <- "season"; setup(rec$seed)
+n7 <- min(n_season, rec$days)
+r <- run_season_days(n7)
+dd <- seq_len(n7)
+per_brand <- function(m) t(vapply(dd, function(i) brand_of_stores(m[i, ]), numeric(N_BRANDS)))
+visits7 <- t(vapply(dd, function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
+same7 <- identical(visits7, rec$visits[dd, , drop = FALSE]) &&
+  max(abs(per_brand(apply(tally$sales[dd, , , drop = FALSE], c(1, 3), sum)) - rec$sales[dd, , drop = FALSE])) < 1e-6 &&
+  identical(round(per_brand(apply(tally$units[dd, , , drop = FALSE], c(1, 3), sum))), rec$units[dd, , drop = FALSE] + 0) &&
+  max(abs(per_brand(tally$refunds) - rec$refunds[dd, , drop = FALSE])) < 1e-6 &&
+  identical(round(per_brand(tally$ret_units)), rec$returned[dd, , drop = FALSE] + 0)
+check(r$ok && same7 && sum(rec$returned[dd, ]) > 0,
+      sprintf("at a tendency to return of 1, the upgraded version 7 world runs the season the version 7 model ran: %d days, %s visits, %s items returned, identical by day and outcome, and in gross sales, units, refunds and returns by brand",
+              n7, format(sum(visits7), big.mark = ","), format(sum(rec$returned[dd, ]), big.mark = ",")))
 
 # ---- A version 1 world ------------------------------------------------------------------
 

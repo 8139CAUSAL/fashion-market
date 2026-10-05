@@ -1,6 +1,6 @@
 {
   "kind": "fashion-world",
-  "version": 8,
+  "version": 7,
   "name": "Four-district city",
   "seed": 1,
   "season_days": 91,
@@ -2421,8 +2421,7 @@
         "loungewear": 1
       },
       "offer_response": {"shop": 0.9, "appeal": 0.9},
-      "online": -1.4,
-      "returns": 1
+      "online": -1.4
     },
     {
       "id": "trend_followers",
@@ -2452,8 +2451,7 @@
         "loungewear": 1.5
       },
       "offer_response": {"shop": 0.3, "appeal": 0.4},
-      "online": -0.2,
-      "returns": 1
+      "online": -0.2
     },
     {
       "id": "quality_loyalists",
@@ -2483,8 +2481,7 @@
         "loungewear": 1
       },
       "offer_response": {"shop": 0.05, "appeal": 0.1},
-      "online": -0.8,
-      "returns": 1
+      "online": -0.8
     },
     {
       "id": "convenience",
@@ -2514,8 +2511,7 @@
         "loungewear": 1
       },
       "offer_response": {"shop": 0.35, "appeal": 0.4},
-      "online": 0.2,
-      "returns": 1
+      "online": 0.2
     }
   ],
   "market": {

@@ -69,10 +69,12 @@ RETURN_DAYS <- 8                # days, on average, from having an item to decid
 # The chance an item is sent back, if the brand's return window allowed it,
 # by why, for each way it was bought: online (not seen or tried on), in a
 # store without trying it on (shoes, a bag, a size taken on trust), and
-# tried on in a fitting room (it fitted, so mostly a change of mind). The
-# window decides how many of these happen: a return comes RETURN_DAYS after
-# the item reaches the household, on average, and one the window has
-# closed on doesn't happen (returns.R).
+# tried on in a fitting room (it fitted, so mostly a change of mind). These
+# are the chances for a segment whose tendency to return is 1; each
+# segment's tendency multiplies them (returns.R). The window decides how
+# many of these happen: a return comes RETURN_DAYS after the item reaches
+# the household, on average, and one the window has closed on doesn't
+# happen (returns.R).
 RETURN_REASONS <- c("didn't fit", "didn't suit them", "changed their mind")
 RETURN_KINDS <- c("bought online", "bought in a store, not tried on", "tried on in a fitting room")
 RETURN_P <- matrix(c(0.14, 0.11, 0.05,
@@ -193,7 +195,8 @@ FIELDS <- list(
     patience = setting("Patience in a queue (s)", 30, 1800, 10, "int"),
     max_ahead = setting("Longest queue joined", 1, 20, 1, "int"),
     budget = setting("Budget (times the area's)", 0.2, 4, 0.05, "num2"),
-    online = setting("Taste for shopping online", -3, 3, 0.1, "num1")),
+    online = setting("Taste for shopping online", -3, 3, 0.1, "num1"),
+    returns = setting("Tendency to return", 0, 3, 0.05, "num2")),
   taste = setting("Taste", 0, 5, 0.5, "num1"),
   macro = list(
     patch_m = setting("Metres per tile", 5, 5000, 5, "int"),

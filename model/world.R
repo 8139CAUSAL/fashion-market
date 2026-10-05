@@ -32,11 +32,12 @@
 # as a programme outside the calendar (a policy choosing among three kinds
 # of offer for its daily contacts); version 6 had a promotion depth for each
 # brand and a promotion length for the market, for the Market tab's
-# promotion buttons, and no online stores or returns.
+# promotion buttons, and no online stores or returns; version 7 had every
+# segment return what it bought at the same rates.
 
 WORLD_KIND <- "fashion-world"
 LAYOUT_KIND <- "fashion-layout"
-WORLD_VERSION <- 7L
+WORLD_VERSION <- 8L
 LAYOUT_VERSION <- 2L                 # a layout file's own version (its format hasn't changed since the world's version 2)
 NO_DAY <- 1e6                        # the landing day of a product slot a brand's range doesn't fill
 
@@ -162,7 +163,8 @@ world_upgrade <- function(W) {
   if (identical(version, 3L)) { W <- upgrade_v3(W); version <- 4L }
   if (identical(version, 4L)) { W <- upgrade_v4(W); version <- 5L }
   if (identical(version, 5L)) { W <- upgrade_v5(W); version <- 6L }
-  if (identical(version, 6L)) W <- upgrade_v6(W)
+  if (identical(version, 6L)) { W <- upgrade_v6(W); version <- 7L }
+  if (identical(version, 7L)) W <- upgrade_v7(W)
   W
 }
 
@@ -391,6 +393,20 @@ upgrade_v6 <- function(W) {
   })
   if (is.list(W$segments)) W$segments <- lapply(W$segments, function(s) {
     if (is.list(s) && !is.null(names(s)) && is.null(s$online)) s$online <- 0
+    s
+  })
+  W
+}
+
+# A version 7 world, as version 8.
+#   returns  every segment returned what it bought at the same rates
+#            (RETURN_P, by how it was bought); now each segment's tendency
+#            to return multiplies them. Each segment gets a tendency of 1,
+#            so the world runs the season it ran.
+upgrade_v7 <- function(W) {
+  W$version <- 8L
+  if (is.list(W$segments)) W$segments <- lapply(W$segments, function(s) {
+    if (is.list(s) && !is.null(names(s)) && is.null(s$returns)) s$returns <- 1
     s
   })
   W

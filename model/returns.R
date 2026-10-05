@@ -17,11 +17,12 @@
 # evening, every item sold that day is given its fate, hidden from the
 # reports as the products' popularity is: whether the household will want
 # to send it back (RETURN_P, by how it was bought: online, in a store
-# without trying it on, or tried on in a fitting room), why, and after how
-# many days (RETURN_DAYS on average). A return the window has closed on
-# doesn't happen: the household keeps the item. A longer window lets more
-# of the wanted returns happen, and draws shoppers (market.R): it covers
-# 1 - exp(-window / RETURN_DAYS) of them.
+# without trying it on, or tried on in a fitting room, times the tendency
+# to return of the household's segment, and never more than certain),
+# why, and after how many days (RETURN_DAYS on average). A return the
+# window has closed on doesn't happen: the household keeps the item. A
+# longer window lets more of the wanted returns happen, and draws shoppers
+# (market.R): it covers 1 - exp(-window / RETURN_DAYS) of them.
 #
 # Where. A household takes its returns for a brand to that brand's store
 # nearest by route, if it's within the household's reach for the brand (its
@@ -118,7 +119,13 @@ returns_evening <- function() {
   u <- runif(n)
   wait <- 1L + as.integer(floor(rexp(n, 1 / RETURN_DAYS)))
   lost <- runif(n) < RETURN_WRITE_OFF
-  cum <- t(apply(RETURN_P, 1, cumsum))[ledger$i[rows, "kind"], , drop = FALSE]
+  # Each item's chance of coming back, by reason (cumulated), for how it
+  # was bought, times its household's segment's tendency to return; where
+  # that would be more than certain, scaled down to certain, the reasons in
+  # proportion.
+  tendency <- SEGMENTS$returns[mk$hh$segment[ledger$i[rows, "hh"]]]
+  cum <- t(apply(RETURN_P, 1, cumsum))[ledger$i[rows, "kind"], , drop = FALSE] * tendency
+  cum <- cum / pmax(1, cum[, 3])
   reason <- 1L + (u >= cum[, 1]) + (u >= cum[, 2])
   back <- u < cum[, 3] & wait <= window
   due <- ledger$i[rows, "in_hand"] + wait
