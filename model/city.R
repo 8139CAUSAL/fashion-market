@@ -13,9 +13,30 @@
 # area they live in, or the map's default make-up outside every area.
 #
 # A trip follows the fastest route across the map (grid.R): roads and
-# bridges at road speed, other land at local speed, water impassable. The
-# map is a NetLogoR world of these land codes, and the households are
-# NetLogoR turtles.
+# bridges at road speed, other land at local speed, water impassable.
+#
+# What NetLogoR does here:
+#   - The map is one NetLogoR world, a patch per tile. Its patches carry
+#     three variables: land (the codes below), density (0 off home tiles)
+#     and area (0 outside every area). macro_install() builds it from the
+#     painted rows, with a createWorld() for each variable, stacked with
+#     stackWorlds(). Patch (0, 0) is the south-west tile; NetLogoR numbers
+#     the cells row by row from the top left.
+#   - It is the map's only source: the routing's speed grid, the draws
+#     that place the households, each store's area and the tiles sent to
+#     the page are all read from it with of().
+#   - The households are NetLogoR turtles on it, created with
+#     createTurtles() where draw_homes() places them, with their segment
+#     and size as turtle variables (turtlesOwn()). Each takes its area from
+#     the patch it stands on (patchHere(), then of()). The vectors the
+#     simulation reads (mk$hh) are copies read from the turtles with of().
+#   - Word of mouth is a second NetLogoR world over the map, with patches
+#     wom_m metres across and one buzz variable per brand. Each evening the
+#     day's shopping moves it and diffuse() spreads it to the neighbouring
+#     patches (market.R, end_day); each morning the households in the
+#     market read the buzz on the patch they live on.
+# The routes themselves (grid.R) are worked out on plain matrices, read
+# from the map world.
 
 MAP_CHARS <- c("." = 0L, "~" = 1L, p = 2L, s = 4L, "=" = 5L, "+" = 6L, setNames(rep(3L, 9), 1:9))
 LAND <- c(open = 0L, water = 1L, park = 2L, homes = 3L, shops = 4L, road = 5L, bridge = 6L)
@@ -25,7 +46,7 @@ MAX_AREAS <- 40
 MAX_HOUSEHOLDS <- 60000
 
 MACRO <- NULL; AREAS <- NULL; N_AREAS <- 0L; AREA_BINS <- 1L
-AREA_SEG_MIX <- NULL; AREA_SIZE_MIX <- NULL; N_WOM_CELLS <- 1L
+AREA_SEG_MIX <- NULL; AREA_SIZE_MIX <- NULL
 
 # ---- Reading a map ----------------------------------------------------------------
 
@@ -94,6 +115,14 @@ check_macro <- function(M, seg_ids, pb) {
     check_makeup(M$default_makeup, join_path(path, "default_makeup"), seg_ids, pb)
   }
   if (!ok_w || !ok_h) return(invisible())
+  # Word of mouth spreads from patch to patch with NetLogoR's diffuse(),
+  # which needs its world at least two patches across each way.
+  one <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x)
+  if (one(M$patch_m) && one(M$wom_m) && M$wom_m >= min(M$width, M$height) * M$patch_m) {
+    pb$add(join_path(path, "wom_m"), sprintf("%s m reaches across the map's whole %s (%s m): word of mouth spreads from patch to patch, so it must reach less than the map's width and height",
+                                             json_number(M$wom_m), if (M$height <= M$width) "height" else "width",
+                                             json_number(min(M$width, M$height) * M$patch_m)))
+  }
   homes <- check_grid(M$tiles, join_path(path, "tiles"), M$width, M$height, names(MAP_CHARS), "tile", pb)
   check_grid(M$area_tiles, join_path(path, "area_tiles"), M$width, M$height, c(".", keys), "area key", pb)
   if (!is.null(homes) && is.numeric(M$households) && M$households > 0 && !any(homes %in% as.character(1:9))) {
@@ -159,7 +188,7 @@ macro_install <- function(M) {
   MACRO <<- list(patch_m = as.numeric(M$patch_m), nx = g$nx, ny = g$ny, width_m = g$nx * M$patch_m, height_m = g$ny * M$patch_m,
                  households = as.integer(M$households), road_mps = as.numeric(M$road_mps), local_mps = as.numeric(M$local_mps),
                  park_s = as.numeric(M$park_s), wom_m = as.numeric(M$wom_m),
-                 land = g$land, density = g$density, area = g$area)
+                 world = city_world(g))
   ar <- M$areas
   AREAS <<- data.frame(key = vapply(ar, `[[`, "", "key"), id = vapply(ar, `[[`, "", "id"), name = vapply(ar, `[[`, "", "name"),
                        colour = vapply(ar, `[[`, "", "colour"), budget = vapply(ar, function(a) as.numeric(a$budget), 0),
@@ -170,27 +199,45 @@ macro_install <- function(M) {
   AREA_SEG_MIX <<- matrix(vapply(mk, function(a) makeup_mix(a$segment_mix, SEGMENTS$id), numeric(N_SEGMENTS)), N_SEGMENTS)
   AREA_SIZE_MIX <<- matrix(vapply(mk, function(a) makeup_mix(a$size_mix, SIZES), numeric(N_SIZES)), N_SIZES)
   AREA_BUDGET <<- vapply(mk, function(a) as.numeric(a$budget), 0)
-  N_WOM_CELLS <<- ceiling(MACRO$width_m / MACRO$wom_m) * ceiling(MACRO$height_m / MACRO$wom_m)
 }
 
-# Each store's area (0: outside every area).
-store_area <- function(x, y) MACRO$area[tile_of(x, y, MACRO$patch_m, MACRO$ny)]
+# The map as one NetLogoR world, a patch per tile, whose patches carry its
+# land code, density and area: a createWorld() for each (filled row by row
+# from the top left, so from the matrix transposed), stacked. Patch (0, 0)
+# is the south-west tile.
+city_world <- function(g) {
+  layer <- function(m) createWorld(0, g$nx - 1, 0, g$ny - 1, data = as.vector(t(m)))
+  stackWorlds(land = layer(g$land), density = layer(g$density), area = layer(g$area))
+}
+
+# A variable of the city world, read with of(), as a matrix with row 1 the
+# north edge: how the routing (grid.R) and draw_homes() take the map. of()
+# gives the patches in NetLogoR's cell order, row by row from the top left.
+city_layer <- function(var, world = MACRO$world) {
+  dm <- dim(world)
+  matrix(as.integer(of(world = world, agents = patches(world), var = var)), dm[1L], dm[2L], byrow = TRUE)
+}
+
+# Each store's area (0: outside every area): the area of the patch it
+# stands on.
+store_area <- function(x, y) {
+  p <- MACRO$patch_m
+  as.integer(of(world = MACRO$world, agents = cbind(pxcor = floor(x / p), pycor = floor(y / p)), var = "area"))
+}
 
 area_bin <- function(area) ifelse_int(area > 0L, area, AREA_BINS)
 area_names <- function() c(AREAS$name, "Outside every area")
 
 # ---- Building the city ------------------------------------------------------------------
 
-# The map as a NetLogoR world, and every store's routes: time and distance
-# from every tile, and the next tile on the way.
+# Every store's routes: time and distance from every tile, and the next
+# tile on the way, at the speeds of the land read from the city world.
 build_city <- function() {
   m <- MACRO
-  world <- createWorld(0, m$nx - 1, 0, m$ny - 1, data = as.vector(t(m$land)))
-  speed <- macro_speed(m$land, m$road_mps, m$local_mps)
+  speed <- macro_speed(city_layer("land"), m$road_mps, m$local_mps)
   store_tile <- tile_of(STORES$x, STORES$y, m$patch_m, m$ny)
   fields <- grid_fields(speed, m$patch_m, store_tile)
-  list(nx = m$nx, ny = m$ny, land = m$land, density = m$density, area = m$area, world = world,
-       speed = speed, store_tile = store_tile, fields = fields)
+  list(nx = m$nx, ny = m$ny, store_tile = store_tile, fields = fields)
 }
 
 # Where households live and who they are: placed on home tiles in
@@ -218,35 +265,58 @@ draw_homes <- function(land, density, area, ny, patch, n, seg_mix, size_mix) {
 
 # Households, with a budget from their area and segment and a taste for
 # each brand. Drawn from CITY_SEED, so the season's seed never moves them.
-build_households <- function(city) {
+#
+# The households are NetLogoR turtles on the city world, created where
+# draw_homes() places them, in patch coordinates (a patch's centre is a
+# whole number: a home x metres from the west edge stands at
+# x / patch_m - 0.5), with their segment and size as turtle variables.
+# Each one's area is the area of the patch it stands on. The vectors kept
+# here are read from the turtles and their patches with of(): copies, for
+# speed (main.R), not a second source of truth.
+build_households <- function() {
   with_seed(CITY_SEED + 1, {
     n <- MACRO$households
-    p <- MACRO$patch_m
-    homes <- draw_homes(city$land, city$density, city$area, city$ny, p, n, AREA_SEG_MIX, AREA_SIZE_MIX)
-    tile <- homes$tile; x <- homes$x; y <- homes$y; area <- homes$area; bin <- homes$bin
-    segment <- homes$segment; size <- homes$size
-    budget <- AREA_BUDGET[bin] * SEGMENTS$budget[segment] * rlnorm(n, -0.08, 0.4)
+    p <- MACRO$patch_m; ny <- MACRO$ny
+    world <- MACRO$world
+    homes <- draw_homes(city_layer("land"), city_layer("density"), city_layer("area"), ny, p, n, AREA_SEG_MIX, AREA_SIZE_MIX)
+    agents <- createTurtles(n = n, coords = cbind(homes$x / p - 0.5, homes$y / p - 0.5), heading = 0)
+    agents <- turtlesOwn(agents, tVar = "segment", tVal = homes$segment)
+    agents <- turtlesOwn(agents, tVar = "size", tVal = homes$size)
 
-    # NetLogoR turtles hold the households as the city's agents; the
-    # simulation reads their variables into plain vectors, which webR
-    # updates far faster (see the note on state in main.R).
-    agents <- createTurtles(n = n, coords = cbind(x / p, y / p), heading = 0)
-    agents <- turtlesOwn(agents, tVar = "area", tVal = area)
-    agents <- turtlesOwn(agents, tVar = "segment", tVal = segment)
+    here <- patchHere(world, agents)
+    xy <- of(agents = agents, var = c("xcor", "ycor"))
+    area <- as.integer(of(world = world, agents = here, var = "area"))
+    bin <- area_bin(area)
+    segment <- as.integer(of(agents = agents, var = "segment"))
+    budget <- AREA_BUDGET[bin] * SEGMENTS$budget[segment] * rlnorm(n, -0.08, 0.4)
     taste <- matrix(gumbel(n * N_BRANDS), n) + BRAND_FIT[segment, , drop = FALSE]
     list(
-      n = n, agents = agents, x = x, y = y, tile = tile,
-      area = as.integer(of(agents = agents, var = "area")), bin = bin,
-      segment = as.integer(of(agents = agents, var = "segment")), size = size,
-      budget = budget, taste = taste, tier0 = initial_tiers(taste),
-      cell = wom_cell(x, y)
+      n = n, agents = agents, x = (xy[, "xcor"] + 0.5) * p, y = (xy[, "ycor"] + 0.5) * p,
+      tile = as.integer(here[, "pxcor"] * ny + ny - here[, "pycor"]),     # the patch, numbered as the routing numbers tiles (grid.R)
+      area = area, bin = bin, segment = segment, size = as.integer(of(agents = agents, var = "size")),
+      budget = budget, taste = taste, tier0 = initial_tiers(taste)
     )
   })
 }
 
-wom_cell <- function(x, y) {
-  (floor(y / MACRO$wom_m)) * ceiling(MACRO$width_m / MACRO$wom_m) + floor(x / MACRO$wom_m) + 1L
+# ---- Word of mouth ------------------------------------------------------------------------
+
+# Word of mouth is a NetLogoR world of its own over the map: square patches
+# wom_m metres across (the last row and column may reach past the map's
+# edge), each with one variable per brand, named by the brand's id: its
+# buzz, how the shopping of the households living there has gone at the
+# brand lately. Every patch starts the season at 0.3. Each evening the
+# day's shopping moves it, and diffuse() spreads it to the neighbouring
+# patches (market.R, end_day); each morning the households in the market
+# read the buzz on their own patch (market.R, start_day).
+wom_world <- function() {
+  layer <- createWorld(0, ceiling(MACRO$width_m / MACRO$wom_m) - 1, 0, ceiling(MACRO$height_m / MACRO$wom_m) - 1, data = 0.3)
+  do.call(stackWorlds, setNames(rep(list(layer), N_BRANDS), BRANDS$id))
 }
+
+# The word-of-mouth patch under each point (metres from the south-west
+# corner): pxcor and pycor, a row for each point (as patchHere() gives).
+wom_patch <- function(world, x, y) patch(world = world, x = x / MACRO$wom_m - 0.5, y = y / MACRO$wom_m - 0.5, duplicate = TRUE, out = TRUE)
 
 # Every household's trip to every store: route length (km) and driving
 # time (s), from the store's routes.
@@ -346,21 +416,25 @@ route_of <- function(v, s) {
 
 # ---- The map, for the page --------------------------------------------------------------------
 
-# Sent once per world: the tiles, the areas and where to write their names
-# (near the top of each area, clear of the stores that gather in the
-# middle), the stores and the homes.
+# Sent once per world: the tiles (each patch's land, density and area, read
+# from the city world with of(), row by row from the top left), the areas
+# and where to write their names (near the top of each area, clear of the
+# stores that gather in the middle), the stores and the homes.
 city_geometry <- function(city, hh) {
+  world <- MACRO$world
+  tiles <- of(world = world, agents = patches(world), var = c("land", "density", "area"))
+  area <- as.integer(tiles[, "area"])
   lab <- lapply(seq_len(N_AREAS), function(k) {
-    cells <- which(city$area == k)
+    cells <- which(area == k)
     if (!length(cells)) return(list(x = NA, y = NA))
-    col <- (cells - 1L) %/% city$ny; row <- (cells - 1L) %% city$ny
+    col <- (cells - 1L) %% city$nx; row <- (cells - 1L) %/% city$nx
     top <- stats::quantile(row, 0.12, names = FALSE)
     near <- abs(row - top) <= 2
     list(x = (stats::median(col[near]) + 0.5) * MACRO$patch_m, y = (city$ny - top - 0.5) * MACRO$patch_m)
   })
   list(
     width = MACRO$width_m, height = MACRO$height_m, patch = MACRO$patch_m, nx = city$nx, ny = city$ny,
-    land = as.integer(t(city$land)), density = as.integer(t(city$density)), area = as.integer(t(city$area)),
+    land = as.integer(tiles[, "land"]), density = as.integer(tiles[, "density"]), area = area,
     areas = lapply(seq_len(N_AREAS), function(k) list(id = AREAS$id[k], name = AREAS$name[k], colour = AREAS$colour[k],
                                                         x = lab[[k]]$x, y = lab[[k]]$y, households = sum(hh$area == k))),
     stores = lapply(seq_len(N_STORES), function(s) list(

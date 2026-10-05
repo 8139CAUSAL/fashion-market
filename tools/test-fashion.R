@@ -3,8 +3,11 @@
 # hold, the one that proves the store view is the real simulation, the
 # world engine's (a world file survives export and import, each prefab
 # layout reads back identical, a many-brand world on a drawn map with a
-# drawn layout runs), the range and calendar's (a version 1 world
-# upgraded runs the season the version 1 model ran, a brand with its own
+# drawn layout runs), NetLogoR's (the map is one NetLogoR world that reads
+# back as painted, its households are turtles on it where the map
+# editor's preview put them, and word of mouth spreads over the patches of
+# its own NetLogoR world with diffuse(), making and losing none), the
+# range and calendar's (a version 1 world upgraded runs, a brand with its own
 # range runs, a segment never goes to a brand that sells nothing it likes,
 # a calendar that breaks the promotion rule is refused, a
 # product's price on a day follows the rules, and every visit event is
@@ -24,7 +27,8 @@
 # version 6 model ran, with no online orders and no returns; a version 7
 # file (every segment returning at the same rates) upgrades to a tendency
 # to return of 1 and runs the season the version 7 model ran, returns
-# included; online stores and returns: every unit sold has one ledger
+# included (both with word of mouth not spreading, as in those models);
+# online stores and returns: every unit sold has one ledger
 # line, a segment's tendency to return multiplies its chances of sending
 # an item back, the ledger reconciles
 # (every unit is where its line says, every return came once, after
@@ -490,6 +494,45 @@ pv <- macro_preview(unplaced)
 check(identical(msgs, "stores[3]: not on the map yet: place it on the Macro world's Stores layer") && !length(pv$problems) && is.na(pv$reach[3]) && all(pv$reach[-3] > 0),
       "a store not on the map yet is the one problem Setup names, and the map's preview goes on without it")
 
+# ---- The map and its households in NetLogoR ---------------------------------------------
+
+# The map is one NetLogoR world whose patches carry each tile's land,
+# density and area, and it reads back as painted: at each tile's own patch
+# (pxcor from the west edge, pycor from the south edge), in the matrices
+# the routing and the homes are read into, and in the tiles sent to the
+# page, row by row from the top left. The households are NetLogoR turtles
+# on it: each stands on a home tile, takes its area from the patch it
+# stands on, and holds its segment and size as turtle variables, which
+# the simulation's vectors copy; and the map editor's preview places
+# exactly the households Setup creates. For W, installed and set up.
+cat("The map and its households in NetLogoR\n")
+city_checks <- function(W, what) {
+  ch <- do.call(rbind, strsplit(unlist(W$macro$tiles), "")); ny <- nrow(ch); nx <- ncol(ch)
+  keys <- vapply(W$macro$areas, `[[`, "", "key")
+  painted <- list(land = matrix(unname(MAP_CHARS[ch]), ny),
+                  density = matrix(ifelse(ch %in% as.character(1:9), match(ch, as.character(1:9)), 0L), ny),
+                  area = matrix(match(do.call(rbind, strsplit(unlist(W$macro$area_tiles), "")), keys, nomatch = 0L), ny))
+  at <- cbind(pxcor = as.vector(col(ch)) - 1, pycor = ny - as.vector(row(ch)))
+  read <- all(vapply(names(painted), function(v) identical(as.integer(of(world = MACRO$world, agents = at, var = v)), as.vector(painted[[v]])) &&
+                                                  identical(city_layer(v), painted[[v]]), TRUE))
+  g <- city_geometry(city, mk$hh)
+  page <- identical(g$land, as.vector(t(painted$land))) && identical(g$density, as.vector(t(painted$density))) && identical(g$area, as.vector(t(painted$area)))
+  hh <- mk$hh; p <- MACRO$patch_m
+  here <- patchHere(MACRO$world, hh$agents)
+  turtles <- identical(as.integer(of(agents = hh$agents, var = "segment")), hh$segment) && identical(as.integer(of(agents = hh$agents, var = "size")), hh$size) &&
+    identical((of(agents = hh$agents, var = "xcor") + 0.5) * p, hh$x) && identical((of(agents = hh$agents, var = "ycor") + 0.5) * p, hh$y)
+  homes <- all(painted$land[hh$tile] == LAND[["homes"]]) && identical(hh$tile, as.integer(here[, "pxcor"] * ny + ny - here[, "pycor"])) &&
+    identical(hh$area, painted$area[hh$tile]) && identical(hh$area, as.integer(of(world = MACRO$world, agents = here, var = "area")))
+  pv <- macro_preview(W)
+  per_tile <- tabulate(hh$tile, nx * ny)
+  preview <- !length(pv$problems) && pv$households == hh$n && sum(pv$tiles$households) == hh$n &&
+    identical(as.integer(pv$tiles$households), per_tile[pv$tiles$col * ny + pv$tiles$row + 1L])
+  check(read && page && turtles && homes && preview,
+        sprintf("%s: the map is one NetLogoR world of %d x %d patches that reads back as painted, at each tile's patch, in the routing's and the homes' matrices, and in the page's tiles; its %s households are turtles on home tiles, each with its patch's area and its segment and size as turtle variables, where the map editor's preview placed them",
+                what, nx, ny, format(hh$n, big.mark = ",")))
+}
+city_checks(W, "the default world")
+
 # ---- A bigger world: 16 brands on a drawn map, with a drawn layout -------------------------
 
 cat("A 16-brand world on a drawn map, with online stores\n")
@@ -595,6 +638,7 @@ if (!length(problems)) {
                 t_setup, t_week, round(sum(tally$visits) / 7), round(sum(tally$orders) / 7), nrow(posted), sum(tally$post_parcels[, 16])))
   j <- tryCatch({ for (b in c(1, 2, 16)) to_json(report_offers(b)); to_json(report_market()); to_json(report_strategy()); TRUE }, error = function(e) conditionMessage(e))
   check(isTRUE(j), paste("its reports build", if (!isTRUE(j)) j else ""))
+  city_checks(B16, "its drawn map (a lake, three areas)")
   src <- offer_results(1, detail = TRUE)$sources
   check(length(src$rows) == 16 && src$rows[[2]]$relation == "sister" && isTRUE(src$rows[[2]]$good), "its offers report where the extra spend came from, sister brands marked")
 }
@@ -957,13 +1001,45 @@ if (!length(msgs)) {
                 sprintf("$%.2f", r$spend$diff), sprintf("$%.2f", want$gross$diff), sprintf("$%.0f", want$refunds), want$late))
 } else check(FALSE, paste("the flash-offer world checks clean:", msgs[1]))
 
+# ---- Word of mouth on NetLogoR patches --------------------------------------------------------
+
+# Word of mouth lives on a NetLogoR world of its own: patches wom_m metres
+# across, one buzz variable per brand. A household reads the buzz on the
+# patch it lives on. Each evening, after the day's shopping has moved it,
+# diffuse() spreads each brand's buzz to the neighbouring patches: the same
+# evening ended with and without the spread, each brand's buzz adds up to
+# the same over the patches (diffuse moves it; it makes and loses none),
+# and with the spread it reaches patches where no one shopped that day,
+# which keep theirs without it. Word of mouth reaching as far as the map is
+# wide or tall is refused: diffuse() needs two patches each way.
+cat("Word of mouth on NetLogoR patches\n")
+W <- default_world()
+world_install(W); P$pace <- "season"
+evening <- function(spread) {
+  setup(5)
+  for (i in 1:3) { advance(Inf); finish_day() }
+  advance(Inf)
+  kept <- WOM_SPREAD; WOM_SPREAD <<- spread; end_day(); WOM_SPREAD <<- kept
+  list(buzz = of(world = mk$wom, agents = patches(mk$wom), var = BRANDS$id), shopped = unique(mk$wom_cell[d$hh[!d$ret]]))
+}
+spread <- evening(WOM_SPREAD); still <- evening(0)
+quiet <- setdiff(seq_len(nrow(spread$buzz)), spread$shopped)
+own <- identical(unname(mk$wom_at), unname(cbind(floor(mk$hh$x / MACRO$wom_m), floor(mk$hh$y / MACRO$wom_m))))
+far <- W; far$macro$wom_m <- 6000
+check(own && WOM_SPREAD > 0 && max(abs(colSums(spread$buzz) - colSums(still$buzz))) < 1e-9 && length(quiet) > 0 &&
+      max(abs(spread$buzz[quiet, ] - still$buzz[quiet, ])) > 1e-6 &&
+      identical(problem_text(far), "macro.wom_m: 6000 m reaches across the map's whole height (6000 m): word of mouth spreads from patch to patch, so it must reach less than the map's width and height"),
+      sprintf("word of mouth is a NetLogoR world of %d x %d patches of %s m, a buzz for each of %d brands, read by each household on its own patch; diffuse() spreads it every evening (WOM_SPREAD %s), each brand's buzz kept, to %d patches no one shopped from that day; reaching across the map's whole height is refused",
+              dim(mk$wom)[2], dim(mk$wom)[1], json_number(MACRO$wom_m), N_BRANDS, json_number(WOM_SPREAD), length(quiet)))
+
 # ---- A version 6 world ------------------------------------------------------------------
 
 # A version 6 world upgrades: the settings of the Market tab's old promotion
 # buttons (each brand's promotion depth, the market's promotion length) go.
 # It then runs the season the version 6 model ran, recorded in
-# tools/fixtures/v6-season.json: the same visits by outcome, and the same
-# sales and units by brand, day by day.
+# tools/fixtures/v6-season.json, with word of mouth not spreading between
+# patches (WOM_SPREAD 0), as in that model: the same visits by outcome,
+# and the same sales and units by brand, day by day.
 cat("A version 6 world\n")
 V6 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v6-default.world.json")), collapse = "\n"))
 U <- world_resolve(world_upgrade(V6), file.path(root, "layouts"))
@@ -973,7 +1049,9 @@ check(identical(U$version, WORLD_VERSION) && !length(world_check(U)) && is.null(
 rec <- jsonlite::fromJSON(file.path(root, "tools", "fixtures", "v6-season.json"))
 world_install(U); P$pace <- "season"; setup(rec$seed)
 n6 <- min(n_season, rec$days)
+spread <- WOM_SPREAD; WOM_SPREAD <- 0              # the recorded season's word of mouth didn't spread between patches
 r <- run_season_days(n6)
+WOM_SPREAD <- spread
 by_brand <- function(what) t(vapply(seq_len(n6), function(i) brand_of_stores(colSums(tally[[what]][i, , ])), numeric(N_BRANDS)))
 visits6 <- t(vapply(seq_len(n6), function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
 same6 <- identical(visits6, rec$visits[seq_len(n6), , drop = FALSE]) && max(abs(by_brand("sales") - rec$sales[seq_len(n6), , drop = FALSE])) < 0.006 &&
@@ -987,9 +1065,10 @@ check(r$ok && same6 && none6, sprintf("the upgraded version 6 world runs the sea
 
 # A version 7 world upgrades: each segment gets a tendency to return of 1.
 # At 1, it runs the season the version 7 model ran (every shopper returning
-# at the same rates), recorded in tools/fixtures/v7-season.json: the same
-# visits by outcome, and the same gross sales, units, refunds and returned
-# units by brand, day by day, with online stores and returns on.
+# at the same rates), recorded in tools/fixtures/v7-season.json, with word
+# of mouth not spreading between patches (WOM_SPREAD 0), as in that model:
+# the same visits by outcome, and the same gross sales, units, refunds and
+# returned units by brand, day by day, with online stores and returns on.
 cat("A version 7 world\n")
 V7 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v7-default.world.json")), collapse = "\n"))
 U <- world_resolve(world_upgrade(V7), file.path(root, "layouts"))
@@ -998,7 +1077,9 @@ check(identical(U$version, WORLD_VERSION) && !length(world_check(U)) && all(vapp
 rec <- jsonlite::fromJSON(file.path(root, "tools", "fixtures", "v7-season.json"))
 world_install(U); P$pace <- "season"; setup(rec$seed)
 n7 <- min(n_season, rec$days)
+spread <- WOM_SPREAD; WOM_SPREAD <- 0              # the recorded season's word of mouth didn't spread between patches
 r <- run_season_days(n7)
+WOM_SPREAD <- spread
 dd <- seq_len(n7)
 per_brand <- function(m) t(vapply(dd, function(i) brand_of_stores(m[i, ]), numeric(N_BRANDS)))
 visits7 <- t(vapply(dd, function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))

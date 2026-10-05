@@ -152,6 +152,7 @@ appeal_parts <- function(h) {
   s <- seq_len(N_STORES); b <- STORES$brand
   pr <- promo_heard(promo_reach(h))
   cover <- window_cover()
+  buzz <- buzz_of(h)[1, ]
   parts_of <- function(b, price, trip, place, pull) {
     tier <- mk$tier[h, b]; bt <- cbind(b, tier)
     cbind(
@@ -162,7 +163,7 @@ appeal_parts <- function(h) {
       promotion = PROMO_W * SEGMENTS$promo[seg] * pr$heard[1, b] + AD_W * LEVERS$ad$value[b],
       distance = trip,
       memory = -P$grudge_w * TIER_MEMORY[bt] * mk$grudge[h, b],
-      word_of_mouth = P$wom * mk$buzz[hh$cell[h], b],
+      word_of_mouth = P$wom * buzz[b],
       store = place,
       offers = mk$at$util[h, b],
       returns = pull * cover[b])

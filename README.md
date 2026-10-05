@@ -230,6 +230,39 @@ Each part of the model is one R file in `model/`. Open a heading for the
 mechanics.
 
 <details>
+<summary><b>NetLogoR</b>: the map, its households and word of mouth as patches and turtles (<code>model/city.R</code>, <code>model/market.R</code>)</summary>
+
+[NetLogoR](https://cran.r-project.org/package=NetLogoR) brings NetLogo's
+patches and turtles to R. In this model:
+
+- **The map is one NetLogoR world.** Each tile is a patch with three
+  variables: its land (open, water, park, homes, shops, road or bridge),
+  its density of homes, and its area. It's built from the painted map with
+  a `createWorld()` for each variable, stacked with `stackWorlds()`, and
+  it's the map's only source: the routing's speed grid, the draws that
+  place the households, each store's area and the tiles the page draws are
+  read from it with `of()`.
+- **The households are NetLogoR turtles** standing on its patches, created
+  with `createTurtles()` where the households are placed. Each turtle holds
+  its segment and size (`turtlesOwn()`) and takes its area from the patch it
+  stands on (`patchHere()` and `of()`).
+- **Word of mouth is a second NetLogoR world** over the map, with patches
+  as wide as word of mouth reaches (Macro world) and a buzz variable for
+  each brand. Each evening the day's shopping moves it and `diffuse()`
+  spreads it to the neighbouring patches; each morning the households in
+  the market read the buzz on the patch they live on.
+
+Everything else runs on plain R vectors, updated in place, because webR
+updates a vector far faster than it runs NetLogoR's agent tables: the
+households' budgets, tiers and memories (beside copies of the turtles'
+variables, read with `of()`), the shoppers and staff moving on store floors
+minute by minute, stock, and the tallies. The routes are worked out on
+matrices read from the map's world (`model/grid.R`). Each store floor is
+also built as a NetLogoR world (`model/floors.R`), which nothing reads.
+
+</details>
+
+<details>
 <summary><b>The world</b>: one JSON document, checked before it runs (<code>model/world.R</code>)</summary>
 
 The world holds the season's length, the categories, the map with its areas
@@ -272,30 +305,31 @@ Older files are upgraded as they're read or imported, a version at a time:
 <details>
 <summary><b>The city</b>: households on a painted map, trips on the fastest route (<code>model/city.R</code>, <code>model/grid.R</code>)</summary>
 
-The macro world is a painted map of tiles, a NetLogoR world. Households are
-placed on home tiles in proportion to their density, each taking a segment,
-a size and a budget from the area it lives in (or the map's default
-make-up). Every trip follows the fastest route across the map: at road speed
-on roads and bridges, slower elsewhere, and never over water. Parks and
-shops only look different: trips cross them like open land. `model/grid.R`
-works out every store's routes at Setup, growing them outward from the
-store, roughly in order of travel time. A household only weighs the stores
-within its radius: its segment's radius, in route distance, stretched brand
-by brand by its loyalty tier with the brand.
+The macro world is a painted map of tiles, read into a NetLogoR world (see
+NetLogoR above). Households are placed on home tiles in proportion to their
+density, each taking a segment, a size and a budget from the area it lives
+in (or the map's default make-up), the same way whatever the season's seed,
+so the map editor's preview shows the households Setup creates. Every trip
+follows the fastest route across the map: at road speed on roads and
+bridges, slower elsewhere, and never over water. Parks and shops only look
+different: trips cross them like open land. `model/grid.R` works out every
+store's routes at Setup, growing them outward from the store, roughly in
+order of travel time. A household only weighs the stores within its radius:
+its segment's radius, in route distance, stretched brand by brand by its
+loyalty tier with the brand.
 
 </details>
 
 <details>
 <summary><b>Store floors</b>: half-metre tiles read into walkable routes (<code>model/floors.R</code>)</summary>
 
-Each layout is a picture of half-metre tiles, read into a NetLogoR world:
-the places shoppers stand, and the walking routes between them (the same
-routing as the map). A rack tile with floor beside it is a face. A store's
-space for a category is that category's faces against a standard store's
-faces, shared evenly among the categories its brand sells; it sets how much
-of the category the store plans to sell and puts on the floor. A store with
-several doors lets shoppers in by each, in proportion to its width, and out
-by the nearest.
+Each layout is a picture of half-metre tiles, read into the places shoppers
+stand and the walking routes between them (the same routing as the map). A
+rack tile with floor beside it is a face. A store's space for a category is
+that category's faces against a standard store's faces, shared evenly among
+the categories its brand sells; it sets how much of the category the store
+plans to sell and puts on the floor. A store with several doors lets
+shoppers in by each, in proportion to its width, and out by the nearest.
 
 </details>
 
@@ -315,19 +349,30 @@ by the nearest.
    loyalty tier with the brand; its price sensitivity (smaller, the more
    loyal it is) times the brand's price position, less what its promotions
    take off; promotions and marketing; the trip; memory of bad visits (no
-   size, a queue walked out of); word of mouth in its neighbourhood; the
-   store's layout; the brand's return window; and any offers good at the
-   brand. An online store's appeal is the same, with the segment's taste
-   for shopping online, the wait for delivery and the delivery charge (as a
-   share of a typical order, added to the price) in place of the trip and
-   the layout; its return window pulls harder, since nothing can be tried
-   on.
+   size, a queue walked out of); word of mouth (the buzz about the brand on
+   the patch it lives on); the store's layout; the brand's return window;
+   and any offers good at the brand. An online store's appeal is the same,
+   with the segment's taste for shopping online, the wait for delivery and
+   the delivery charge (as a share of a typical order, added to the price)
+   in place of the trip and the layout; its return window pulls harder,
+   since nothing can be tried on.
 3. It drives there along the fastest route, and home again afterwards.
 4. After closing, loyalty moves: what a household paid, less what it was
    refunded, adds to its season's spend with the brand, and a household
    whose spend reaches a higher tier moves up to it. It keeps its tier to
    the season's end, even if a return takes its spend back below it; at the
    season's end it stands where the season's net spend puts it.
+5. Word of mouth moves too. On each of its patches, the buzz about a brand
+   follows how the shopping of the households living there went at the
+   brand, in its stores and online: a purchase counts for it, and a visit
+   that ended with no size or a queue walked out of counts twice against
+   it. Then `diffuse()` spreads each brand's buzz to the neighbouring
+   patches: every patch gives a fifth of it (`WOM_SPREAD` in
+   `model/params.R`), in equal shares, to its eight neighbours, so over the
+   days word of mouth carries beyond the patch where it started. How far
+   word of mouth reaches (Macro world) is a patch's width, and it must be
+   less than the map's width and height: `diffuse()` needs two patches
+   each way.
 
 </details>
 
@@ -536,9 +581,10 @@ days for $0 to $3.95, at $2.50 to $4.50 picking and packing and $4.50 to
 $7.50 shipping an order), the return windows (14 to 60 days), the return
 postage ($6 a parcel), the chance an item comes back (at a tendency to
 return of 1: up to 30% bought online, 9% bought in a store untried, 4%
-tried on, before the window), the
-share written off (10%) and the cashier's time on a return. Rent and
-overheads are left out of contribution.
+tried on, before the window), the share written off (10%), the cashier's
+time on a return, and how far word of mouth spreads each evening (a fifth
+of each patch's buzz, to its neighbours). Rent and overheads are left out
+of contribution.
 
 ### Performance
 
@@ -560,6 +606,17 @@ machine: online visits and return trips are extra work, and every unit sold
 gets a ledger line as it's sold. A world with no online stores and no
 returns runs about a tenth slower than before, for the ledger. The times in
 the table are those measured before, scaled by these comparisons.
+
+Putting the map, the households and word of mouth on NetLogoR made Setup
+and a market day each about 5% longer in webR, measured side by side
+against the code before it on one machine, about four times slower than
+the one the table was measured on (Setup 2.25 s before, 2.36 s after; a
+market day at the fastest speed 2.66 s before, 2.77 s after). Nearly all of
+the extra time in a day is `diffuse()`, run for each brand every evening:
+there, about 15 ms a brand on the default world's 16 × 12 patches of word
+of mouth, and about 0.4 s an evening for 24 brands on 24 × 18 patches. The
+rest of NetLogoR's work is at Setup: building the map's world takes about
+20 ms, and the households, turtles and all, about 0.15 s.
 
 Two measurements shaped the code. With NetLogoR's dependencies loaded,
 `nrow()` and `ncol()` become S4 generics, and dispatch costs more than the
@@ -630,6 +687,17 @@ the shims' (`tools/test-shims.R`).
   frames drawn between ticks
 - shoppers on the road stay on the map, and every trip runs from the home
   to the store
+- the map is one NetLogoR world that reads back as painted: at each tile's
+  own patch, in the matrices the routing and the homes are read into, and
+  in the tiles sent to the page; its households are turtles standing on
+  home tiles, each with the area of its patch and its segment and size as
+  turtle variables; and the map editor's preview places exactly the
+  households Setup creates (the default world, and the 16-brand world's
+  drawn map)
+- word of mouth is a NetLogoR world: each household reads the patch it
+  lives on, and each evening `diffuse()` spreads every brand's buzz,
+  making and losing none, to patches no one shopped from that day; word of
+  mouth reaching as far as the map is wide or tall is refused
 - drawn floors work as drawn: a fetch walks to the stockroom door and back,
   a shopper tries on inside the cubicle, a cubicle is never a corridor,
   every door is a way in and out, every block of racks has a place to stand,
@@ -687,9 +755,8 @@ the shims' (`tools/test-shims.R`).
 - a brand with no stores, only an online store, sells, and its returns go
   by post to its DC (in the 16-brand world)
 - older worlds upgrade and run: the version 1 default world
-  (`tools/fixtures/v1-world`) runs the season the version 1 model ran,
-  identical by day and outcome (its floor plans' old tables kept as they
-  were for this check), and the version 2 and version 5 default worlds
+  (`tools/fixtures/v1-world`, its floor plans' old tables kept as they
+  were) and the version 2 and version 5 default worlds
   (`tools/fixtures/v2-default.world.json`,
   `tools/fixtures/v5-default.world.json`) upgrade and run; the version 6
   default world (`tools/fixtures/v6-default.world.json`) upgrades and runs
@@ -699,7 +766,9 @@ the shims' (`tools/test-shims.R`).
   (`tools/fixtures/v7-default.world.json`) upgrades to a tendency to return
   of 1 for every segment and runs the season the version 7 model ran
   (`tools/fixtures/v7-season.json`), identical by day and outcome, and in
-  gross sales, units, refunds and returns by brand
+  gross sales, units, refunds and returns by brand. Those two seasons were
+  recorded before word of mouth spread between patches, so they're run
+  with `WOM_SPREAD` at 0
 
 </details>
 

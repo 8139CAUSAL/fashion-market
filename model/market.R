@@ -19,7 +19,8 @@
 #   promotions it has heard of (calendar.R), and the brand's marketing
 #   the trip there, along the fastest route
 #   memory of bad visits to the brand (not in my size, a queue walked out of)
-#   word of mouth from its neighbourhood
+#   word of mouth: the buzz about the brand on the patch it lives on, which
+#     follows its neighbours' shopping and spreads from patch to patch
 #   the store's layout (a flagship draws more than a small shop)
 #   offers it holds that are good at the brand
 #   the brand's return window (the share of the returns it might want that
@@ -66,6 +67,10 @@ range_value <- function(seg, b) {
   P$range_w * log(RANGE_SHARE[cbind(seg, b)])
 }
 
+# Households h x brands: the buzz about each brand on the word-of-mouth
+# patch each household lives on, read from that world with of() (city.R).
+buzz_of <- function(h) matrix(of(world = mk$wom, agents = mk$wom_at[h, , drop = FALSE], var = BRANDS$id), length(h))
+
 # Households x brands: each household's radius for each brand's stores, km.
 radius_km <- function(h) {
   SEGMENTS$radius_km[mk$hh$segment[h]] * matrix(TIER_RADIUS[cbind(rep(seq_len(N_BRANDS), each = length(h)), as.vector(mk$tier[h, , drop = FALSE]))], length(h))
@@ -95,6 +100,7 @@ start_day <- function() {
     (1 + AD_SHOP * mean(ad) + PROMO_SHOP * SEGMENTS$promo[seg] * heard) * mk$at$shop * reach_any
   i <- which(runif(n) < shop)
   m <- length(i)
+  buzz <- buzz_of(i)                     # word of mouth on the patch each of them lives on, by brand
 
   # Every store in reach against staying home.
   s <- rep(seq_len(N_STORES), each = m)
@@ -111,7 +117,7 @@ start_day <- function() {
   V <- P$taste_w * hh$taste[hb] + range_value(sg, b) + TIER_PULL[bt] - P$price_w * SEGMENTS$price[sg] * TIER_PRICE[bt] * log(price) +
     PROMO_W * SEGMENTS$promo[sg] * pa + AD_W * ad[b] -
     P$km_w * SEGMENTS$km[sg] * km -
-    P$grudge_w * TIER_MEMORY[bt] * mk$grudge[hb] + P$wom * mk$buzz[cbind(hh$cell[hi], b)] +
+    P$grudge_w * TIER_MEMORY[bt] * mk$grudge[hb] + P$wom * buzz[cbind(rep.int(seq_len(m), N_STORES), b)] +
     FORMAT_APPEAL[STORES$format[s]] + mk$at$util[hb] + RETURN_PULL[["store"]] * cover[b] + gumbel(m * N_STORES)
   V[km > SEGMENTS$radius_km[sg] * TIER_RADIUS[bt]] <- -Inf
   dim(V) <- c(m, N_STORES)
@@ -129,7 +135,7 @@ start_day <- function() {
     price <- price_position()[b] * (1 - pr$off[hb]) * (1 - mk$at$coupon[hb]) * (1 + delivery_share()[b])
     Vo <- P$taste_w * hh$taste[hb] + range_value(sg, b) + TIER_PULL[bt] - P$price_w * SEGMENTS$price[sg] * TIER_PRICE[bt] * log(price) +
       PROMO_W * SEGMENTS$promo[sg] * pr$heard[hb] + AD_W * ad[b] -
-      P$grudge_w * TIER_MEMORY[bt] * mk$grudge[hb] + P$wom * mk$buzz[cbind(hh$cell[hi], b)] + mk$at$util[hb] +
+      P$grudge_w * TIER_MEMORY[bt] * mk$grudge[hb] + P$wom * buzz[cbind(rep.int(seq_len(m), k), b)] + mk$at$util[hb] +
       SEGMENTS$online[sg] - DELIVERY_W * ONLINE$delivery_days[b] + RETURN_PULL[["online"]] * cover[b] + gumbel(m * k)
     dim(Vo) <- c(m, k)
   }
@@ -272,17 +278,22 @@ end_day <- function() {
   mk$grudge[g] <<- mk$grudge[g] + 1
   tiers_evening(rf)
 
-  # Word of mouth: each neighbourhood's feeling about each brand follows
-  # how its households' shopping went, in its stores and online, good
-  # (paid) against bad.
+  # Word of mouth: on each patch of its world, the feeling about each brand
+  # follows how the shopping of the households living there went, in its
+  # stores and online, good (paid) against bad. Then each brand's buzz
+  # spreads to the neighbouring patches: NetLogoR's diffuse() has every
+  # patch give WOM_SPREAD of it, in equal shares, to its eight neighbours.
   shop <- !d$ret
   paid <- paid[shop]; bad <- bad[shop]
-  cell <- hh$cell[d$hh[shop]]
-  key <- (d$brand[shop] - 1L) * N_WOM_CELLS + cell
-  n <- tabulate(key, N_WOM_CELLS * N_BRANDS)
-  net <- tabulate(key[paid], N_WOM_CELLS * N_BRANDS) - 2 * tabulate(key[bad], N_WOM_CELLS * N_BRANDS)
+  buzz <- of(world = mk$wom, agents = patches(mk$wom), var = BRANDS$id)    # patches x brands, in NetLogoR's cell order
+  cells <- NROW(buzz)
+  key <- (d$brand[shop] - 1L) * cells + mk$wom_cell[d$hh[shop]]
+  n <- tabulate(key, cells * N_BRANDS)
+  net <- tabulate(key[paid], cells * N_BRANDS) - 2 * tabulate(key[bad], cells * N_BRANDS)
   heard <- n > 0
-  mk$buzz[heard] <<- 0.9 * mk$buzz[heard] + 0.1 * (net[heard] / (n[heard] + 3))
+  buzz[heard] <- 0.9 * buzz[heard] + 0.1 * (net[heard] / (n[heard] + 3))
+  mk$wom <<- NLset(world = mk$wom, agents = patches(mk$wom), var = BRANDS$id, val = buzz)
+  for (id in BRANDS$id) mk$wom <<- diffuse(mk$wom, pVar = id, share = WOM_SPREAD, nNeighbors = 8)
 
   offers_evening()
   returns_evening()

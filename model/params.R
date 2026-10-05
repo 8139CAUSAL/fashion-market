@@ -59,6 +59,7 @@ AD_W <- 0.9                     # marketing reach, in utility
 AD_COST <- 450                  # $ per day at full reach, across the city
 AD_SHOP <- 0.25                 # full reach raises the chance of being in the market by this share
 PROMO_SHOP <- 0.35              # ... and a promotion one hears of, by this share (times segment response)
+WOM_SPREAD <- 0.2               # word of mouth: each evening, the share of a patch's buzz about each brand it gives, in equal shares, to its eight neighbours (NetLogoR's diffuse)
 
 # ---- Online stores and returns -------------------------------------------------------
 

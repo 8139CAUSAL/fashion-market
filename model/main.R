@@ -15,10 +15,23 @@
 # staffing, the market's weights) act from the moment they change; the page names brands and stores by id, so a change
 # to one that isn't installed yet simply waits for Setup.
 #
-# State. The map and the store floors are NetLogoR worlds, and the
-# households are NetLogoR turtles (city.R). While the season runs, their
-# state lives in plain vectors in global lists (mk, d, stock, ...), updated
-# in place with `x$field[i] <<- value`: webR runs NetLogoR's agent tables,
+# NetLogoR. The map is a NetLogoR world whose patches carry each tile's
+# land, density and area, and the households are NetLogoR turtles on it,
+# holding their segment and size (city.R). The routes, the households'
+# homes and areas, each store's area and the map the page draws are read
+# from them with of(). mk$hh holds the households as plain vectors read
+# from the turtles and the patches they stand on: a cache for speed, not
+# a second source of truth. Word of mouth lives on the patches of a second
+# NetLogoR world, one buzz variable per brand: each evening the day's
+# shopping moves it and diffuse() spreads it to the neighbouring patches,
+# and each morning the households in the market read the buzz on their
+# own patch (market.R). Each store floor is also built as a NetLogoR world
+# (floors.R), which nothing reads: shoppers and staff move on vectors.
+#
+# State. Everything else that changes while the season runs (budgets,
+# tiers and memories, the shoppers on the floors, stock, the tallies)
+# lives in plain vectors in global lists (mk, d, stock, ...), updated in
+# place with `x$field[i] <<- value`: webR runs NetLogoR's agent tables,
 # and environments, far slower than it updates a vector in place.
 
 fl <- NULL; city <- NULL; hh_cache <- NULL; km_cache <- NULL
@@ -40,7 +53,7 @@ setup <- function(seed = P$seed) {
   MAX_SERVERS <<- fl$max_servers
   if (is.null(city)) { city <<- build_city(); hh_cache <<- NULL }
   if (is.null(hh_cache)) {
-    hh_cache <<- build_households(city)
+    hh_cache <<- build_households()
     km_cache <<- trip_tables(city, hh_cache)
     world_version <<- world_version + 1L
   }
@@ -54,9 +67,13 @@ setup <- function(seed = P$seed) {
     best <- row_max(-km_cache$km[, s, drop = FALSE])
     near_store[, b] <- s[best$k]; near[, b] <- -best$max
   }
+  # Word of mouth starts afresh: its world, and the patch each household
+  # lives on (pxcor and pycor, and NetLogoR's number for it).
+  wom <- wom_world()
+  wom_at <- wom_patch(wom, hh_cache$x, hh_cache$y)
   mk <<- list(hh = hh_cache, km = km_cache$km, drive_s = km_cache$drive_s, near_km = near, near_store = near_store,
-              grudge = matrix(0, n, N_BRANDS), last_brand = integer(n),
-              budget_left = hh_cache$budget, buzz = matrix(0.3, N_WOM_CELLS, N_BRANDS), customer = matrix(FALSE, n, N_BRANDS),
+              grudge = matrix(0, n, N_BRANDS), last_brand = integer(n), budget_left = hh_cache$budget, customer = matrix(FALSE, n, N_BRANDS),
+              wom = wom, wom_at = wom_at, wom_cell = cellFromPxcorPycor(wom, wom_at[, "pxcor"], wom_at[, "pycor"]),
               tier = hh_cache$tier0, tier0 = hh_cache$tier0, spend = matrix(0, n, N_BRANDS), spend_max = matrix(0, n, N_BRANDS), spend_day = 0L)
   prev <<- NULL
   season_log <<- list(n = 0L, m = matrix(0L, 3500L * SEASON_DAYS, 5), sales = numeric(3500L * SEASON_DAYS))
