@@ -1,6 +1,6 @@
 {
   "kind": "fashion-world",
-  "version": 9,
+  "version": 10,
   "name": "Strip Mall",
   "seed": 1,
   "season_days": 91,
@@ -1256,7 +1256,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "spook_halloween",
@@ -1431,7 +1431,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "kringles_holiday",
@@ -1615,7 +1615,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "panel_pixel",
@@ -1776,7 +1776,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "haberdash_hats",
@@ -1969,7 +1969,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "sud_scent",
@@ -2130,7 +2130,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "plush_timber",
@@ -2291,7 +2291,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "sugar_cask",
@@ -2435,7 +2435,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "retro_vault",
@@ -2596,7 +2596,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     },
     {
       "id": "midnight_comfort",
@@ -2803,7 +2803,7 @@
         "shipping_cost": 5,
         "plan_stores": 1
       },
-      "returns": {"window_days": 0, "post_cost": 6}
+      "returns": {"window_days": 0, "post_cost": 6, "write_off_rate": 0.1}
     }
   ],
   "segments": [

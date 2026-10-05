@@ -188,8 +188,9 @@ Everything is set on the **Setup** tab, in seven sections:
   (off unless switched on): its delivery days, the delivery charge to the
   shopper, picking and packing and shipping per order, and how much it plans
   to sell (as standard stores). Each has a return window in days (0: no
-  returns) and the postage it pays on a parcel sent back. A brand needs
-  stores or an online store.
+  returns), the postage it pays on a parcel sent back, and its return
+  write-off rate (the share of returned items too worn or damaged to sell
+  again, written off at cost). A brand needs stores or an online store.
 - **Range and calendar.** Each brand's products (name, category, list price,
   cost, the day it lands), typed in or pasted from a spreadsheet. The
   calendar is a Gantt chart of promotions, replenishment, markdowns and
@@ -321,6 +322,9 @@ Older files are upgraded as they're read or imported, a version at a time:
   a tendency to return of 1 for each segment. It runs the season it ran.
 - Version 8 (no demand events) gets none, after the season's length. It
   runs the season it ran.
+- Version 9 (every brand writing off the same share of its returns, 10%)
+  gets a return write-off rate of 0.1 for each brand. It runs the season it
+  ran.
 
 </details>
 
@@ -568,7 +572,8 @@ and in the tills' utilisation. It doesn't shop on that trip. If the brand
 has no store in its reach (or none at all), it posts them to the brand's DC
 that morning, one parcel a household, and the brand pays the return
 postage. A returned unit goes back into that store's stock (or the DC's),
-except one in ten too worn to sell again, written off at cost.
+except the brand's return write-off rate of them (10% in the default world),
+too worn or damaged to sell again and written off at cost.
 
 The refund is exactly what was paid for the item. A coupon used on it isn't
 given back. The refund goes back into the household's budget, and comes off
