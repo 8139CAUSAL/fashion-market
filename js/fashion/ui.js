@@ -20,6 +20,12 @@ export function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+// Replaces a node's children, skipping what isn't there (as el() does).
+export function fill(node, ...children) {
+  node.replaceChildren(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
+  return node;
+}
+
 export const brandVar = (b) => `var(--brand-${b})`;
 
 // A slider's track is filled up to its thumb (see css/fashion.css).

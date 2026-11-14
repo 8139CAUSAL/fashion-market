@@ -195,7 +195,7 @@ class App {
     const box = el("div", { class: `banner${isError ? "" : " info"}`, role: isError ? "alert" : "status" }, el("b", { text: title }), message ? el("pre", { text: message }) : null);
     box.addEventListener("click", () => box.remove());
     document.body.append(box);
-    setTimeout(() => box.remove(), 12000);
+    setTimeout(() => box.remove(), isError ? 12000 : 7000);
   }
 
   // Names and colours of the installed world, for every tab.

@@ -1,14 +1,23 @@
 // The macro world's editor, on the Setup tab: the market map, painted.
 //
 //   Land     open land, roads (a road over water is a bridge), water,
-//            parks, shops, and homes at a density from 1 to 9
+//            parks, shops, and homes at a density from 1 to 9. The palette
+//            names each tile and says what it does in the model: which
+//            shape the simulation, which are looks only.
 //   Areas    optional named regions, painted on their own layer, each with
-//            the make-up of the households who live there
-//   Stores   where each store stands: select one (on the map or in the
-//            list), click the map to put it there, drag one to move it.
-//            Stores are made, named and staffed in the micro world
-//            (store-editor.js). A block of land moved with the select tool
-//            takes the stores standing on it along.
+//            the make-up of the households who live there (shown beside
+//            the map for the area being painted, and named on the map)
+//   Stores   where each store stands, as a pin in its brand's colour (the
+//            map's shops tiles are ground, not stores): select one (on the
+//            map or in the list), click the map to put it there, drag one
+//            to move it. Stores are made, named and staffed in the micro
+//            world (store-editor.js). A block of land moved with the
+//            select tool takes the stores standing on it along.
+//
+// A starting geography (geography.js) replaces the map's tiles, repaints
+// the world's areas onto its districts and puts the stores on its sites,
+// after asking; nothing else in the world changes, and undo brings the
+// old map back.
 //
 // Undo covers the tiles, where the stores stand and which areas there are
 // (an area's make-up stays as last set).
@@ -16,33 +25,41 @@
 // After every stroke the draft goes to R, which places the households and
 // routes every trip the way Setup would, and says how many households
 // there are, how many have no store within their radius (their homes
-// highlighted), and how many households have each store in reach.
+// highlighted), and how many households have each store in reach. The
+// map says which of the three it is showing: the draft being painted, the
+// model's preview of that draft, and the world installed at the last
+// Setup, which is what the simulation runs until the next one.
 
-import { el, fmt, card, select, textField, numberField, colourField, settingLever, cssVar, checkbox, segmented } from "./ui.js";
+import { el, fill, fmt, card, textField, numberField, colourField, settingLever, cssVar, checkbox, segmented } from "./ui.js";
 import { GridEditor, toolbar } from "./grid-editor.js";
 import { mix } from "./city-view.js";
-import { clone, newId, newName } from "./world-store.js";
-import { placed } from "./store-editor.js";
+import { clone, newId, newName, placed, tileAt, tileCentre } from "./world-store.js";
+import { loadGeographies, applyGeography, geographyNeeds, AREA_KEYS } from "./geography.js";
 
-// Each tile's name, and what it does in the model (city.R) as the palette
-// says it: parks and shops look different and cross like open land; homes
-// share the map's households by density.
+const mps = (v) => `${fmt.num1(v)} m/s`;
+
+// Each tile's name, and what it does in the model (city.R): roads and
+// bridges are fast, water can't be crossed, homes share the map's
+// households by density; parks and shops look different and cross like
+// open land.
 const LAND = [
-  { ch: ".", label: "Open land" }, { ch: "=", label: "Road" }, { ch: "~", label: "Water" },
-  { ch: "p", label: "Park", note: () => "Park (looks only: trips cross it like open land)" },
-  { ch: "s", label: "Shops", note: () => "Shops (looks only: trips cross them like open land)" },
-  ...Array.from({ length: 9 }, (_, i) => ({ ch: String(i + 1), label: `Homes, density ${i + 1}`, short: String(i + 1),
-    note: (m) => `Homes, density ${i + 1} (a share of the map's ${fmt.int(m.households)} households, by density)` })),
+  { ch: ".", label: "Open land", does: (m) => `Trips cross it at ${mps(m.local_mps)}. Nobody lives on it.` },
+  { ch: "=", label: "Road", does: (m) => `Trips run along roads at ${mps(m.road_mps)}. Painted over water, a road becomes a bridge.` },
+  { ch: "~", label: "Water", does: () => "No trip crosses water, and no store stands on it. Paint a road over it for a bridge." },
+  { ch: "p", label: "Park", looks: true, does: (m) => `Looks only: trips cross a park like open land, at ${mps(m.local_mps)}.` },
+  { ch: "s", label: "Shops", looks: true, does: (m) => `Looks only: the ground of a shopping street, crossed like open land at ${mps(m.local_mps)}. The stores shoppers go to are the pins put down with Place store.` },
+  ...Array.from({ length: 9 }, (_, i) => ({ ch: String(i + 1), label: `Homes, density ${i + 1}`, short: String(i + 1), density: i + 1 })),
 ];
-const AREA_KEYS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const ANCHORS = ["nw", "n", "ne", "w", "c", "e", "sw", "s", "se"];
 
 export class MapEditor {
   constructor(root, app) {
     this.app = app; this.world = app.world;
-    this.layer = "land"; this.selected = null; this.preview = null; this.overlay = false;
+    this.layer = "land"; this.paintLayer = "land"; this.selected = null; this.preview = null; this.overlay = false;
     this.onEditStore = null;             // opens a store in the micro world (Setup)
-    this.previewTimer = 0; this.previewSeq = 0;
+    this.onOpenLayout = null;            // opens a layout's floor plan in the micro world (Setup)
+    this.previewTimer = 0; this.previewRev = 0; this.previewState = "none";
+    this.geographies = null; this.asking = null;
 
     // The canvas and its tools.
     const wrap = el("div", { class: "editor-canvas map-editor-canvas" });
@@ -73,27 +90,35 @@ export class MapEditor {
       label: "Place store", title: "Place store: put the world's stores on the map, and drag one to move it (the Stores layer)",
       onClick: () => this.#setLayer("stores"), active: () => this.layer === "stores", describe: () => this.#storeHint() } });
     this.layerSeg = segmented({ label: "Layer", value: "land", options: [
-      { value: "land", label: "Land" }, { value: "areas", label: "Areas" }, { value: "stores", label: "Stores" }],
+      { value: "land", label: "Land", title: "Paint the ground: roads, water, parks, shops and homes" },
+      { value: "areas", label: "Areas", title: "Paint named areas: who lives where" },
+      { value: "stores", label: "Stores", title: "Put the stores on the map" }],
     onChange: (v) => this.#setLayer(v) });
-    this.palette = el("div", { class: "palette", role: "radiogroup", "aria-label": "Paint" });
+    this.palette = el("div", { class: "palette inline", role: "radiogroup", "aria-label": "Paint" });
+    this.paletteNote = el("p", { class: "palette-note" });
     this.hoverText = el("div", { class: "editor-hover" });
     this.overlayBox = checkbox({ label: "Colour homes by stores in reach", onChange: (v) => { this.overlay = v; this.editor.draw(); } });
 
-    // Readouts.
+    // What's being looked at (draft, preview, installed), and the readouts.
+    this.stateBox = el("div", { class: "world-states", role: "status" });
     this.readout = el("div", { class: "readouts" });
 
-    const canvasCard = card("The map", { sub: "paint it; stores go on the Stores layer" });
-    canvasCard.body.append(el("div", { class: "editor-bar" }, this.layerSeg.root, this.tools), this.palette,
-      wrap, el("div", { class: "editor-foot" }, this.hoverText, this.overlayBox.root), this.readout);
+    const canvasCard = card("The map", { sub: "draw it; the model previews every stroke" });
+    canvasCard.root.classList.add("canvas-card");
+    canvasCard.head.querySelector("h2").after(this.layerSeg.root);
+    canvasCard.body.append(el("div", { class: "editor-bar" }, this.tools), this.palette, this.paletteNote,
+      wrap, el("div", { class: "editor-foot" }, this.hoverText, this.overlayBox.root), this.stateBox, this.readout);
 
     // Beside the map: what the layer edits.
-    this.side = el("div", { class: "grid" });
+    this.side = el("div", { class: "grid map-side" });
+    this.startCard = card("Start from a geography", { sub: "the map only" });
+    this.legendCard = card("What the map does", { sub: "in the simulation" });
     this.settingsCard = card("Map settings", { sub: "wait for Setup" });
     this.areasCard = card("Areas", { sub: "who lives where · wait for Setup" });
     this.storesCard = card("Stores", { sub: "by brand" });
     this.storeCard = card("The selected store", { sub: "" });
-    this.side.append(this.storesCard.root, this.storeCard.root, this.areasCard.root, this.settingsCard.root);
     root.append(el("div", { class: "grid map-editor" }, canvasCard.root, this.side));
+    this.world.addEventListener("change", () => this.#renderStates());
   }
 
   // ---- Loading the draft -------------------------------------------------------------------
@@ -105,14 +130,17 @@ export class MapEditor {
     if (key !== this.loadedKey) {
       this.editor.load([d.macro.tiles, d.macro.area_tiles], { keepView: !!this.loadedKey && this.loadedSize === `${d.macro.width}x${d.macro.height}` });
       this.loadedKey = key; this.loadedSize = `${d.macro.width}x${d.macro.height}`;
+      this.areaLabels = null; this.densitySum = undefined;
     }
     this.#setLayer(this.layer);
     this.#renderSide();
+    this.#renderStates();
     this.#schedulePreview(0);
+    if (!this.geographies) loadGeographies().then((g) => { this.geographies = g; this.#renderStart(); }).catch(() => { this.geographies = []; this.#renderStart(); });
   }
 
   // The draft was replaced (Import): start over from it.
-  reload() { this.loadedKey = null; this.editor.clearHistory(); this.selected = null; this.show(); }
+  reload() { this.loadedKey = null; this.editor.clearHistory(); this.selected = null; this.asking = null; this.show(); }
 
   // ---- Colours ---------------------------------------------------------------------------------
 
@@ -151,6 +179,7 @@ export class MapEditor {
     if (layer === "stores") this.editor.setTool("pan");
     else if (["pan"].includes(this.editor.tool)) this.editor.setTool("pencil");
     this.#renderPalette();
+    this.#orderSide();
     this.tools.sync();
     this.editor.draw();
   }
@@ -167,36 +196,79 @@ export class MapEditor {
     return LAND.find((t) => t.ch === ch)?.label ?? (ch === "+" ? "Bridge" : ch);
   }
 
-  #renderPalette() {
-    const d = this.world.draft;
-    let items;
-    if (this.layer === "land") {
-      items = LAND.map((t) => ({ ch: t.ch, label: t.note?.(d.macro) ?? t.label, colour: this.#landColour(t.ch), short: t.short }));
-      if (!LAND.some((t) => t.ch === this.editor.paint)) this.editor.setPaint("=");
-    } else if (this.layer === "areas") {
-      items = [{ ch: ".", label: "No area", colour: "transparent" }, ...d.macro.areas.map((a) => ({ ch: a.key, label: a.name, colour: a.colour }))];
-      if (!items.some((t) => t.ch === this.editor.paint)) this.editor.setPaint(items[1]?.ch ?? ".");
-    } else {
-      this.palette.replaceChildren(this.#storeTools());
-      return;
+  // Households a home tile of density k is expected to hold: the map's
+  // households are shared among its home tiles in proportion to density
+  // (draw_homes in city.R), so a tile of density k gets k parts in the sum
+  // of every home tile's density (itself included, on a map with no homes
+  // yet).
+  #perTile(k) {
+    const m = this.world.draft.macro;
+    if (this.densitySum === undefined) {
+      const data = this.editor.layers[0].data; let sum = 0;
+      for (let i = 0; i < data.length; i++) { const v = data[i] - 48; if (v >= 1 && v <= 9) sum += v; }
+      this.densitySum = sum;
     }
-    this.palette.replaceChildren(...items.map((t) => el("button", {
-      type: "button", class: "swatch", role: "radio", "aria-checked": String(this.editor.paint === t.ch), title: t.label, "aria-label": t.label,
-      vars: { "--c": t.colour }, onclick: () => { this.editor.setPaint(t.ch); if (["erase", "pick", "select", "pan"].includes(this.editor.tool)) this.editor.setTool("pencil"); this.#renderPalette(); },
-    }, t.short ? el("span", { text: t.short }) : null, el("em", { text: t.label }))));
+    return m.households * k / (this.densitySum || k);
   }
 
-  #picked() { this.editor.setTool("pencil"); this.#renderPalette(); }
+  #renderPalette() {
+    const d = this.world.draft; const m = d.macro;
+    const pick = (ch) => { this.editor.setPaint(ch); if (["erase", "pick", "select", "pan"].includes(this.editor.tool)) this.editor.setTool("pencil"); };
+    const swatch = (t, after) => el("button", {
+      type: "button", class: `swatch${t.short ? "" : " named"}`, role: "radio", "aria-checked": String(this.editor.paint === t.ch), title: t.title ?? t.label, "aria-label": t.label,
+      vars: { "--c": t.colour }, onclick: () => { pick(t.ch); after?.(); this.#renderPalette(); },
+    }, t.short ? el("span", { text: t.short }) : [el("i", { class: "swatch-chip" }), el("em", { text: t.text ?? t.label })]);
+    const group = (title, ...nodes) => el("div", { class: "palette-group" }, el("div", { class: "palette-title", text: title }), el("div", { class: "palette-row" }, ...nodes));
+    if (this.layer === "land") {
+      if (!LAND.some((t) => t.ch === this.editor.paint)) this.editor.setPaint("=");
+      const cur = LAND.find((t) => t.ch === this.editor.paint);
+      const ground = LAND.filter((t) => !t.density).map((t) => swatch({ ...t, colour: this.#landColour(t.ch), title: `${t.label}: ${t.does(m)}` }));
+      // A bridge isn't painted on its own: it's what a road over water becomes.
+      const bridge = el("button", { type: "button", class: "swatch named hint", title: "Bridge: what a road painted over water becomes. Trips cross it at the road's speed. Click to paint roads.", "aria-label": "Bridge: paint a road over water",
+        vars: { "--c": this.#landColour("+") }, onclick: () => { pick("="); this.#renderPalette(); } }, el("i", { class: "swatch-chip" }), el("em", { text: "Bridge" }));
+      const homes = LAND.filter((t) => t.density).map((t) => swatch({ ...t, colour: this.#landColour(t.ch),
+        title: `${t.label} of 9: households live here, about ${fmt.num1(this.#perTile(t.density))} a tile on this map` }));
+      this.palette.replaceChildren(group("Ground", ...ground, bridge),
+        group("Homes: where households live", el("span", { class: "ramp-end", text: "sparse" }), ...homes, el("span", { class: "ramp-end", text: "dense" })));
+      this.paletteNote.textContent = cur.density
+        ? `${cur.label} of 9. Households live on home tiles, more of them the denser the tile: about ${fmt.num1(this.#perTile(cur.density))} a tile at this density (the map's ${fmt.int(m.households)} households, shared by density).`
+        : `${cur.label}. ${cur.does(m)}`;
+    } else if (this.layer === "areas") {
+      const items = [{ ch: ".", label: "No area", colour: "transparent" }, ...m.areas.map((a) => ({ ch: a.key, label: a.name, colour: a.colour, id: a.id }))];
+      if (!items.some((t) => t.ch === this.editor.paint)) this.editor.setPaint(items[1]?.ch ?? ".");
+      const add = el("button", { type: "button", class: "swatch named add", title: "A new named area, ready to paint", "aria-label": "New area",
+        disabled: m.areas.length >= (this.world.schema?.limits.areas ?? 40) || null, onclick: () => this.#addArea() }, el("em", { text: "+ New area" }));
+      this.palette.replaceChildren(group("Areas: who lives where", ...items.map((t) => swatch(t, () => { if (t.id) { this.area = t.id; this.#renderAreas(); } })), add));
+      const a = m.areas.find((x) => x.key === this.editor.paint);
+      this.paletteNote.textContent = a
+        ? `${a.name}. Households on its tiles take their segment, size and budget from its make-up, set beside the map. Paint it with a large brush, or Fill a block of homes.`
+        : m.areas.length ? "No area. Households outside every area take the map's default make-up." : "No areas yet: every household takes the map's default make-up. Add one to give a part of the map its own.";
+    } else {
+      const waiting = d.stores.filter((s) => !placed(s));
+      this.palette.replaceChildren(el("div", { class: "store-tools" },
+        waiting.length ? el("span", { class: "palette-title", text: `${waiting.length} not on the map yet:` }) : null,
+        ...waiting.slice(0, 12).map((s) => el("button", { type: "button", class: `chip-btn${s.id === this.selected ? " is-on" : ""}`, title: `Select ${s.name}, then click the map where it goes`,
+          vars: { "--brand": d.brands.find((b) => b.id === s.brand)?.colour ?? "#888" }, onclick: () => this.placeStore(s.id) }, el("i", { class: "dot" }), s.short)),
+        waiting.length > 12 ? el("span", { class: "sub", text: `and ${waiting.length - 12} more, in the list` }) : null));
+      this.paletteNote.textContent = waiting.length ? "Pick a store that isn't on the map yet, here or in the list, then click the map where it goes: the next one is picked for you."
+        : "Every store is on the map: a pin in its brand's colour. Point at one for its name.";
+    }
+    this.tools.sync();
+  }
 
-  // The Stores layer's own tools: what a click does.
+  // The eyedropper took a tile: paint with it (an area becomes the one
+  // whose make-up is shown).
+  #picked(ch) {
+    this.editor.setTool("pencil");
+    if (this.layer === "areas") { const a = this.world.draft.macro.areas.find((x) => x.key === ch); if (a) { this.area = a.id; this.#renderAreas(); } }
+    this.#renderPalette();
+  }
+
+  // The Stores layer's own words: what a click does.
   #storeHint() {
     const st = this.world.draft?.stores.find((s) => s.id === this.selected);
     return st && !placed(st) ? `Place store · click the map where ${st.name} goes (not on water)`
       : "Place store · select a store on the map or in the list and drag it to move it; one not on the map yet goes where you click once it's selected";
-  }
-
-  #storeTools() {
-    return el("div", { class: "store-tools" }, el("span", { class: "note", text: this.#storeHint().replace(/^Place store · /, "").replace(/^./, (x) => x.toUpperCase()) }));
   }
 
   // A store from the list (or the micro world): selected, on the Stores layer.
@@ -241,6 +313,8 @@ export class MapEditor {
     }, { source: "map" });
     this.loadedKey = JSON.stringify([this.editor.W, this.editor.H, rows[0], rows[1]]);
     this.loadedSize = `${this.editor.W}x${this.editor.H}`;
+    this.areaLabels = null; this.densitySum = undefined;
+    if (this.layer === "land") this.#renderPalette();
     this.#renderSide();
     this.#schedulePreview();
   }
@@ -250,7 +324,7 @@ export class MapEditor {
     const m = this.world.draft.macro;
     return this.world.draft.stores.filter((s) => {
       if (!placed(s)) return false;
-      const r = m.height - 1 - Math.floor(s.y / m.patch_m); const c = Math.floor(s.x / m.patch_m);
+      const { r, c } = tileAt(m, s.x, s.y);
       return r >= r0 && r < r0 + h && c >= c0 && c < c0 + w;
     });
   }
@@ -272,38 +346,76 @@ export class MapEditor {
     if (off) this.app.banner(`${off} store${off === 1 ? "" : "s"} moved off the map`, "They're still in the world, not on the map yet: the Stores layer puts them back.");
   }
 
+  // The draft changed in a way the preview shows: what's on screen is of an
+  // older draft until the model answers for this one. One request goes to
+  // R once the changes pause, never one a tile or a pointer move.
   #schedulePreview(ms = 350) {
+    this.previewRev++;
+    this.previewState = "waiting";
+    this.#renderStates();
     clearTimeout(this.previewTimer);
     this.previewTimer = setTimeout(() => this.#runPreview(), ms);
   }
 
   async #runPreview() {
-    if (!this.app.ready) { this.#schedulePreview(500); return; }
-    const seq = ++this.previewSeq;
+    if (!this.app.ready) { clearTimeout(this.previewTimer); this.previewTimer = setTimeout(() => this.#runPreview(), 500); return; }
+    const rev = this.previewRev;
     this.readout.classList.add("busy");
     let p;
     try { p = await this.app.client.request("PREVIEW_MACRO", { text: this.world.text() }); } catch (e) { p = { problems: [{ path: "", message: e.message }] }; }
-    if (seq !== this.previewSeq) return;
+    // An answer for a draft that has changed since it was asked for is
+    // dropped: the newer draft's own request is on its way.
+    if (rev !== this.previewRev) return;
     this.readout.classList.remove("busy");
     this.preview = p;
+    this.previewState = p.problems?.length ? "problems" : "fresh";
+    this.#renderStates();
     this.#renderReadout();
     this.#renderStores();
+    this.#renderAreas();
     this.editor.draw();
   }
 
+  // The three worlds, told apart: the draft being drawn, the model's
+  // preview of it, and the world the simulation is running.
+  #renderStates() {
+    const d = this.world.draft; const inst = this.world.installed;
+    if (!d || !this.stateBox) return;
+    const n = this.world.pending;
+    const chip = (kind, name, text, title) => el("span", { class: `state-chip ${kind}`, title }, el("b", { text: name }), text);
+    const previews = {
+      none: ["", "not worked out yet"], waiting: ["busy", "working it out for this draft…"],
+      fresh: ["ok", "worked out by the model for this draft"], problems: ["bad", "can't be worked out until the map's problems are fixed"],
+    }[this.previewState];
+    this.stateBox.replaceChildren(
+      chip(n ? "draft warn" : "draft", "Draft", n ? `${n} change${n === 1 ? "" : "s"} wait${n === 1 ? "s" : ""} for Setup` : "same as the installed world",
+        "The world being drawn here. It's kept in the browser, and changes nothing in the simulation until Setup."),
+      chip(`preview ${previews[0]}`, "Preview", previews[1], "The numbers below: the model places this draft's households and routes their trips the way Setup would."),
+      chip("installed", "Installed", inst ? `${inst.name}: what the simulation runs${n ? " until Setup" : ""}` : "none yet",
+        "The world installed at the last Setup. Go runs it, whatever is drawn here, until Setup installs the draft."));
+  }
+
   #renderReadout() {
-    const p = this.preview;
+    const p = this.preview; const d = this.world.draft;
     if (!p) { this.readout.replaceChildren(); return; }
+    const needs = geographyNeeds(d);
+    const waiting = needs.unplaced ? el("div", { class: "needs" }, el("b", { text: `${needs.unplaced} store${needs.unplaced === 1 ? " isn't" : "s aren't"} on the map yet.` }),
+      " Setup starts a world only when every store is on the map. ",
+      el("button", { type: "button", class: "btn small", text: "Place them", onclick: () => this.placeStore(d.stores.find((s) => !placed(s)).id) })) : null;
     if (p.problems?.length) {
-      this.readout.replaceChildren(el("div", { class: "problems" }, el("b", { text: "The map can't be read yet:" }),
-        ...p.problems.map((q) => el("button", { type: "button", class: "problem", text: `${q.path ? `${q.path}: ` : ""}${q.message}`, onclick: () => this.editor.setHighlights(q.tiles ?? []) }))));
+      fill(this.readout, el("div", { class: "problems" }, el("b", { text: "Before this map can run:" }),
+        ...p.problems.map((q) => el("button", { type: "button", class: "problem", text: `${q.path ? `${q.path}: ` : ""}${q.message}`, onclick: () => { this.editor.setHighlights(q.tiles ?? []); this.editor.reveal(q.tiles); } }))), waiting);
       return;
     }
     const stranded = p.stranded;
-    this.readout.replaceChildren(
-      el("div", { class: "stat" }, el("div", { class: "stat-label", text: "Households" }), el("div", { class: "stat-value", text: fmt.int(p.households) })),
+    const outside = p.tiles ? p.households - d.macro.areas.reduce((acc, a) => acc + this.#areaCount(a), 0) : null;
+    fill(this.readout,
+      el("div", { class: "stat" }, el("div", { class: "stat-label", text: "Households" }), el("div", { class: "stat-value", text: fmt.int(p.households) }),
+        d.macro.areas.length && outside !== null ? el("div", { class: "stat-sub", text: `${fmt.int(p.households - outside)} in areas, ${fmt.int(outside)} outside` }) : null),
       el("div", { class: `stat${stranded ? " warn" : ""}` }, el("div", { class: "stat-label", text: "No store in reach" }),
         el("div", { class: "stat-value", text: fmt.int(stranded) }), el("div", { class: "stat-sub", text: stranded ? "their homes are outlined in red" : "every household can shop" })),
+      el("div", { class: `stat${needs.unplaced ? " warn" : ""}` }, el("div", { class: "stat-label", text: "Stores on the map" }), el("div", { class: "stat-value", text: `${d.stores.length - needs.unplaced} of ${d.stores.length}` })),
+      waiting,
       el("p", { class: "note", text: "Worked out as Setup would: households placed on home tiles by density, each store's reach by the fastest route and each segment's radius (before loyalty stretches it)." }));
   }
 
@@ -311,12 +423,12 @@ export class MapEditor {
     if (!cell) { this.hoverText.textContent = ""; return; }
     const d = this.world.draft; const m = d.macro;
     const ch = this.editor.at(0, cell.r, cell.c); const ak = this.editor.at(1, cell.r, cell.c);
-    const land = LAND.find((t) => t.ch === ch)?.label ?? (ch === "+" ? "Bridge" : ch);
+    const land = this.#materialName(ch, 0);
     const area = m.areas.find((a) => a.key === ak)?.name ?? "no area";
     const km = (v) => (v * m.patch_m / 1000).toFixed(v * m.patch_m >= 10000 ? 0 : 2);
     let extra = "";
     const t = this.preview?.tiles;
-    if (t) {
+    if (t && this.previewState === "fresh") {
       const i = this.#tileIndex(cell.r, cell.c);
       if (i >= 0) extra = ` · ${fmt.int(t.households[i])} household${t.households[i] === 1 ? "" : "s"}, ${fmt.num1(t.stores[i])} stores in reach${t.stranded[i] ? ` (${t.stranded[i]} with none)` : ""}`;
     }
@@ -338,7 +450,9 @@ export class MapEditor {
     const d = this.world.draft; if (!d) return;
     const z = ed.zoom;
     const p = this.preview?.tiles;
-    if (p && (this.overlay || this.preview.stranded)) {
+    // The preview's tiles are of the draft it was worked out for: while a
+    // newer draft waits for its own, they aren't drawn over it.
+    if (p && this.previewState === "fresh" && (this.overlay || this.preview.stranded)) {
       const maxS = Math.max(1, ...p.stores);
       for (let i = 0; i < p.row.length; i++) {
         const s = ed.toScreen(p.row[i], p.col[i]);
@@ -350,39 +464,73 @@ export class MapEditor {
         if (p.stranded[i]) { ctx.strokeStyle = "#e03131"; ctx.lineWidth = Math.max(1, Math.min(2.5, z / 3)); ctx.strokeRect(s.x + 0.5, s.y + 0.5, Math.max(1, z - 1), Math.max(1, z - 1)); }
       }
     }
-    // Stores: a square in the brand's colour, the selected one ringed. A
-    // block of land being moved carries its stores.
+    const font = cssVar("--font", ed.wrap) || "system-ui"; const ink = cssVar("--ink", ed.wrap); const surface = cssVar("--surface", ed.wrap);
+    const text = (s, x, y) => { ctx.lineWidth = 3; ctx.strokeStyle = surface; ctx.strokeText(s, x, y); ctx.fillStyle = ink; ctx.fillText(s, x, y); };
+    // Stores: a pin in the brand's colour, its point where the store
+    // stands; the selected one ringed, and named once there's room (or
+    // it's the one selected or pointed at). A block of land being moved
+    // carries its stores. On the Areas layer the pins are faint, under
+    // the areas' names.
     const m = d.macro;
-    const size = Math.max(4, Math.min(12, z * 1.2));
-    ctx.font = `600 11px ${cssVar("--font", ed.wrap) || "system-ui"}`;
+    const size = this.layer === "stores" ? 18 : 14;
     const b0 = ed.lifted && ed.active === 0 && !ed.lifted.copy ? ed.lifted : null;
     const carried = new Set(b0 ? this.#storesIn(b0.r0, b0.c0, b0.h, b0.w) : []);
+    ctx.font = `600 11px ${font}`;
+    const named = [];
+    if (this.layer === "areas") ctx.globalAlpha = 0.45;
     for (const st of d.stores) {
       if (!placed(st)) continue;
       const b = d.brands.find((x) => x.id === st.brand);
       const shift = carried.has(st) ? [b0.r - b0.r0, b0.c - b0.c0] : [0, 0];
       const c = st.x / m.patch_m + shift[1]; const r = m.height - st.y / m.patch_m + shift[0];
       const x = ed.ox + c * z; const y = ed.oy + r * z;
-      ctx.fillStyle = b?.colour ?? "#888"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
-      ctx.fillRect(x - size / 2, y - size / 2, size, size); ctx.strokeRect(x - size / 2, y - size / 2, size, size);
-      if (st.id === this.selected) { ctx.strokeStyle = cssVar("--ink", ed.wrap); ctx.lineWidth = 2; ctx.strokeRect(x - size / 2 - 3, y - size / 2 - 3, size + 6, size + 6); }
-      if (this.layer === "stores" && z >= 3) {
-        ctx.lineWidth = 3; ctx.strokeStyle = cssVar("--surface", ed.wrap); ctx.strokeText(st.short, x + size / 2 + 3, y + 4);
-        ctx.fillStyle = cssVar("--ink", ed.wrap); ctx.fillText(st.short, x + size / 2 + 3, y + 4);
-      }
+      const on = st.id === this.selected; const over = st.id === this.hoverStore;
+      pin(ctx, x, y, on || over ? size + 4 : size, b?.colour ?? "#888", on ? ink : "#fff", on ? 2.5 : 1.5);
+      if (on || over || (this.layer !== "areas" && z >= 8)) named.push([st.short, x + size / 2 + 5, y - size * 0.6]);
     }
+    ctx.globalAlpha = 1;
+    for (const [s, x, y] of named) text(s, x, y);
+    // On the Areas layer, each area's name where it lies, the one being painted in bold.
+    if (this.layer === "areas") {
+      ctx.textAlign = "center";
+      for (const a of this.#areaLabels()) {
+        const q = ed.toScreen(a.r, a.c);
+        ctx.font = `${a.id === this.area ? 700 : 500} ${a.id === this.area ? 13 : 12}px ${font}`;
+        text(a.name, q.x, q.y);
+      }
+      ctx.textAlign = "start";
+    }
+  }
+
+  // Where to write each area's name: the middle of its tiles.
+  #areaLabels() {
+    if (this.areaLabels) return this.areaLabels;
+    const ed = this.editor; const data = ed.layers[1].data;
+    const sums = new Map();
+    for (let i = 0; i < data.length; i++) {
+      if (data[i] === 46) continue;
+      let s = sums.get(data[i]); if (!s) { s = [0, 0, 0]; sums.set(data[i], s); }
+      s[0] += Math.floor(i / ed.W); s[1] += i % ed.W; s[2]++;
+    }
+    this.areaLabels = (this.world.draft?.macro.areas ?? []).flatMap((a) => {
+      const s = sums.get(a.key.charCodeAt(0));
+      return s ? [{ id: a.id, name: a.name, r: s[0] / s[2] + 0.5, c: s[1] / s[2] + 0.5 }] : [];
+    });
+    return this.areaLabels;
   }
 
   // ---- Stores on the map ------------------------------------------------------------------------
 
+  // The store whose pin is under the pointer (a finger gets more room).
   #storeAt(ev) {
     const d = this.world.draft; const ed = this.editor; const m = d.macro;
     const rect = ed.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left; const y = ev.clientY - rect.top;
-    let best = null; let bd = 12 * 12;
+    const reach = ev.pointerType === "touch" ? 26 : 15;
+    let best = null; let bd = reach * reach;
     for (const st of d.stores) {
       if (!placed(st)) continue;
-      const sx = ed.ox + (st.x / m.patch_m) * ed.zoom; const sy = ed.oy + (m.height - st.y / m.patch_m) * ed.zoom;
+      const sx = ed.ox + (st.x / m.patch_m) * ed.zoom; const sy = ed.oy + (m.height - st.y / m.patch_m) * ed.zoom - 9;
       const dd = (sx - x) ** 2 + (sy - y) ** 2;
       if (dd < bd) { bd = dd; best = st; }
     }
@@ -392,31 +540,40 @@ export class MapEditor {
   #storeDown(ev, cell) {
     if (this.layer !== "stores" || ev.button !== 0) return false;
     const d = this.world.draft; const m = d.macro;
-    // The selected store isn't on the map yet: it goes where the click is.
+    // The selected store isn't on the map yet: it goes where the click is,
+    // and the next one waiting is selected.
     const waiting = d.stores.find((s) => s.id === this.selected && !placed(s));
     if (waiting) {
       if (!this.editor.inside(cell.r, cell.c)) return true;
       if (this.editor.at(0, cell.r, cell.c) === "~") { this.app.banner("Not on water", "A store has to stand on land."); return true; }
       this.editor.record();
-      this.world.edit(() => { waiting.x = (cell.c + 0.5) * m.patch_m; waiting.y = (m.height - cell.r - 0.5) * m.patch_m; });
+      this.world.edit(() => { Object.assign(waiting, tileCentre(m, cell.r, cell.c)); });
+      const next = d.stores.find((s) => !placed(s));
+      if (next) this.selected = next.id;
       this.#renderPalette(); this.#renderSide(); this.editor.draw(); this.#schedulePreview();
       return true;
     }
     const st = this.#storeAt(ev);
-    if (!st) { if (this.selected) { this.selected = null; this.#renderSide(); this.editor.draw(); } return false; }
+    if (!st) { if (this.selected) { this.selected = null; this.#renderPalette(); this.#renderSide(); this.editor.draw(); } return false; }
     this.selected = st.id;
     this.moving = { id: st.id, snap: this.#undoState(), moved: false };
-    try { this.editor.canvas.setPointerCapture(ev.pointerId); } catch { /* a pointer the browser no longer tracks */ }
-    this.#renderSide(); this.editor.draw();
+    this.#renderPalette(); this.#renderSide(); this.editor.draw();
     return true;
   }
 
   #storeMove(ev, cell) {
-    if (!this.moving) return false;
+    if (!this.moving) {
+      // Over a pin on the Stores layer: it can be picked up.
+      if (this.layer === "stores" && ev.pointerType !== "touch") {
+        const over = this.#storeAt(ev)?.id ?? null;
+        if (over !== this.hoverStore) { this.hoverStore = over; this.editor.canvas.style.cursor = over ? "pointer" : "grab"; this.editor.draw(); }
+      } else if (this.hoverStore) { this.hoverStore = null; this.editor.draw(); }
+      return false;
+    }
     const d = this.world.draft; const m = d.macro;
-    if (!this.editor.inside(cell.r, cell.c) || this.editor.at(0, cell.r, cell.c) === "~") return true;
+    if (!this.editor.inside(cell.r, cell.c) || this.editor.at(0, cell.r, cell.c) === "~") return true;      // not off the map, not onto water
     const st = d.stores.find((s) => s.id === this.moving.id);
-    const x = (cell.c + 0.5) * m.patch_m; const y = (m.height - cell.r - 0.5) * m.patch_m;
+    const { x, y } = tileCentre(m, cell.r, cell.c);
     if (st.x !== x || st.y !== y) { st.x = x; st.y = y; this.moving.moved = true; this.editor.draw(); }
     return true;
   }
@@ -446,27 +603,57 @@ export class MapEditor {
   // ---- Beside the map ---------------------------------------------------------------------------
 
   #renderSide() {
+    this.#renderStart();
+    this.#renderLegend();
     this.#renderStores();
     this.#renderStore();
     this.#renderAreas();
     this.#renderSettings();
+    if (!this.side.children.length) this.#orderSide();
+  }
+
+  // What the layer edits comes first beside the map.
+  #orderSide() {
+    const first = { land: [this.legendCard, this.startCard], areas: [this.areasCard], stores: [this.storeCard, this.storesCard] }[this.layer];
+    const all = [this.startCard, this.legendCard, this.storeCard, this.storesCard, this.areasCard, this.settingsCard];
+    const order = [...first, ...all.filter((c) => !first.includes(c))].map((c) => c.root);
+    if (order.some((n, i) => this.side.children[i] !== n)) this.side.replaceChildren(...order);
+  }
+
+  // What each kind of tile does in the model, and which are looks only.
+  #renderLegend() {
+    const m = this.world.draft.macro; const r = this.editor.wrap;
+    const row = (colour, name, text) => el("div", { class: "legend-row" }, el("i", { class: "legend-swatch square", vars: { "--c": colour } }), el("b", { text: name }), el("span", { text }));
+    const homes = mix(cssVar("--map-land", r), cssVar("--map-homes", r), 0.75);
+    this.legendCard.body.replaceChildren(
+      el("h3", { class: "setup-heading", text: "Shapes the simulation" }),
+      row(homes, "Homes", `where the ${fmt.int(m.households)} households live, more of them on denser tiles`),
+      row(this.#landColour("="), "Roads, bridges", `trips run along them at ${mps(m.road_mps)}`),
+      row(this.#landColour("~"), "Water", "no trip crosses it, no store stands on it"),
+      row(this.#landColour("."), "Open land", `trips cross it at ${mps(m.local_mps)}`),
+      row("linear-gradient(135deg, #e8c9a8, #b9d5ea)", "Areas", "their own layer: the segments, sizes and budget of the households living there"),
+      el("div", { class: "legend-row" }, pinIcon(), el("b", { text: "Stores" }), el("span", { text: "pins: where shoppers go, by the fastest route, if within their segment's radius" })),
+      el("h3", { class: "setup-heading", text: "Looks only" }),
+      row(this.#landColour("p"), "Parks", "crossed like open land"),
+      row(this.#landColour("s"), "Shops", "ground, crossed like open land; not stores"));
   }
 
   // Stores, by brand, with how many households have each in reach.
   #renderStores() {
     const d = this.world.draft;
-    const reach = this.preview?.reach;
+    const reach = this.previewState === "fresh" ? this.preview?.reach : null;
     const body = el("div", { class: "store-list" });
     for (const b of d.brands) {
       const mine = d.stores.map((s, i) => ({ s, i })).filter((x) => x.s.brand === b.id);
       body.append(el("div", { class: "store-group", vars: { "--brand": b.colour } }, el("div", { class: "brand-name" }, el("i", { class: "dot" }), b.name, el("span", { class: "sub", text: ` · ${mine.length} store${mine.length === 1 ? "" : "s"}` })),
         ...mine.map(({ s, i }) => el("button", { type: "button", class: `store-row${s.id === this.selected ? " is-on" : ""}`, onclick: () => this.placeStore(s.id) },
           el("span", { text: s.name }),
-          placed(s) ? el("span", { class: "sub", text: reach && !this.preview.problems?.length ? `${fmt.compact(reach[i])} in reach` : "" })
+          placed(s) ? el("span", { class: "sub", text: reach ? `${fmt.compact(reach[i])} in reach` : "" })
             : el("span", { class: "sub bad", text: "not on the map" })))));
     }
+    const waiting = d.stores.filter((s) => !placed(s)).length;
     this.storesCard.body.replaceChildren(body);
-    this.storesCard.setSub(`${d.stores.length} stores · households with each in reach`);
+    this.storesCard.setSub(`${d.stores.length} stores${waiting ? ` · ${waiting} not on the map yet` : ""} · households with each in reach`);
   }
 
   // The selected store: where it stands. Its name, brand, layout and staff
@@ -480,28 +667,47 @@ export class MapEditor {
     const L = d.layouts.find((l) => l.id === st.layout);
     this.storeCard.head.querySelector("h2").textContent = st.name;
     this.storeCard.setSub(`${b?.name ?? st.brand} · ${L?.name ?? st.layout} layout`);
-    const area = placed(st) ? d.macro.areas.find((a) => a.key === d.macro.area_tiles?.[d.macro.height - 1 - Math.floor(st.y / d.macro.patch_m)]?.[Math.floor(st.x / d.macro.patch_m)]) : null;
+    const at = placed(st) ? tileAt(d.macro, st.x, st.y) : null;
+    const area = at ? d.macro.areas.find((a) => a.key === d.macro.area_tiles?.[at.r]?.[at.c]) : null;
     this.storeCard.body.replaceChildren(
-      el("p", { class: `note${placed(st) ? "" : " bad"}`, text: placed(st) ? `Stands ${area ? `in ${area.name}` : "outside every area"}. Drag it on the map to move it.` : "Not on the map yet: click the map where it goes." }),
-      el("div", { class: "row" }, el("button", { type: "button", class: "btn small", text: "Its name, brand, layout and staff (Micro world)", onclick: () => this.onEditStore?.(st.id) })));
+      el("p", { class: `note${placed(st) ? "" : " bad"}`, text: placed(st) ? `Stands ${area ? `in ${area.name}` : "outside every area"}. Drag its pin on the map to move it.` : "Not on the map yet: click the map where it goes." }),
+      el("div", { class: "row wrap" },
+        el("button", { type: "button", class: "btn small", text: "Draw its floor plan", title: `Open the ${L?.name ?? st.layout} layout in the Micro world`, onclick: () => this.onOpenLayout?.(st.layout) }),
+        el("button", { type: "button", class: "btn small", text: "Its name, brand, layout and staff", title: "Open the store in the Micro world", onclick: () => this.onEditStore?.(st.id) })));
   }
 
-  // Areas and the make-up of their households.
+  // Households living on an area's tiles, from the model's preview.
+  #areaCount(a) {
+    const t = this.preview?.tiles; if (!t) return 0;
+    let n = 0;
+    t.row.forEach((r, i) => { if (this.editor.at(1, r, t.col[i]) === a.key) n += t.households[i]; });
+    return n;
+  }
+
+  // Areas and the make-up of their households: the one being painted (or
+  // picked in the list) has its households, budget, segments and sizes
+  // under its name and colour.
   #renderAreas() {
     const d = this.world.draft; const schema = this.world.schema; if (!schema) return;
+    const held = document.activeElement;
+    if (held && this.areasCard.root.contains(held) && held.type === "range") return;       // a slider in hand keeps its place
     const m = d.macro;
     if (!m.areas.some((a) => a.id === this.area)) this.area = m.areas[0]?.id ?? "__default";
-    const list = el("div", { class: "area-list" }, ...m.areas.map((a) => el("div", { class: `area-row${a.id === this.area ? " is-on" : ""}` },
-      colourField({ label: `Colour of ${a.name}`, value: a.colour, onChange: (v) => { this.world.edit(() => { a.colour = v; }); this.editor.refreshColours(); this.#renderPalette(); } }).root,
-      el("button", { type: "button", class: "linkish", text: a.name, onclick: () => { this.area = a.id; this.#setLayer("areas"); this.editor.setPaint(a.key); this.#renderPalette(); this.#renderAreas(); } }),
-      el("span", { class: "sub", text: this.#areaHouseholds(a) }),
+    const fresh = this.previewState === "fresh" && this.preview?.tiles;
+    const count = (a) => (fresh ? `${fmt.compact(this.#areaCount(a))} households` : "");
+    const select = (a) => { this.area = a.id; this.#setLayer("areas"); this.editor.setPaint(a.key); this.#renderPalette(); this.#renderAreas(); };
+    const list = el("div", { class: "area-list" }, ...m.areas.map((a) => el("div", { class: `area-row${a.id === this.area ? " is-on" : ""}`, vars: { "--area": a.colour } },
+      colourField({ label: `Colour of ${a.name}`, value: a.colour, onChange: (v) => { this.world.edit(() => { a.colour = v; }); this.editor.refreshColours(); this.#renderPalette(); this.#renderAreas(); } }).root,
+      el("button", { type: "button", class: "linkish", text: a.name, title: `Paint ${a.name} and set who lives there`, onclick: () => select(a) }),
+      el("span", { class: "sub", text: count(a) }),
       el("button", { type: "button", class: "icon-btn", "aria-label": `Delete ${a.name}`, title: `Delete ${a.name} (its tiles become no area)`, text: "×", onclick: () => this.#deleteArea(a) }))),
     el("div", { class: `area-row${this.area === "__default" ? " is-on" : ""}` }, el("i", { class: "legend-swatch square", vars: { "--c": "transparent" } }),
-      el("button", { type: "button", class: "linkish", text: "Outside every area", onclick: () => { this.area = "__default"; this.#renderAreas(); } })));
+      el("button", { type: "button", class: "linkish", text: "Outside every area", onclick: () => { this.area = "__default"; this.#renderAreas(); } }),
+      el("span", { class: "sub", text: fresh ? `${fmt.compact(this.preview.households - m.areas.reduce((acc, a) => acc + this.#areaCount(a), 0))} households` : "" }), el("span")));
     const add = el("button", { type: "button", class: "btn small", text: "Add area", disabled: m.areas.length >= (schema.limits.areas ?? 40) || null, onclick: () => this.#addArea() });
     const a = m.areas.find((x) => x.id === this.area);
     const mk = a ?? m.default_makeup;
-    const nameField = a ? textField({ label: "Name", value: a.name, onChange: (v) => { this.world.edit(() => { a.name = v; }); this.#renderAreas(); this.#renderPalette(); } }).root : null;
+    const nameField = a ? textField({ label: "Name", value: a.name, onChange: (v) => { this.world.edit(() => { a.name = v; }); this.areaLabels = null; this.#renderAreas(); this.#renderPalette(); this.editor.draw(); } }) : null;
     const budget = settingLever(schema.fields.area.budget, { value: mk.budget, onChange: (v) => this.world.edit(() => { mk.budget = v; }) });
     const mixBlock = (what, keys, labels) => {
       const total = el("span", { class: "sub" });
@@ -511,19 +717,20 @@ export class MapEditor {
         el("div", { class: "settings-grid compact" }, ...keys.map((k, i) => settingLever({ label: labels[i], min: 0, max: 1, step: 0.01, format: "pct" }, {
           value: mk[what][k] ?? 0, onChange: (v) => { this.world.edit(() => { mk[what][k] = v; }); showTotal(); } }).root)));
     };
+    const who = a ? count(a) : "";
     this.areasCard.body.replaceChildren(list, el("div", { class: "row" }, add),
-      el("div", { class: "area-detail" }, el("h3", { class: "setup-heading", text: a ? a.name : "Households outside every area" }), nameField, budget.root,
+      el("div", { class: "area-detail", vars: { "--area": a?.colour ?? "transparent" } },
+        el("div", { class: "area-head" }, el("h3", { text: a ? a.name : "Households outside every area" }), who ? el("span", { class: "sub", text: who }) : null),
+        el("p", { class: "note", text: a ? "The households living on this area's tiles: their budget, and the shares of each segment and size. Paint the area on the map with the Areas layer." : "The make-up of the households living outside every painted area." }),
+        nameField?.root, budget.root,
         mixBlock("segment_mix", d.segments.map((s) => s.id), d.segments.map((s) => s.name)),
         mixBlock("size_mix", schema.sizes, schema.sizes)));
+    this.areaName = nameField;
   }
 
-  #areaHouseholds(a) {
-    const t = this.preview?.tiles; if (!t) return "";
-    let n = 0;
-    t.row.forEach((r, i) => { if (this.editor.at(1, r, t.col[i]) === a.key) n += t.households[i]; });
-    return `${fmt.compact(n)} households`;
-  }
-
+  // A new area: named, coloured, with the make-up of the area it was made
+  // beside (or the map's default), ready to paint with a brush big enough
+  // for a neighbourhood.
   #addArea() {
     const d = this.world.draft; const m = d.macro;
     const key = [...AREA_KEYS].find((k) => !m.areas.some((a) => a.key === k));
@@ -535,7 +742,11 @@ export class MapEditor {
     this.editor.record();
     this.world.edit(() => { m.areas.push(area); });
     this.area = area.id;
-    this.#setLayer("areas"); this.editor.setPaint(key); this.#renderPalette(); this.#renderAreas();
+    this.#setLayer("areas"); this.editor.setPaint(key);
+    if (this.editor.brush === 1) this.editor.setBrush(7);
+    if (!["pencil", "fill", "rect"].includes(this.editor.tool)) this.editor.setTool("pencil");
+    this.#renderPalette(); this.#renderAreas();
+    this.areaName?.input.select?.();
   }
 
   #deleteArea(a) {
@@ -544,19 +755,72 @@ export class MapEditor {
     const rows = this.editor.rows(1).map((row) => row.split(a.key).join("."));
     this.world.edit(() => { m.areas = m.areas.filter((x) => x.id !== a.id); m.area_tiles = rows; });
     this.editor.load([m.tiles, rows], { keepView: true });
-    this.loadedKey = null;
+    this.loadedKey = null; this.areaLabels = null;
     this.#renderPalette(); this.#renderAreas(); this.#schedulePreview();
   }
 
-  // Map settings: size and scale, households, speeds, parking, word of mouth.
+  // ---- Starting geographies ----------------------------------------------------------------------
+
+  // A geography to start from: the map only. Picking one says what it will
+  // replace and what it leaves, and asks first.
+  #renderStart() {
+    const d = this.world.draft; if (!d) return;
+    if (!this.geographies) { this.startCard.body.replaceChildren(el("p", { class: "note", text: "Loading the starting geographies…" })); return; }
+    const m = d.macro;
+    const buttons = this.geographies.map((g) => el("button", { type: "button", class: `geo-btn${this.asking?.id === g.id ? " is-on" : ""}`, title: g.about, dataset: { geography: g.id },
+      onclick: () => { this.asking = this.asking?.id === g.id ? null : g; this.#renderStart(); } },
+    geographyThumb(g, (ch) => this.#landColour(ch)), el("b", { text: g.name }), el("span", { class: "sub", text: g.blank ? `${m.width} × ${m.height} tiles` : `${g.width} × ${g.height} tiles` })));
+    let ask = null;
+    if (this.asking) {
+      const g = this.asking;
+      const W = g.blank ? m.width : g.width; const H = g.blank ? m.height : g.height;
+      const sites = g.sites?.length ?? 0;
+      const km = (n) => fmt.num1(n * m.patch_m / 1000);
+      ask = el("div", { class: "confirm" },
+        el("p", {}, el("b", { text: `Replace the map with ${g.name}?` }), ` ${g.about}`),
+        el("ul", { class: "plain" },
+          el("li", { text: `The map's tiles are replaced: ${W} × ${H} tiles, ${km(W)} × ${km(H)} km at this map's ${fmt.int(m.patch_m)} m a tile.` }),
+          el("li", { text: g.blank ? "Every area's tiles are cleared. The areas themselves, and the households set for them, are kept."
+            : `Your ${m.areas.length} area${m.areas.length === 1 ? " is" : "s are"} kept, with the households set for ${m.areas.length === 1 ? "it" : "them"}, and repainted onto its ${g.areas.length} district${g.areas.length === 1 ? "" : "s"}${g.areas.length > m.areas.length ? ` (${g.areas.length - m.areas.length} new, with the default make-up)` : ""}.` }),
+          el("li", { text: sites ? `Your ${d.stores.length} stores go to its ${sites} store sites${d.stores.length > sites ? `; ${d.stores.length - sites} wait on the Stores layer` : ""}.`
+            : `Your ${d.stores.length} stores come off the map and wait on the Stores layer: it can't run until homes are painted and the stores are placed.` }),
+          el("li", { text: "Nothing else changes: brands, ranges, shoppers, offers, layouts, map settings and the season stay as they are. Undo brings this map back." })),
+        el("div", { class: "row" },
+          el("button", { type: "button", class: "btn small primary", text: "Replace the map", onclick: () => this.#startFrom(g) }),
+          el("button", { type: "button", class: "btn small", text: "Keep this map", onclick: () => { this.asking = null; this.#renderStart(); } })));
+    }
+    fill(this.startCard.body, el("div", { class: "geo-list" }, ...buttons), ask,
+      this.asking ? null : el("p", { class: "note", text: "Each replaces the map's tiles and keeps the rest of the world. You're asked first, and Undo brings the old map back." }));
+  }
+
+  #startFrom(g) {
+    this.editor.record();
+    let out;
+    this.world.edit((d) => { out = applyGeography(d, g); }, { source: "map" });
+    const m = this.world.draft.macro;
+    this.editor.load([m.tiles, m.area_tiles]);
+    this.loadedKey = JSON.stringify([m.width, m.height, m.tiles, m.area_tiles]); this.loadedSize = `${m.width}x${m.height}`;
+    this.areaLabels = null; this.densitySum = undefined; this.asking = null; this.selected = null;
+    this.editor.setHighlights([]);
+    this.#setLayer(g.blank ? "land" : this.layer);
+    this.#renderSide(); this.#schedulePreview(0);
+    this.app.banner(`The map is now ${g.name}`, g.blank ? "Paint homes for the households to live on, then roads, and place the stores. Undo brings the old map back."
+      : `${out.placed} store${out.placed === 1 ? "" : "s"} on its sites${out.unplaced ? `, ${out.unplaced} waiting on the Stores layer` : ""}. Everything else in the world is as it was; Undo brings the old map back.`);
+  }
+
+  // ---- Map settings ----------------------------------------------------------------------------------
+
+  // Size and scale, households, speeds, parking, word of mouth.
   #renderSettings() {
     const d = this.world.draft; const schema = this.world.schema; if (!schema) return;
+    const held = document.activeElement;
+    if (held && this.settingsCard.root.contains(held) && ["range", "number"].includes(held.type)) return;      // a setting in hand keeps its place
     const m = d.macro;
     const f = schema.fields.macro;
     const setM = (k) => (v) => {
       this.world.edit(() => { m[k] = v; });
       if (k === "patch_m") this.editor.draw();
-      if (k === "households" && this.layer === "land") this.#renderPalette();
+      this.#renderPalette(); this.#renderLegend();
       this.#schedulePreview();
     };
     const w = numberField({ label: "Width (tiles)", value: m.width, min: 8, max: 600, onChange: () => {} });
@@ -577,7 +841,7 @@ export class MapEditor {
     } });
     this.settingsCard.body.replaceChildren(
       el("div", { class: "resize" }, w.root, h.root, el("div", { class: "field" }, el("span", { text: "Keep at" }), anchors), apply),
-      el("p", { class: "note", text: `${fmt.int(m.width)} × ${fmt.int(m.height)} tiles of ${fmt.int(m.patch_m)} m: ${fmt.num1(m.width * m.patch_m / 1000)} × ${fmt.num1(m.height * m.patch_m / 1000)} km. At most ${fmt.int(limit)} tiles.` }),
+      el("p", { class: "note", text: `${fmt.int(m.width)} × ${fmt.int(m.height)} tiles of ${fmt.int(m.patch_m)} m: ${fmt.num1(m.width * m.patch_m / 1000)} × ${fmt.num1(m.height * m.patch_m / 1000)} km. At most ${fmt.int(limit)} tiles. Zooming the view changes neither.` }),
       el("div", { class: "settings-grid" }, ...["patch_m", "households", "road_mps", "local_mps", "park_s", "wom_m"].map((k) => settingLever(f[k], { value: m[k], onChange: setM(k) }).root)));
   }
 
@@ -600,9 +864,47 @@ export class MapEditor {
       }
     });
     this.loadedKey = JSON.stringify([W, H, rows[0], rows[1]]); this.loadedSize = `${W}x${H}`;
+    this.areaLabels = null; this.densitySum = undefined;
     this.#renderSide(); this.#schedulePreview();
     if (off) this.app.banner(`${off} store${off === 1 ? "" : "s"} cropped off the map`, "They're still in the world, not on the map yet: the Stores layer puts them back.");
   }
+}
+
+// A store's pin: a head in the brand's colour over the point where the
+// store stands. (The map's shops tiles are squares of ground.)
+function pin(ctx, x, y, size, colour, edge, width) {
+  const r = size / 2; const cy = y - size * 0.95;
+  ctx.beginPath();
+  ctx.arc(x, cy, r, Math.PI * 0.83, Math.PI * 0.17);
+  ctx.lineTo(x, y);
+  ctx.closePath();
+  ctx.fillStyle = colour; ctx.fill();
+  ctx.lineWidth = width; ctx.strokeStyle = edge; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, cy, r * 0.36, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+}
+
+function pinIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("width", "12"); svg.setAttribute("height", "12"); svg.setAttribute("aria-hidden", "true");
+  const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  p.setAttribute("d", "M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"); p.setAttribute("fill", "var(--accent)");
+  svg.append(p); return svg;
+}
+
+// A geography's picture, small: its tiles in the map's colours.
+function geographyThumb(g, colour) {
+  const W = g.width ?? 16; const H = g.height ?? 12;
+  const c = el("canvas", { class: "geo-thumb", width: W, height: H, "aria-hidden": "true" });
+  const ctx = c.getContext("2d");
+  if (!g.tiles) { ctx.fillStyle = colour("."); ctx.fillRect(0, 0, W, H); return c; }
+  const cache = new Map();
+  g.tiles.forEach((row, r) => {
+    for (let x = 0; x < row.length; x++) {
+      let col = cache.get(row[x]); if (!col) { col = colour(row[x]); cache.set(row[x], col); }
+      ctx.fillStyle = col; ctx.fillRect(x, r, 1, 1);
+    }
+  });
+  return c;
 }
 
 function hslHex(h, s, l) {

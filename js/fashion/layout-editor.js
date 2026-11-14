@@ -1,26 +1,31 @@
 // The micro world's editor, on the Setup tab: store layouts, painted. The
-// world's layouts on the left (how big, how many stores use each), the
-// plan in the middle (drawn as the Store tab draws floors), and on the
-// right the tiles, the layout's properties, and what the model says about
-// it: its problems (click one to see its tiles) and, once it has none, its
-// floor area, doors, fitting rooms, tills, queue places against the
-// stores' queue limits, rack tiles, faces and places to stand per
-// category, the longest walk from a door and a fetch from the stockroom.
+// plan in the middle (drawn as the Store tab draws floors) with its tiles
+// beside it, named in words; and beside those the world's layouts (how
+// big, how many stores use each, and what a new one can start from: a
+// blank shell or a copy of a prefab), and what the model says about the
+// plan: its problems, each marked on the tiles it's about (click one to
+// see only its tiles), and, once it has none, its floor area, doors,
+// fitting rooms, tills, queue places against the stores' queue limits,
+// rack tiles, faces and places to stand per category, the longest walk
+// from a door and a fetch from the stockroom.
 //
 // On the plan, what the model reads from it (layout_uses in floors.R): the
 // doors, the places to stand at each category's racks, the cubicles and
 // tills numbered in the order staff open them with where their shopper
 // stands, each queue's places in order, where assistants fetch from the
 // stockroom, and rack tiles with no floor beside them (hatched: not rack
-// space).
+// space). Racks, the stockroom, the fitting rooms and the tills are named
+// on the plan.
 //
 // Tools beyond the canvas's own: the queue tool (drag a queue out from its
 // head: one head, a single line joined to it, replacing the old one) and
-// stamps (a walled cubicle, a till unit; [ and ] turn them). Undo also
-// brings back the staff that a stroke took from the stores running the
-// layout.
+// fixtures put down whole (Place: a walled cubicle, a till unit; [ and ]
+// turn them). The brush's size changes neither. Undo also brings back the
+// staff that a stroke took from the stores running the layout.
+//
+// A tile is half a metre (CELL_M in floors.R), whatever the view's zoom.
 
-import { el, fmt, card, select, textField, settingLever, cssVar, numberField } from "./ui.js";
+import { el, fill, fmt, card, textField, settingLever, cssVar, numberField } from "./ui.js";
 import { GridEditor, toolbar } from "./grid-editor.js";
 import { clone, newId, newName, worldText, download, pickFile } from "./world-store.js";
 
@@ -28,10 +33,10 @@ import { clone, newId, newName, worldText, download, pickFile } from "./world-st
 // with what it does in the model where that isn't plain. Racks are the
 // world's categories, each painted with its key.
 const STRUCTURE = [
-  { group: "Structure", tiles: [[".", "Floor"], ["#", "Wall"], ["=", "Door", "on the outer edge; each run is an entrance"],
+  { group: "Structure", tiles: [[".", "Floor", "where shoppers and staff walk"], ["#", "Wall"], ["=", "Door", "on the outer edge; each run is an entrance"],
     ["X", "Stockroom", "looks only"], ["x", "Stockroom door", "assistants fetch sizes from here"]] },
-  { group: "Fitting rooms", tiles: [["F", "Cubicle", "touching F tiles are one cubicle"], ["W", "Queue head"], ["w", "Queue line"]] },
-  { group: "Tills", tiles: [["$", "Counter"], ["c", "Cashier's place"], [":", "Behind the counter", "looks only"], ["Q", "Queue head"], ["q", "Queue line"]] },
+  { group: "Fitting rooms", tiles: [["F", "Cubicle", "touching cubicle tiles are one cubicle"], ["W", "Queue head"], ["w", "Queue line"]], queue: "W" },
+  { group: "Tills", tiles: [["$", "Counter"], ["c", "Cashier's place"], [":", "Behind the counter", "looks only"], ["Q", "Queue head"], ["q", "Queue line"]], queue: "Q" },
 ];
 export function floorTiles(categories = []) {
   return [STRUCTURE[0], { group: "Racks", note: "only rack tiles with floor beside them hold stock", tiles: categories.map((c) => [c.key, c.name]) }, ...STRUCTURE.slice(1)];
@@ -42,13 +47,13 @@ export function floorTiles(categories = []) {
 // its cashier behind, the customer's side to the left. A space leaves the
 // plan as it is.
 const STAMPS = [
-  { id: "cubicle", name: "Walled cubicle", ch: "F", rows: ["####", "#FF#", "#FF#", "#FF#"] },
-  { id: "till", name: "Till unit", ch: "c", rows: ["$::", "$c:", "$::"] },
+  { id: "cubicle", name: "Fitting room", about: "a cubicle walled on three sides, open towards the floor", ch: "F", rows: ["####", "#FF#", "#FF#", "#FF#"] },
+  { id: "till", name: "Till unit", about: "a counter with its cashier's place behind; the customer stands on the counter's other side", ch: "c", rows: ["$::", "$c:", "$::"] },
 ];
 const QUEUES = { W: ["W", "w"], w: ["W", "w"], Q: ["Q", "q"], q: ["Q", "q"] };
-const QUEUE_TOOL = { id: "queue", label: "Queue: drag from its head (the queue picked on the palette)", key: "u", kind: "path",
+const QUEUE_TOOL = { id: "queue", name: "Queue", label: "Queue: drag from its head (the queue picked on the palette)", key: "u", kind: "path",
   icon: "M4 11h3v2H4zm5 0h3v2H9zm5 0h3v2h-3zM19 8l4 4-4 4z" };
-const STAMP_TOOL = { id: "stamp", label: "Stamp", key: "t", kind: "stamp", icon: "" };
+const STAMP_TOOL = { id: "stamp", name: "Place", label: "Place a fixture", key: "t", kind: "stamp", icon: "" };
 const ANCHORS = ["nw", "n", "ne", "w", "c", "e", "sw", "s", "se"];
 
 // Tills and fitting rooms a picture has: cashier's places, and blocks of F.
@@ -104,7 +109,7 @@ function withAlpha(colour, alpha) {
 
 // A new layout: walls round a floor, with a door in the middle of the
 // south wall.
-function blankShell(W = 40, H = 24) {
+export function blankShell(W = 40, H = 24) {
   const rows = [];
   for (let r = 0; r < H; r++) {
     let row = "";
@@ -119,20 +124,25 @@ function blankShell(W = 40, H = 24) {
 export class LayoutEditor {
   constructor(root, app) {
     this.app = app; this.world = app.world;
-    this.current = null; this.report = null; this.checkTimer = 0; this.checkSeq = 0;
+    this.current = null; this.report = null; this.checkTimer = 0; this.checkRev = 0; this.checkState = "none";
+    this.prefabs = null; this.shown = null;
 
+    // The world's layouts, and what a new one starts from.
     this.listBox = el("div", { class: "layout-list" });
-    this.newSel = select({ label: "New layout", hideLabel: true, value: "", options: [{ value: "", label: "New…" }], onChange: (v) => { if (v) this.#create(v); this.newSel.set(""); } });
-    const left = card("Layouts", { sub: "in this world" });
-    left.body.append(this.listBox, el("div", { class: "row wrap" }, this.newSel.root,
-      el("button", { type: "button", class: "btn small", text: "Duplicate", onclick: () => this.#duplicate() }),
-      el("button", { type: "button", class: "btn small", text: "Delete", onclick: () => this.#delete() })),
-    el("div", { class: "row wrap" },
-      el("button", { type: "button", class: "btn small", text: "Export layout", onclick: () => this.#export() }),
-      el("button", { type: "button", class: "btn small", text: "Import layout", onclick: () => this.#import() })));
+    this.startBox = el("div", { class: "geo-list layout-starts" });
+    const lists = card("Layouts", { sub: "in this world" });
     this.leftNote = el("p", { class: "note" });
-    left.body.append(this.leftNote);
+    lists.body.append(this.listBox,
+      el("div", { class: "row wrap" },
+        el("button", { type: "button", class: "btn small", text: "Duplicate", onclick: () => this.#duplicate() }),
+        el("button", { type: "button", class: "btn small", text: "Delete", onclick: () => this.#delete() }),
+        el("button", { type: "button", class: "btn small", text: "Export layout", onclick: () => this.#export() }),
+        el("button", { type: "button", class: "btn small", text: "Import layout", onclick: () => this.#import() })),
+      this.leftNote,
+      el("h3", { class: "setup-heading", text: "Start a new layout from" }), this.startBox,
+      el("p", { class: "note", text: "A blank shell is walls round an empty floor with a door; a prefab is a finished store to change. Either is added to this world's layouts, and replaces nothing." }));
 
+    // The plan, its tools, and its tiles beside it.
     const wrap = el("div", { class: "editor-canvas layout-editor-canvas" });
     this.stampId = null;
     this.editor = new GridEditor(wrap, {
@@ -150,41 +160,52 @@ export class LayoutEditor {
       restore: (staff) => this.#restoreStaff(staff),
     });
     this.onStaff = null;                   // the stores' staff changed here (Setup redraws the store editor)
+    this.onShowStore = null;               // shows a store on the map (Setup)
     this.editor.setPaint("#");
     this.hoverText = el("div", { class: "editor-hover" });
+    this.stateBox = el("div", { class: "world-states", role: "status" });
     this.centre = card("Plan", { sub: "one tile is half a metre" });
+    this.centre.root.classList.add("canvas-card");
     this.tools = toolbar(this.editor, { place: {
       label: "Place", title: "Place a fixture, put down whole: a walled fitting room or a till unit ([ and ] turn it)",
       onClick: () => this.#pickStamp(this.stampId ?? this.lastStamp ?? STAMPS[0].id), active: () => this.editor.tool === "stamp" } });
-    this.centre.body.append(el("div", { class: "editor-bar" }, this.tools), wrap, el("div", { class: "editor-foot" }, this.hoverText));
+    this.palette = el("div", { class: "palette grouped plan-palette", role: "radiogroup", "aria-label": "Tiles" });
+    this.centre.body.append(el("div", { class: "editor-bar" }, this.tools), el("div", { class: "plan-work" }, this.palette, wrap),
+      el("div", { class: "editor-foot" }, this.hoverText), this.stateBox);
 
-    this.palette = el("div", { class: "palette grouped" });
     this.props = el("div");
     this.problemsBox = el("div", { class: "problems-box" });
     this.summaryBox = el("div");
     this.sizeBox = el("div");
-    const right = el("div", { class: "grid" });
-    const pal = card("Tiles"); pal.body.append(this.palette);
+    const side = el("div", { class: "grid layout-side" });
     const pr = card("Properties"); pr.body.append(this.props, this.sizeBox);
     const chk = card("What the model says", { sub: "read with the simulation's own code" }); chk.body.append(this.problemsBox, this.summaryBox);
-    right.append(pal.root, chk.root, pr.root);
-    this.root = el("div", { class: "grid layout-editor" }, left.root, this.centre.root, right);
+    side.append(lists.root, chk.root, pr.root);
+    this.root = el("div", { class: "grid layout-editor" }, this.centre.root, side);
     root.append(this.root);
     this.#renderPalette();
+    this.world.addEventListener("change", () => this.#renderStates());
   }
 
   show() {
     const d = this.world.draft; if (!d) return;
-    this.world.loadPrefabs().then((p) => this.newSel.setOptions([{ value: "", label: "New…" }, { value: "__blank", label: "Blank shell" },
-      ...p.map((x) => ({ value: x.id, label: `Copy of ${x.name}` }))], "")).catch(() => {});
+    if (!this.prefabs) this.world.loadPrefabs().then((p) => { this.prefabs = p; this.#renderStarts(); }).catch(() => { this.prefabs = []; this.#renderStarts(); });
     if (!d.layouts.some((l) => l.id === this.current)) this.current = d.layouts[0]?.id ?? null;
     this.#renderPalette();
     this.editor.refreshColours();
     this.#load();
     this.#renderList();
+    this.#renderStarts();
+    this.#renderStates();
   }
 
   reload() { this.loadedKey = null; this.editor.clearHistory(); this.show(); }
+
+  // A layout's plan, brought into view (from a store that runs it).
+  open(id) {
+    this.current = id; this.show();
+    this.root?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   get layout() { return this.world.draft?.layouts.find((l) => l.id === this.current); }
   get categories() { return this.world.draft?.categories ?? []; }
@@ -211,7 +232,7 @@ export class LayoutEditor {
     this.onStaff?.();
   }
 
-  // ---- The queue tool and stamps ------------------------------------------------------------
+  // ---- The queue tool and fixtures ------------------------------------------------------------
 
   // The queue tool paints the queue picked on the palette (the till queue
   // unless a fitting-room queue tile is picked).
@@ -242,6 +263,13 @@ export class LayoutEditor {
     this.editor.setTool("stamp");
   }
 
+  // The queue tool, for the fitting rooms' queue (W) or the tills' (Q).
+  #drawQueue(head) {
+    this.editor.setPaint(head);
+    this.editor.setTool("queue");
+    this.#renderPalette();
+  }
+
   #load() {
     const L = this.layout;
     if (!L) return;
@@ -249,9 +277,10 @@ export class LayoutEditor {
     if (key !== this.loadedKey) {
       const same = this.loadedKey?.startsWith(`${L.id}|`);
       this.editor.load([L.rows], { keepView: same });
-      if (!same) this.editor.clearHistory();
+      if (!same) { this.editor.clearHistory(); this.shown = null; }
       this.loadedKey = key;
     }
+    this.centre.head.querySelector("h2").textContent = `Plan: ${L.name}`;
     this.#renderProps();
     this.#scheduleCheck(0);
   }
@@ -259,47 +288,74 @@ export class LayoutEditor {
   #renderList() {
     const d = this.world.draft;
     const used = (id) => d.stores.filter((s) => s.layout === id);
-    this.listBox.replaceChildren(...d.layouts.map((L) => {
+    fill(this.listBox, ...d.layouts.map((L) => {
       const n = used(L.id).length;
       return el("button", { type: "button", class: `layout-row${L.id === this.current ? " is-on" : ""}`, onclick: () => { this.current = L.id; this.#load(); this.#renderList(); } },
+        planThumb(L.rows, (ch) => this.#thumbColour(ch)),
         el("b", { text: L.name }), el("span", { class: "sub", text: `${fmt.num1(L.rows[0].length / 2)} × ${fmt.num1(L.rows.length / 2)} m · ${n ? `used by ${n} store${n === 1 ? "" : "s"}` : "not used"}` }));
     }));
-    this.leftNote.textContent = "A layout is a floor plan any store can run; changes here reach every store that uses it at the next Setup.";
+    const users = used(this.current);
+    fill(this.leftNote, "A layout is a floor plan any store can run; changes here reach every store that uses it at the next Setup.",
+      users.length ? el("span", {}, " Run by: ", ...users.slice(0, 8).flatMap((s, i) => [i ? ", " : "",
+        el("button", { type: "button", class: "linkish", text: s.name, title: `Show ${s.name} on the map`, onclick: () => this.onShowStore?.(s.id) })]), users.length > 8 ? ` and ${users.length - 8} more.` : ".") : null);
+  }
+
+  // What a new layout can start from: a blank shell, or a copy of a prefab.
+  #renderStarts() {
+    const starts = [{ id: "__blank", name: "Blank shell", rows: blankShell(), about: "Walls round an empty floor, with a door" },
+      ...(this.prefabs ?? []).map((p) => ({ id: p.id, name: p.name, rows: p.rows, about: `A copy of the ${p.name} prefab` }))];
+    fill(this.startBox, ...starts.map((p) => el("button", { type: "button", class: "geo-btn", title: p.about, dataset: { start: p.id }, onclick: () => this.#create(p.id) },
+      planThumb(p.rows, (ch) => this.#thumbColour(ch)), el("b", { text: p.name }), el("span", { class: "sub", text: `${fmt.num1(p.rows[0].length / 2)} × ${fmt.num1(p.rows.length / 2)} m` }))));
+  }
+
+  // A tile's colour in a small picture (a rack key this world has no
+  // category for is drawn plainly, as a rack).
+  #thumbColour(ch) {
+    const col = floorColour(ch, this.editor.wrap, this.categories);
+    return col === "#ff00ff" ? withAlpha(cssVar("--muted", this.editor.wrap), 0.5) : col;
   }
 
   #renderPalette() {
     const tool = this.editor.tool;
-    const tiles = floorTiles(this.categories).map((g) => el("div", { class: "palette-group" }, el("div", { class: "palette-title", text: g.note ? `${g.group} (${g.note})` : g.group }),
+    const pick = (ch) => {
+      this.editor.setPaint(ch);
+      const keep = tool === "queue" ? QUEUES[ch] : !["erase", "pick", "select", "pan", "stamp"].includes(tool);
+      if (!keep) this.editor.setTool("pencil");
+      this.#renderPalette();
+    };
+    const chip = (colour) => el("i", { class: "swatch-chip", vars: { "--c": colour } });
+    const tiles = floorTiles(this.categories).map((g) => el("div", { class: "palette-group" },
+      el("div", { class: "palette-title", text: g.note ? `${g.group} (${g.note})` : g.group }),
       el("div", { class: "palette-row" }, ...g.tiles.map(([ch, name, note]) => {
         const label = note ? `${name} (${note})` : name;
         return el("button", {
-          type: "button", class: "swatch", role: "radio", "aria-checked": String(tool !== "stamp" && this.editor.paint === ch), title: label, "aria-label": label,
-          vars: { "--c": floorColour(ch, this.editor.wrap, this.categories) },
-          onclick: () => {
-            this.editor.setPaint(ch);
-            const keep = tool === "queue" ? QUEUES[ch] : !["erase", "pick", "select", "pan", "stamp"].includes(tool);
-            if (!keep) this.editor.setTool("pencil");
-            this.#renderPalette();
-          },
-        }, el("span", { text: ch }), el("em", { text: label }));
-      }))));
-    const stamps = el("div", { class: "palette-group" }, el("div", { class: "palette-title", text: "Stamps ([ and ] turn them)" }),
+          type: "button", class: "swatch named", role: "radio", "aria-checked": String(tool !== "stamp" && this.editor.paint === ch), title: `${label} · written "${ch}" in a layout file`, "aria-label": label,
+          dataset: { ch }, onclick: () => pick(ch),
+        }, chip(floorColour(ch, this.editor.wrap, this.categories)), el("em", { text: name }));
+      }),
+      g.queue ? el("button", { type: "button", class: `swatch named add${tool === "queue" && this.#queueKind()[0] === g.queue ? " is-on" : ""}`, dataset: { queue: g.queue },
+        title: "Drag the queue out from its head, one tile a step: it replaces the old one, with one head and a single line joined to it",
+        "aria-label": `Draw the ${g.group === "Tills" ? "till" : "fitting-room"} queue`, "aria-pressed": String(tool === "queue" && this.#queueKind()[0] === g.queue),
+        onclick: () => this.#drawQueue(g.queue) }, el("em", { text: "Draw its queue" })) : null)));
+    const fixtures = el("div", { class: "palette-group" }, el("div", { class: "palette-title", text: "Fixtures, put down whole" }),
       el("div", { class: "palette-row" }, ...STAMPS.map((st) => el("button", {
-        type: "button", class: "swatch", role: "radio", "aria-checked": String(tool === "stamp" && this.stampId === st.id), title: st.name, "aria-label": st.name,
-        vars: { "--c": floorColour(st.ch, this.editor.wrap, this.categories) }, onclick: () => this.#pickStamp(st.id),
-      }, el("span", { text: st.ch }), el("em", { text: st.name }))),
-      el("button", { type: "button", class: "btn small", text: "Turn", title: "Turn the stamp a quarter (])", disabled: tool !== "stamp" || null, onclick: () => this.editor.turnStamp(1) })));
-    this.palette.replaceChildren(...tiles, stamps);
+        type: "button", class: "swatch named", role: "radio", "aria-checked": String(tool === "stamp" && this.stampId === st.id), "aria-label": st.name, dataset: { stamp: st.id },
+        title: `${st.name}: ${st.about}. ${st.rows[0].length} × ${st.rows.length} tiles (${st.rows[0].length / 2} × ${st.rows.length / 2} m).`, onclick: () => this.#pickStamp(st.id),
+      }, chip(floorColour(st.ch, this.editor.wrap, this.categories)), el("em", { text: `${st.name} · ${st.rows[0].length / 2} × ${st.rows.length / 2} m` }))),
+      el("button", { type: "button", class: "btn small", text: "Turn", title: "Turn the fixture a quarter (])", disabled: tool !== "stamp" || null, onclick: () => { this.editor.turnStamp(1); this.editor.canvas.focus({ preventScroll: true }); } })));
+    fill(this.palette, ...tiles, fixtures);
+    this.tools?.sync();
   }
 
   #renderProps() {
     const L = this.layout; const schema = this.world.schema;
     if (!L || !schema) return;
-    const d = this.world.draft;
-    const name = textField({ label: "Name", value: L.name, onChange: (v) => { this.world.edit(() => { L.name = v; }); this.#renderList(); } });
+    const held = document.activeElement;
+    if (held && (this.props.contains(held) || this.sizeBox.contains(held)) && ["range", "number", "text"].includes(held.type)) return;      // a setting in hand keeps its place
+    const name = textField({ label: "Name", value: L.name, onChange: (v) => { this.world.edit(() => { L.name = v; }); this.centre.head.querySelector("h2").textContent = `Plan: ${v}`; this.#renderList(); } });
     const draw = settingLever(schema.fields.layout.draw, { value: L.draw, onChange: (v) => this.world.edit(() => { L.draw = v; }),
       title: "How much more this layout attracts shoppers than a store with draw 0, in the same units as price, distance and the rest" });
-    this.props.replaceChildren(name.root, draw.root, el("p", { class: "note", text: `Id: ${L.id} (a store names the layout it runs by this).` }));
+    fill(this.props, name.root, draw.root, el("p", { class: "note", text: `Id: ${L.id} (a store names the layout it runs by this).` }));
     // Canvas size.
     const w = numberField({ label: "Width (tiles)", value: L.rows[0].length, min: 5, max: schema.limits.layout_w });
     const h = numberField({ label: "Height (tiles)", value: L.rows.length, min: 5, max: schema.limits.layout_h });
@@ -314,9 +370,8 @@ export class LayoutEditor {
       this.editor.resize(W, H, anchor);
       this.#stroked();
     } });
-    this.sizeBox.replaceChildren(el("h3", { class: "setup-heading", text: "Size" }), el("div", { class: "resize" }, w.root, h.root, el("div", { class: "field" }, el("span", { text: "Keep at" }), anchors), apply),
-      el("p", { class: "note", text: `Up to ${schema.limits.layout_w} × ${schema.limits.layout_h} tiles (${schema.limits.layout_w / 2} × ${schema.limits.layout_h / 2} m).` }));
-    void d;
+    fill(this.sizeBox, el("h3", { class: "setup-heading", text: "Size" }), el("div", { class: "resize" }, w.root, h.root, el("div", { class: "field" }, el("span", { text: "Keep at" }), anchors), apply),
+      el("p", { class: "note", text: `A tile is half a metre. Up to ${schema.limits.layout_w} × ${schema.limits.layout_h} tiles (${schema.limits.layout_w / 2} × ${schema.limits.layout_h / 2} m). Zooming the view changes neither.` }));
   }
 
   #stroked() {
@@ -340,31 +395,38 @@ export class LayoutEditor {
     this.#scheduleCheck();
   }
 
+  // The plan changed: what the model said is of an older plan until it
+  // answers for this one. One request goes to R once the strokes pause,
+  // never one a tile or a pointer move.
   #scheduleCheck(ms = 300) {
+    this.checkRev++;
+    this.checkState = "waiting";
+    this.#renderStates();
     clearTimeout(this.checkTimer);
     this.checkTimer = setTimeout(() => this.#check(), ms);
   }
 
   async #check() {
     const L = this.layout; if (!L) return;
-    if (!this.app.ready) { this.#scheduleCheck(500); return; }
-    const seq = ++this.checkSeq;
+    if (!this.app.ready) { clearTimeout(this.checkTimer); this.checkTimer = setTimeout(() => this.#check(), 500); return; }
+    const rev = this.checkRev;
     let r;
     try { r = await this.app.client.request("CHECK_LAYOUT", { rows: L.rows, categories: this.categories.map((c) => ({ key: c.key, name: c.name })) }); } catch (e) { r = { problems: [{ message: e.message }] }; }
-    if (seq !== this.checkSeq) return;
+    // An answer for a plan that has changed since it was asked for is
+    // dropped: the newer plan's own request is on its way.
+    if (rev !== this.checkRev) return;
     this.report = r;
     const problems = r.problems ?? [];
-    this.editor.setHighlights([]);
+    this.checkState = problems.length ? "problems" : "fresh";
+    this.shown = null;
+    this.#renderStates();
+    this.#renderProblems();
     this.editor.draw();
-    this.problemsBox.replaceChildren(problems.length
-      ? el("div", { class: "problems" }, el("b", { text: `${problems.length} problem${problems.length === 1 ? "" : "s"}: Setup won't start a world that uses this layout until they're fixed` }),
-        ...problems.map((q) => el("button", { type: "button", class: "problem", text: q.message, title: q.tiles ? "Show its tiles" : "", onclick: () => this.editor.setHighlights(q.tiles ?? []) })))
-      : el("div", { class: "ok-line", text: "No problems: the model can read this layout." }));
     const marks = el("p", { class: "note", text: "On the plan: doors ringed green; a dot in a category's colour at each place to stand; cubicles, tills and queue places numbered in the order they're used, a ring where a shopper stands to try on or pay; a diamond where assistants fetch from the stockroom; hatched racks have no floor beside them, so hold nothing." });
     const s = r.summary;
-    if (!s) { this.summaryBox.replaceChildren(marks); return; }
+    if (!s) { fill(this.summaryBox, marks); return; }
     const cats = s.categories.map((name, i) => ({ name, i })).filter((c) => s.racks[c.i] > 0);
-    this.summaryBox.replaceChildren(
+    fill(this.summaryBox,
       el("div", { class: "stats compact" },
         ...[["Floor", `${fmt.int(s.floor_m2)} m²`], ["Size", `${fmt.num1(s.width_m)} × ${fmt.num1(s.height_m)} m`], ["Doors", fmt.int(s.doors)], ["Fitting rooms", fmt.int(s.cubicles)],
           ["Tills", fmt.int(s.tills)], ["Rack space", `${fmt.num2(s.space)}× a standard store`], ["Longest walk from a door", `${fmt.num1(s.longest_walk_m)} m`],
@@ -374,6 +436,44 @@ export class LayoutEditor {
         el("tbody", {}, ...cats.map(({ name, i }) => el("tr", {}, el("td", { text: name }), el("td", { class: "num", text: fmt.int(s.racks[i]) }), el("td", { class: "num", text: fmt.int(s.faces[i]) }), el("td", { class: "num", text: fmt.int(s.places[i]) }))))),
       el("p", { class: "note", text: "A category's faces (its rack tiles with floor beside them) set how much of it a store running this layout plans to sell and puts on the floor, against a standard store's. Racks of a category the store's brand doesn't sell stand empty." }),
       this.#queueTable(s), marks);
+  }
+
+  // The plan's problems: every tile any of them is about is outlined on the
+  // plan as soon as the model has read it; a click on one shows its own
+  // tiles alone and brings them into view.
+  #renderProblems() {
+    const problems = this.report?.problems ?? [];
+    const tilesOf = (list) => list.flatMap((q) => q.tiles ?? []);
+    this.editor.setHighlights(this.shown === null ? tilesOf(problems) : problems[this.shown]?.tiles ?? []);
+    if (!problems.length) { fill(this.problemsBox, el("div", { class: "ok-line", text: "No problems: the model can read this layout." })); return; }
+    const marked = tilesOf(problems).length;
+    fill(this.problemsBox, el("div", { class: "problems" },
+      el("b", { text: `${problems.length} problem${problems.length === 1 ? "" : "s"}: Setup won't start a world that uses this layout until ${problems.length === 1 ? "it's" : "they're"} fixed` }),
+      marked ? el("span", { class: "sub", text: this.shown === null ? `The tiles they're about are outlined in red on the plan (${marked}). Click a problem to see its own.` : "Showing one problem's tiles. " }) : null,
+      this.shown !== null ? el("button", { type: "button", class: "linkish", text: "Show every problem's tiles", onclick: () => { this.shown = null; this.#renderProblems(); } }) : null,
+      ...problems.map((q, i) => el("button", { type: "button", class: `problem${this.shown === i ? " is-on" : ""}`, title: q.tiles?.length ? "Show its tiles on the plan" : "",
+        onclick: () => { this.shown = i; this.#renderProblems(); this.editor.reveal(q.tiles); } },
+      q.message, q.tiles?.length ? el("span", { class: "sub", text: ` · ${q.tiles.length} tile${q.tiles.length === 1 ? "" : "s"}` }) : null))));
+  }
+
+  // The plan being drawn, the model's reading of it, and the layout the
+  // stores are running.
+  #renderStates() {
+    const L = this.layout; if (!L || !this.stateBox) return;
+    const inst = this.world.installed?.layouts?.find((x) => x.id === L.id);
+    const same = inst && JSON.stringify(inst.rows) === JSON.stringify(L.rows);
+    const chip = (kind, name, text, title) => el("span", { class: `state-chip ${kind}`, title }, el("b", { text: name }), text);
+    const n = (this.report?.problems ?? []).length;
+    const checks = {
+      none: ["", "not read yet"], waiting: ["busy", "the model is reading this plan…"],
+      fresh: ["ok", "read by the model: no problems"], problems: ["bad", `read by the model: ${n} problem${n === 1 ? "" : "s"}, marked on the plan`],
+    }[this.checkState];
+    fill(this.stateBox,
+      chip(same ? "draft" : "draft warn", "Draft", same ? "same as the installed layout" : inst ? "changed: waits for Setup" : "a new layout: waits for Setup",
+        "The plan being drawn here. It's kept in the browser, and changes nothing in the stores until Setup."),
+      chip(`preview ${checks[0]}`, "Check", checks[1], "The model reads this plan with the code the simulation uses: its problems, and what shoppers and staff would use on it."),
+      chip("installed", "Installed", inst ? `${inst.name}: what the stores run${same ? "" : " until Setup"}` : "not installed yet",
+        "The layouts installed at the last Setup. The stores run those, whatever is drawn here, until Setup installs the draft."));
   }
 
   // Each queue's painted places, against the longest queue the stores
@@ -397,49 +497,86 @@ export class LayoutEditor {
 
   // ---- What the model reads, on the plan ------------------------------------------------------
 
+  // Names for what's painted: each block of a category's racks (of 6 tiles
+  // or more, or its largest), the stockroom, the fitting rooms, the tills.
+  #labels() {
+    if (this.labelCache?.key === this.loadedKey) return this.labelCache.items;
+    const ed = this.editor; const W = ed.W; const H = ed.H; const data = ed.layers[0].data;
+    const names = new Map(this.categories.map((c) => [c.key.charCodeAt(0), c.name]));
+    const seen = new Uint8Array(W * H);
+    const blocks = new Map();                       // a category's key -> its blocks
+    const whole = new Map([[88, { name: "Stockroom", r: 0, c: 0, n: 0 }], [70, { name: "Fitting rooms", r: 0, c: 0, n: 0, top: Infinity }], [36, { name: "Tills", r: 0, c: 0, n: 0 }]]);
+    for (let i = 0; i < data.length; i++) {
+      const code = data[i];
+      const g = whole.get(code);
+      if (g) { const r = Math.floor(i / W); g.r += r; g.c += i % W; g.n++; if (g.top !== undefined) g.top = Math.min(g.top, r); continue; }
+      if (seen[i] || !names.has(code)) continue;
+      const stack = [i]; let n = 0; let sr = 0; let sc = 0;
+      while (stack.length) {
+        const j = stack.pop();
+        if (seen[j] || data[j] !== code) continue;
+        seen[j] = 1; n++; const r = Math.floor(j / W); const c = j % W; sr += r; sc += c;
+        if (c > 0) stack.push(j - 1); if (c < W - 1) stack.push(j + 1); if (r > 0) stack.push(j - W); if (r < H - 1) stack.push(j + W);
+      }
+      if (!blocks.has(code)) blocks.set(code, []);
+      blocks.get(code).push({ name: names.get(code), r: sr / n + 0.5, c: sc / n + 0.5, n });
+    }
+    const items = [];
+    for (const list of blocks.values()) {
+      const big = list.filter((b) => b.n >= 6);
+      items.push(...(big.length ? big : [list.reduce((a, b) => (b.n > a.n ? b : a))]));
+    }
+    for (const g of whole.values()) if (g.n) items.push({ name: g.name, r: g.top !== undefined ? g.top - 0.6 : g.r / g.n + 0.5, c: g.c / g.n + 0.5, n: g.n });
+    this.labelCache = { key: this.loadedKey, items };
+    return items;
+  }
+
   #drawUses(ctx, ed) {
-    const u = this.report?.uses; if (!u) return;
     const z = ed.zoom; const root = ed.wrap;
     const centre = ([r, c]) => { const p = ed.toScreen(r, c); return [p.x + z / 2, p.y + z / 2]; };
     const ink = cssVar("--ink", root); const surface = cssVar("--surface", root);
     ctx.save();
-    // Rack tiles with no floor beside them: hatched.
-    if (u.hidden) {
-      ctx.strokeStyle = withAlpha(ink.startsWith("#") ? ink : "#000000", 0.45); ctx.lineWidth = Math.max(1, z / 10);
-      ctx.beginPath();
-      for (const [r, c] of u.hidden) { const p = ed.toScreen(r, c); ctx.moveTo(p.x, p.y + z); ctx.lineTo(p.x + z, p.y); ctx.moveTo(p.x, p.y + z / 2); ctx.lineTo(p.x + z / 2, p.y); ctx.moveTo(p.x + z / 2, p.y + z); ctx.lineTo(p.x + z, p.y + z / 2); }
-      ctx.stroke();
+    const u = this.checkState === "waiting" ? null : this.report?.uses;        // what was read from an older plan isn't drawn over this one
+    if (u) {
+      // Rack tiles with no floor beside them: hatched.
+      if (u.hidden) {
+        ctx.strokeStyle = withAlpha(ink.startsWith("#") ? ink : "#000000", 0.45); ctx.lineWidth = Math.max(1, z / 10);
+        ctx.beginPath();
+        for (const [r, c] of u.hidden) { const p = ed.toScreen(r, c); ctx.moveTo(p.x, p.y + z); ctx.lineTo(p.x + z, p.y); ctx.moveTo(p.x, p.y + z / 2); ctx.lineTo(p.x + z / 2, p.y); ctx.moveTo(p.x + z / 2, p.y + z); ctx.lineTo(p.x + z, p.y + z / 2); }
+        ctx.stroke();
+      }
+      const dot = (cell, rad, fillStyle, stroke) => {
+        const [x, y] = centre(cell);
+        ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2);
+        if (fillStyle) { ctx.fillStyle = fillStyle; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = Math.max(1, z / 9); ctx.stroke(); }
+      };
+      // Places to stand, in their category's colour.
+      for (const [r, c, k] of u.spots ?? []) dot([r, c], Math.max(1.5, z * 0.3), this.categories[k - 1]?.colour ?? ink, surface);
+      // Doors.
+      for (const cell of u.entrances ?? []) dot(cell, Math.max(3, z * 0.55), null, cssVar("--good", root));
+      // Where a shopper stands to try on or pay, and the stockroom's openings.
+      for (const cell of [...(u.openings ?? []), ...(u.till_spots ?? [])]) dot(cell, Math.max(1.5, z * 0.28), null, ink);
+      for (const cell of u.stock ?? []) {
+        const [x, y] = centre(cell); const h = Math.max(2.5, z * 0.35);
+        ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x + h, y); ctx.lineTo(x, y + h); ctx.lineTo(x - h, y); ctx.closePath();
+        ctx.fillStyle = ink; ctx.fill();
+      }
     }
-    const dot = (cell, rad, fill, stroke) => {
-      const [x, y] = centre(cell);
-      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2);
-      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = Math.max(1, z / 9); ctx.stroke(); }
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const label = (x, y, text, size, weight = 700) => {
+      ctx.font = `${weight} ${Math.round(size)}px system-ui, sans-serif`;
+      ctx.lineWidth = 3; ctx.strokeStyle = surface; ctx.strokeText(text, x, y);
+      ctx.fillStyle = ink; ctx.fillText(text, x, y);
     };
-    // Places to stand, in their category's colour.
-    for (const [r, c, k] of u.spots ?? []) dot([r, c], Math.max(1.5, z * 0.3), this.categories[k - 1]?.colour ?? ink, surface);
-    // Doors.
-    for (const cell of u.entrances ?? []) dot(cell, Math.max(3, z * 0.55), null, cssVar("--good", root));
-    // Where a shopper stands to try on or pay, and the stockroom's openings.
-    for (const cell of [...(u.openings ?? []), ...(u.till_spots ?? [])]) dot(cell, Math.max(1.5, z * 0.28), null, ink);
-    for (const cell of u.stock ?? []) {
-      const [x, y] = centre(cell); const h = Math.max(2.5, z * 0.35);
-      ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x + h, y); ctx.lineTo(x, y + h); ctx.lineTo(x - h, y); ctx.closePath();
-      ctx.fillStyle = ink; ctx.fill();
-    }
+    // Names: racks by category, the stockroom, the fitting rooms, the tills.
+    if (z >= 8) for (const b of this.#labels()) { const p = ed.toScreen(b.r, b.c); label(p.x, p.y, b.name, Math.max(9, Math.min(12, z * 0.8)), 600); }
     // Numbers: cubicles and tills in the order staff open them, and queue
     // places from the head.
-    if (z >= 7) {
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      const label = (cell, text, size) => {
-        const [x, y] = centre(cell);
-        ctx.font = `700 ${Math.round(size)}px system-ui, sans-serif`;
-        ctx.lineWidth = 3; ctx.strokeStyle = surface; ctx.strokeText(text, x, y);
-        ctx.fillStyle = ink; ctx.fillText(text, x, y);
-      };
-      (u.cubicles ?? []).forEach((cell, i) => label(cell, String(i + 1), Math.min(13, z * 0.8)));
-      (u.tills ?? []).forEach((cell, i) => label(cell, String(i + 1), Math.min(13, z * 0.8)));
-      for (const line of [u.fr_line, u.till_line]) (line ?? []).forEach((cell, i) => label(cell, String(i + 1), Math.min(11, z * 0.6)));
+    if (u && z >= 7) {
+      (u.cubicles ?? []).forEach((cell, i) => label(...centre(cell), String(i + 1), Math.min(13, z * 0.8)));
+      (u.tills ?? []).forEach((cell, i) => label(...centre(cell), String(i + 1), Math.min(13, z * 0.8)));
+      for (const line of [u.fr_line, u.till_line]) (line ?? []).forEach((cell, i) => label(...centre(cell), String(i + 1), Math.min(11, z * 0.6)));
     }
     ctx.restore();
   }
@@ -458,6 +595,8 @@ export class LayoutEditor {
     const L = { id: newId(d.layouts, name), name, draw, rows };
     this.world.edit((w) => { w.layouts.push(L); });
     this.current = L.id; this.#load(); this.#renderList();
+    this.app.banner(`${name} added to this world's layouts`, kind === "__blank" ? "Walls, an empty floor and a door: paint its racks, a stockroom door, fitting rooms and tills. The model lists what's still missing beside the plan."
+      : "A copy to change as you like. No store runs it until one is given it (Stores, above).");
   }
 
   #duplicate() {
@@ -502,4 +641,19 @@ export class LayoutEditor {
     this.world.edit((w) => { w.layouts.push({ id, name, draw, rows }); });
     this.current = id; this.#load(); this.#renderList();
   }
+}
+
+// A plan's picture, small: its tiles in the floor's colours.
+function planThumb(rows, colour) {
+  const W = rows[0]?.length ?? 1; const H = rows.length;
+  const c = el("canvas", { class: "geo-thumb plan-thumb", width: W, height: H, "aria-hidden": "true", style: { aspectRatio: `${W} / ${H}` } });
+  const ctx = c.getContext("2d");
+  const cache = new Map();
+  rows.forEach((row, r) => {
+    for (let x = 0; x < row.length; x++) {
+      let col = cache.get(row[x]); if (!col) { col = colour(row[x]); cache.set(row[x], col); }
+      ctx.fillStyle = col; ctx.fillRect(x, r, 1, 1);
+    }
+  });
+  return c;
 }

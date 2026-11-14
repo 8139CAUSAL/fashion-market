@@ -61,12 +61,14 @@ export class SetupTab {
     for (const s of SECTIONS) { this.panels[s.value] = el("div", { class: "setup-section", hidden: s.value !== this.section }); root.append(this.panels[s.value]); }
     this.mapEditor = new MapEditor(this.panels.macro, app);
     this.storeEditor = new StoreEditor(this.panels.micro, app, {
-      openLayout: (id) => { this.layoutEditor.current = id; this.layoutEditor.show(); this.layoutEditor.root?.scrollIntoView({ behavior: "smooth", block: "start" }); },
+      openLayout: (id) => this.layoutEditor.open(id),
       openMap: (id) => { this.#show("macro"); this.mapEditor.placeStore(id); },
     });
     this.layoutEditor = new LayoutEditor(this.panels.micro, app);
     this.mapEditor.onEditStore = (id) => { this.#show("micro"); this.storeEditor.select(id); };
+    this.mapEditor.onOpenLayout = (id) => { this.#show("micro"); this.layoutEditor.open(id); };
     this.layoutEditor.onStaff = () => this.storeEditor.show();
+    this.layoutEditor.onShowStore = (id) => { this.#show("macro"); this.mapEditor.placeStore(id); };
     this.rangeEditor = new RangeEditor(this.panels.range, app, { goTo: (p) => this.#goTo(p) });
     this.offerEditor = new OfferEditor(this.panels.offers, app);
     this.eventEditor = new DemandEventEditor(app);
