@@ -118,114 +118,132 @@ Drawing controls
 - [x] 2.22 Pointer cancellation, capture and interruption handled.
 
 Acceptance gate: passed (41 Node tests in `tools/test-grid-editor.mjs`; 26 checks with real pointer events
-in headless Chromium against the running app).
+in headless Chromium against the running app). Measured change: at 1440 × 900 the Overview of the default
+map is 4.53 px a tile (the baseline was 5.1 on a taller canvas whose bottom fell below the window); the Draw
+view is 16 px.
 
 ## Phase 3: Make the macro world easy to create
 
-- [ ] 3.1 Land, water, roads, bridges, parks, shops and homes easy to identify and paint.
-- [ ] 3.2 Road-over-water bridge transformation preserved.
-- [ ] 3.3 Residential density understandable without tile codes.
-- [ ] 3.4 Rapid creation of named areas with brushes and fill.
-- [ ] 3.5 Each area visually connected to its demographics, segment mix, size mix and budget.
-- [ ] 3.6 Area definitions preserved when editing geography.
-- [ ] 3.7 Choosing, placing and dragging stores simplified.
-- [ ] 3.8 Real stores distinguishable from decorative shops tiles.
-- [ ] 3.9 Store-location validation and undo preserved.
-- [ ] 3.10 Routing and household-allocation semantics preserved.
-- [ ] 3.11 Which land types influence agents, and which only appearance, described.
-- [ ] 3.12 Canvas prominent, area and store controls accessible.
+- [x] 3.1 Every ground tile named on the palette, with what it does in the model; a legend beside the map.
+- [x] 3.2 The road-over-water bridge kept (a Bridge swatch paints roads); verified in the browser and in R.
+- [x] 3.3 Homes as a ramp from sparse to dense, each with the households a tile of it holds on this map.
+- [x] 3.4 New area hands over the large brush; a neighbourhood is two drags.
+- [x] 3.5 The area being painted has its colour, households, budget, segment and size mix beside the map, and its name on it.
+- [x] 3.6 Painting land leaves every area's definition and make-up untouched (browser check); a geography keeps them too (Node test).
+- [x] 3.7 Place store in the toolbar; stores not on the map yet listed as chips; the next one is picked after each placement; pins dragged.
+- [x] 3.8 Stores are pins in their brand's colour; shops tiles are said to be ground, not stores.
+- [x] 3.9 A store on water is refused; undo puts a moved store back; a cancelled drag puts it back.
+- [x] 3.10 No change to routing or household allocation (the R tests check both against drawn edits).
+- [x] 3.11 Palette notes and the legend say which tiles shape the simulation and which are looks only.
+- [x] 3.12 The canvas fills the window's height; on desktop the side cards scroll on their own, the layer's own card first.
+
+Acceptance gate: passed, 27 of 27 browser checks (a neighbourhood in two drags, 413 → 3,559 households in that
+block by the model's preview; a connected road network from four fast strokes; a bridge; an area with its
+population set; a store placed, refused on water, dragged with its reach changing, undone).
 
 ## Phase 4: Make store interiors easy to draw
 
-- [ ] 4.1 Shared drawing interface applied to floor plans.
-- [ ] 4.2 0.5 m patch resolution preserved.
-- [ ] 4.3 Understandable controls for floor, walls, doors, stockroom and stockroom doors.
-- [ ] 4.4 Category racks easy to paint and recognise.
-- [ ] 4.5 Fitting-room and till stamps preserved.
-- [ ] 4.6 Complete stamp footprint previewed.
-- [ ] 4.7 Stamp rotation and keyboard controls preserved.
-- [ ] 4.8 Queue drawing rules preserved.
-- [ ] 4.9 Fixture labels and cues without character codes.
-- [ ] 4.10 Large brushes, erasing and block moves trigger the existing validation.
-- [ ] 4.11 Validation errors visible at the affected cells.
-- [ ] 4.12 Fixture accessibility, rack faces, cashier places, fitting rooms and walking routes preserved.
+- [x] 4.1 The same toolbar, brushes and views on the floor plan.
+- [x] 4.2 A tile is half a metre: the footprint, the size fields and the R floor contract say so.
+- [x] 4.3 Floor, wall, door, stockroom and stockroom door by name, with what each does.
+- [x] 4.4 Racks listed by category name, in its colour; each block named on the plan.
+- [x] 4.5 Fitting room and till unit stamps kept (Fixtures, and Place in the toolbar).
+- [x] 4.6 A fixture's whole footprint previewed and outlined before it's put down, its size in words.
+- [x] 4.7 `[` and `]` turn it; a Turn button too.
+- [x] 4.8 The queue tool kept: one head, a line joined to it, the old queue replaced; "Draw its queue" beside each queue's tiles.
+- [x] 4.9 No character codes needed (the code is only in a tooltip).
+- [x] 4.10 Large-brush strokes, erasing and block moves each trigger one layout check.
+- [x] 4.11 Every problem's tiles outlined in red as soon as the model has read the plan; a click shows one problem's tiles and brings them into view.
+- [x] 4.12 No change to floors.R; anchors, faces, cashier places, cubicles and walking paths checked in R.
+
+Acceptance gate: passed, 25 of 25 browser checks (a store built from the blank shell passes the model's own
+check; a wall that hides racks is shown on its tiles and fixed with the eraser; staff follow the tills, and
+undo brings them back).
 
 ## Phase 5: Make the world builder a product feature
 
 Templates
-- [ ] 5.1 Blank and Default macro starting points.
-- [ ] 5.2 At least two more editable starting geographies.
-- [ ] 5.3 Runnable starters validated with the model's own world checks.
-- [ ] 5.4 A blank draft says what it still needs before it can run.
-- [ ] 5.5 Unrelated settings never replaced, draft edits never discarded silently.
-- [ ] 5.6 Interior prefabs and the blank shell easy to discover.
-- [ ] 5.7 Import/export round-trip fidelity preserved.
+- [x] 5.1 Blank and Default city.
+- [x] 5.2 River town (120 × 90) and Harbour bay (140 × 100), drawn by `tools/build-geographies.mjs`.
+- [x] 5.3 Both pass the model's world check in the browser (CHECK_WORLD) and in R, and run (R: 3 days, every store visited).
+- [x] 5.4 Blank: the map says 19 stores aren't on the map yet; Check and run lists "no home tiles" and every store.
+- [x] 5.5 A geography changes the map only, after asking, and undo restores it text for text; Import asks before dropping draft changes.
+- [x] 5.6 A new layout starts from a blank shell or any prefab, shown as pictures.
+- [x] 5.7 Export → the model reads it back → the same text (browser); starter worlds round-trip in R.
 
 Guided user journey
-- [ ] 5.8 Three stages: Draw your world → Define your market → Run the simulation.
-- [ ] 5.9 Stage 1 connects macro and micro editing without duplicating geometry state.
-- [ ] 5.10 Stage 2 surfaces the population, segment, brand, incentive, loyalty, online and return controls.
-- [ ] 5.11 Stage 3 connects to world validation, Setup and the simulation controls.
-- [ ] 5.12 Full access to the detailed Setup sections and reporting tabs preserved.
-- [ ] 5.13 Clear navigation between stages, none forced.
-- [ ] 5.14 Canvas-first layout, responsive behaviour, accessibility, contextual guidance.
+- [x] 5.8 Three stages on one strip: Draw your world → Define your market → Run the simulation.
+- [x] 5.9 Macro and Micro world are stage 1; a store's "Draw its floor plan" opens its layout; one draft, no copy.
+- [x] 5.10 Stage 2 points to population, segments, brands, promotions, offers, loyalty, online and returns, with a way back.
+- [x] 5.11 Check and run: the model's world check, then Setup, Go and Step.
+- [x] 5.12 All eight sections and every report tab as before.
+- [x] 5.13 Every section one click away; Next and Back under each; none forced.
+- [x] 5.14 Draw your world in the header; canvas-first; phones: no sideways scroll, the stages scroll away, undo/redo/view on the canvas; labels and ARIA roles throughout.
+
+Acceptance gate: passed, 21 of 21 browser checks, and 7 of 7 at 390 × 844 with touch input.
 
 ## Phase 6: Verify the NetLogoR spatial contract
 
-- [ ] 6.1 `pxcor = column`, `pycor = height - 1 - row`.
-- [ ] 6.2 NetLogoR patch ordering and the `as.vector(t(...))` transformations.
-- [ ] 6.3 All macro layers: land, density, area.
-- [ ] 6.4 Store x/y in metres against patch positions.
-- [ ] 6.5 Floor-cell coordinates and their NetLogoR representation.
-- [ ] 6.6 The word-of-mouth patch world keeps its behaviour.
-- [ ] 6.7 Canonical world schema and serialised values intact.
-- [ ] 6.8 Import/export and saved-world compatibility.
-- [ ] 6.9 Draft edits do not change the installed simulation before Setup.
-- [ ] 6.10 No webR calls per painted cell or per pointer movement.
-- [ ] 6.11 Road changes → routing.
-- [ ] 6.12 Water and bridges → traversability.
-- [ ] 6.13 Residential density → household placement probabilities.
-- [ ] 6.14 Area membership → demographic assignments.
-- [ ] 6.15 Store relocation → accessibility and reach.
-- [ ] 6.16 Interior walls and doors → feasible movement.
-- [ ] 6.17 Rack edits → rack capacity and access.
-- [ ] 6.18 Fitting-room, till and queue edits → their constraints.
+All in `tools/test-world-builder.R` (model side) and `tools/test-world-builder.mjs` (page side), against
+`tools/fixtures/spatial-contract.json`, unless said.
+
+- [x] 6.1 `pxcor = column`, `pycor = height - 1 - row`, at the contract's tiles (the four corners among them).
+- [x] 6.2 `of()` over `patches()` is each painted layer `as.vector(t(...))`; `cellFromPxcorPycor` is row by row from the north-west.
+- [x] 6.3 Land, density and area, at each tile, in the routing's matrices and on an asymmetric 17 × 11 map.
+- [x] 6.4 Every store's x/y falls in the tile its trips start from, on land, in the area painted under it.
+- [x] 6.5 The Flagship's floor world: tiles to patches with their codes; doors, cashiers, cubicles, queue heads; every walking step on open floor.
+- [x] 6.6 Word of mouth keeps its own coarser patches; each household reads the one its home is in.
+- [x] 6.7 The world file's schema and text are unchanged; starter worlds read back as written.
+- [x] 6.8 Every older world in tools/fixtures (versions 1 to 8) still reads; the browser's saved draft survives a reload text for text.
+- [x] 6.9 The preview leaves the installed world alone (R); with edits waiting, the running model is still the old world (browser).
+- [x] 6.10 Strokes send nothing to R while drawing; one preview after they pause (browser: 100 pointer moves, 0 messages during).
+- [x] 6.11 A road from homes to stores: 621 s → 316 s average trip, 87% of a route on the road.
+- [x] 6.12 A river cuts off all 3,000 households; one bridge tile reconnects them all, every route through it; a store on water refused.
+- [x] 6.13 Density 2 and 8 blocks: 80.4% in the dense one (expected 80%); both at 2: 48.0% (50%).
+- [x] 6.14 Each area's households are its segment; budgets 2.96× for 3× the area budget; a repainted half changes 2,044 households.
+- [x] 6.15 A store moved to the map's edge: reach 22,393 → 15,287, average route 3.7 → 6.9 km, other stores unchanged.
+- [x] 6.16 A wall lengthens the walk to a till 3.7 → 5.7 m; walling the other gap cuts it off (refused); no door refused.
+- [x] 6.17 A new rack row doubles faces and space; a row in front hides the first (no more space); at the store, STORE_SPACE follows faces.
+- [x] 6.18 Tills (and the simulation's open tills), cubicles, queue places, detached or double queue heads, and staffing beyond the tills refused.
 
 ## Phase 7: Previews, interaction testing, and regression
 
-- [ ] 7.1 Debounced R-backed macro previews preserved.
-- [ ] 7.2 Debounced layout validation and summary preserved.
-- [ ] 7.3 Stale preview results never overwrite a newer draft's.
-- [ ] 7.4 Household distribution, store reach and stranded households displayed.
-- [ ] 7.5 Accessibility, capacity, walking distances and validation issues displayed for interiors.
-- [ ] 7.6 Draft changes, calculated previews and the installed world visibly distinguished.
-- [~] 7.7 JS tests: brush footprints, interpolation, boundaries, fill, erasing, layer isolation (written with Phase 2).
-- [~] 7.8 History tests: one undo per drag, with the owner's state (written with Phase 2).
-- [~] 7.9 Zoom/pan invariance, load/reload/resize, pointer cancellation (written with Phase 2).
-- [ ] 7.10 Coordinate and serialisation contract tests.
-- [ ] 7.11 R-model integration tests of real spatial consequences.
-- [ ] 7.12 `npm test` and `Rscript tools/test-fashion.R`.
-- [ ] 7.13 Failures and skipped checks recorded with reasons.
-- [ ] 7.14 Scenario A: geography → neighbourhoods and roads → stores → validate.
-- [ ] 7.15 Scenario B: layout → walls and racks → fixtures and queues → validate.
-- [ ] 7.16 Scenario C: install → run → agents on the drawn geography and floors.
-- [ ] 7.17 Scenario D: modify the default world → preview → install → rerun.
-- [ ] 7.18 Painting, panning, zooming, selecting and placing with pointer and touch.
-- [ ] 7.19 Household generation, shopper movement, transport, store choice, interior movement.
-- [ ] 7.20 Staffing, queues, inventory, replenishment, pricing, promotions, loyalty, offers, returns, online.
-- [ ] 7.21 P&L rollups, accounting consistency, reporting.
-- [ ] 7.22 ARIMA forecasts and intervals.
-- [ ] 7.23 Determinism for unchanged worlds and seeds.
-- [ ] 7.24 World and layout persistence, import/export, backward compatibility.
+- [x] 7.1 The map's preview is still debounced (350 ms), one request after strokes pause.
+- [x] 7.2 The layout check is still debounced (300 ms).
+- [x] 7.3 Each preview and check carries the draft's revision; an older answer is dropped. Verified on the map with an answer held back 2.5 s; the floor check uses the same guard (not separately timed).
+- [x] 7.4 Households (in areas and outside), stores in reach per store and per tile, households with none outlined.
+- [x] 7.5 Floor area, doors, fitting rooms, tills, rack space, faces, places to stand, longest walk, fetch time, queue places, problems on their tiles.
+- [x] 7.6 Draft / Preview (or Check) / Installed chips under both canvases.
+- [x] 7.7 Brush footprints, interpolation, edges, fill, erase, layer isolation (`tools/test-grid-editor.mjs`).
+- [x] 7.8 One undo per drag, the owner's state with it (stores, areas, staff).
+- [x] 7.9 Zoom/pan invariance, load/reload/resize, pointer cancellation, a second pointer, two fingers.
+- [x] 7.10 The coordinate contract fixture, both sides; world text round trips.
+- [x] 7.11 R tests of real spatial consequences (6.11–6.18) and the starter worlds run.
+- [x] 7.12 `npm test`: exit 0 (Node 59 passed; shims 23 ok; test-fashion 113 ok; test-world-builder 23 ok).
+- [x] 7.13 Nothing skipped. Environment notes below.
+- [x] 7.14 Scenario A (browser): River town → a neighbourhood and street → a new store → Check and run: ready.
+- [x] 7.15 Scenario B: a blank shell → walls, stockroom, 7 categories' racks, fitting rooms, a till, both queues → the model's check passes.
+- [x] 7.16 Scenario C: installed (the map and floor tile for tile); 3,000+ driving positions all on land; 300+ shopper positions all on the drawn floor's open tiles; 50 visits counted by the model.
+- [x] 7.17 Scenario D: a lake round a store → preview reach 22,393 → 33 → installed: the model agrees (33) → a day runs.
+- [x] 7.18 Pointer (Phases 2–5) and touch (one finger draws, two pinch and pan, taps place a store).
+- [x] 7.19–7.22 Covered by `tools/test-fashion.R`, unchanged and passing (households, movement, trips, choice, floors, staffing, queues, stock, prices, promotions, loyalty, offers, returns, online, ledger and P&L, reports, forecast).
+- [x] 7.23 Same seed, same season (test-fashion), and the starter worlds run the same twice.
+- [x] 7.24 Draft persistence across reload; world and layout export/import; older files upgrade.
+
+Environment notes: CRAN and webr.r-wasm.org are blocked by this environment's network policy. R 4.3.3 came
+from Ubuntu's packages; NetLogoR 1.0.6 was copied out of the app's own `vfs/netlogor-lib` image (it's plain R);
+the browser checks served webR 0.6.0 from its npm package in place of the CDN. Headless Chromium drops the
+click of the first tap after a synthetic (CDP) multi-touch sequence; the touch check taps once to clear it, and
+the canvas's own Undo/Redo act on a finger's release so they don't depend on that click.
 
 ## Phase 8: Final acceptance and reporting
 
-- [ ] 8.1 Geography editing no longer feels like painting tiny pixels.
-- [ ] 8.2 Multi-patch brushes make large-scale editing fast and accurate.
-- [ ] 8.3 Roads, neighbourhoods, stores and interiors can be created intuitively.
-- [ ] 8.4 Drawn cells correspond to the correct NetLogoR patches.
-- [ ] 8.5 Spatial edits affect the correct simulation behaviour.
-- [ ] 8.6 Model-derived previews explain meaningful consequences.
-- [ ] 8.7 New users can discover the workflow; advanced capabilities remain.
-- [ ] 8.8 Economics, reporting, forecasts and saved worlds remain compatible.
-- [ ] 8.9 Automated and manual checks substantiate the implementation.
+- [x] 8.1 Brushes of 3 × 3 and 7 × 7 tiles and a 16 px Draw view (20 for a finger); one click back to the Overview.
+- [x] 8.2 A 7 × 57 tile neighbourhood in one drag; a 247-tile road in two pointer moves with no gaps.
+- [x] 8.3 Scenarios A and B, by pointer, from a geography and a blank shell.
+- [x] 8.4 Phase 6.1–6.5, tile for tile, on both sides of the contract.
+- [x] 8.5 Phase 6.11–6.18 and Scenarios C and D.
+- [x] 8.6 The preview's numbers are the model's own, and agree with the installed model (Scenario D).
+- [x] 8.7 Draw your world in the header, three stages; every section and tool still there.
+- [x] 8.8 test-fashion's 113 checks pass unchanged; older worlds read; the world file's format is unchanged.
+- [x] 8.9 The tests above, and the browser checks listed in the report.

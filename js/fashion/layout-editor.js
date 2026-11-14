@@ -168,7 +168,8 @@ export class LayoutEditor {
     this.centre.root.classList.add("canvas-card");
     this.tools = toolbar(this.editor, { place: {
       label: "Place", title: "Place a fixture, put down whole: a walled fitting room or a till unit ([ and ] turn it)",
-      onClick: () => this.#pickStamp(this.stampId ?? this.lastStamp ?? STAMPS[0].id), active: () => this.editor.tool === "stamp" } });
+      onClick: () => this.#pickStamp(this.stampId ?? this.lastStamp ?? STAMPS[0].id), active: () => this.editor.tool === "stamp",
+      describe: () => `${this.editor.describe()} · [ and ] turn it` } });
     this.palette = el("div", { class: "palette grouped plan-palette", role: "radiogroup", "aria-label": "Tiles" });
     this.centre.body.append(el("div", { class: "editor-bar" }, this.tools), el("div", { class: "plan-work" }, this.palette, wrap),
       el("div", { class: "editor-foot" }, this.hoverText), this.stateBox);

@@ -1,0 +1,2491 @@
+{
+  "kind": "fashion-world",
+  "version": 10,
+  "name": "Four-district city",
+  "seed": 1,
+  "season_days": 91,
+  "demand_events": [
+    {
+      "id": "spike_days",
+      "name": "Spike days",
+      "shape": "solid",
+      "days": [3, 23],
+      "strength": 1.3,
+      "ramp_days": 7,
+      "from": 1
+    },
+    {
+      "id": "slump_to_day_90",
+      "name": "Slump into day 90",
+      "shape": "ramp",
+      "days": [90],
+      "strength": -2,
+      "ramp_days": 7,
+      "from": -1.4
+    }
+  ],
+  "categories": [
+    {"id": "denim", "name": "Denim", "key": "D", "colour": "#2a78d6", "try_on": true, "price": 60},
+    {"id": "tops", "name": "Tops", "key": "T", "colour": "#eb6834", "try_on": true, "price": 30},
+    {"id": "knitwear", "name": "Knitwear", "key": "K", "colour": "#1baf7a", "try_on": true, "price": 50},
+    {
+      "id": "outerwear",
+      "name": "Outerwear",
+      "key": "O",
+      "colour": "#eda100",
+      "try_on": true,
+      "price": 120
+    },
+    {"id": "dresses", "name": "Dresses", "key": "R", "colour": "#e87ba4", "try_on": true, "price": 70},
+    {"id": "shoes", "name": "Shoes", "key": "S", "colour": "#008300", "try_on": false, "price": 80},
+    {
+      "id": "accessories",
+      "name": "Accessories",
+      "key": "A",
+      "colour": "#4a3aa7",
+      "try_on": false,
+      "price": 25
+    },
+    {"id": "bras", "name": "Bras", "key": "B", "colour": "#c92a2a", "try_on": true, "price": 48},
+    {"id": "briefs", "name": "Briefs", "key": "U", "colour": "#ae3ec9", "try_on": false, "price": 12},
+    {
+      "id": "sleepwear",
+      "name": "Sleepwear",
+      "key": "N",
+      "colour": "#1098ad",
+      "try_on": true,
+      "price": 45
+    },
+    {
+      "id": "loungewear",
+      "name": "Loungewear",
+      "key": "L",
+      "colour": "#8a5a2e",
+      "try_on": true,
+      "price": 50
+    }
+  ],
+  "macro": {
+    "patch_m": 50,
+    "width": 120,
+    "height": 90,
+    "households": 24000,
+    "road_mps": 10,
+    "local_mps": 4,
+    "park_s": 240,
+    "wom_m": 500,
+    "tiles": [
+      "..........=.............=...............=.........=.........~~~~~.........=.........=.............=...........=.........",
+      "..........=.............=...............=.........=..........~~~~.........=.........=.............=...........=.........",
+      "..........=.......111111=11.............=.........=..........~~~~~........=.........=.............=...........=.........",
+      "..........=.....11111111=1111...........=.........=...........~~~~~.......=.........=.............=...........=.........",
+      "..........=...1111111111=111111.........=.........=...........~~~~~.......=.........=.............=...........=.........",
+      "..........=..11111112222=1111111........=.........=............~~~~~......=.........=.............=...........=.........",
+      "..........=.111111222222=22111111.......=.........=............~~~~~......=.........=.............=...........=.........",
+      "..........=.111122222232=22221111.......=.........=.............~~~~......=.........=.............=...........=.........",
+      "..........=1111222233333=322221111......=.........=.............~~~~~.....=.........=.............=...........=.........",
+      "..........=1111222333343=332221111......=.........=..............~~~~.....=.........=.............=...........=.........",
+      "..........=1112223344444=4332221111.....=.........=..............~~~~~....=.........=.............=...........=.........",
+      "..........=1112233444444=4433221111.....=.........=..............~~~~~....=.........=.............=...........=.........",
+      "..........=112223344sss5=4433222111.....=.........=...............~~~~....=.........=.............=...........=.........",
+      "..........=112223344sss5=4433222111.....=.........=...............~~~~~...=.........=.............=...........=.........",
+      "==================================================================~~~~~=================================================",
+      "..........=1122233445555=443322211111111=11111111.=................~~~~...=.........=.............=...........=.........",
+      "..........=1122233444555=443322211111111=111111111=1...............~~~~...=.........=.............=...........=.........",
+      "..........=1112233444444=443322111111111=111111111=111.............~~~~~..=.........=.............=...........=.........",
+      "..........=1112223344444=433222111111111=111111111=11111.........pp~~~~~pp=....11111=11111........=...........=.........",
+      "..........=1111222333343=332221111111111=111111111=1111111.......pp~~~~~pp=111111111=111111111....=...........=.........",
+      "..........=1111222233333=322221111111111=111111111=11111111......pp~~~~~pp=111111111=11111111111..=...........=.........",
+      "..........=.111122222232=222211111122222=222221111=1111111111....pp~~~~~pp=111111111=1111111111111=...........=.........",
+      "..........=.111111222222=221111122222222=222222221=11111111111...pp~~~~~pp=111111111=1111111111111=1..........=.........",
+      "..........=..11111112222=111122222222222=222222222=211111111111..pp~~~~~pp=111111111=1111111111111=11.........=.........",
+      "..........=...1111111111=111222222222222=222222222=2211111111111.pp~~~~~pp=111111112=2111111111111=111........=.........",
+      "..........=.....11111111=122222222233333=333332222=22221111111111pp~~~~pp1=111222222=2222221111111=1111.......=.........",
+      "..........=.....11111111=222222233333333=333333332=2222211111111pp~~~~~pp1=222222222=2222222221111=11111......=.........",
+      "..........=....111111111=222223333333333=333333333=2222221111111pp~~~~~pp1=222222222=2222222222111=111111.....=.........",
+      "..........=...1111111112=222233333344444=444443333=3222222111111pp~~~~~pp2=222222233=3322222222221=1111111....=.........",
+      "..........=...1111111122=223333334444444=444444433=3332222211111pp~~~~pp22=222333333=3333332222222=11111111...=.........",
+      "=================================================================+++++==================================================",
+      "..........=..11111112222=333344444555555=555555444=433332222211pp~~~~~pp22=333333334=4333333333222=211111111..=.........",
+      "..........=.111111112222=333444455555555=555555554=443333222211pp~~~~pp223=333344444=4444433333322=2211111111.=.........",
+      "..........=.111111122222=33pppppppp56666=666655555=44433322222pp~~~~~pp233=334444444=4444444333332=2221111111.=.........",
+      "..........=1111111222223=34pppppppp66666=666666555=44443332222pp~~~~pp2333=344444455=5544444433333=22211111111=.........",
+      "..........=1111111222233=34pppppppp66777=777666665=5444333322pp~~~~~pp3333=444455555=5555544443333=22221111111=.........",
+      "..........=1111111222233=44pppppppp77777=777776666=5544433322pp~~~~pp23333=444555555=5555554444333=22222111111=.........",
+      "..........=1111112222333=44pppppppp77777=777777666=555443333pp~~~~~pp33334=445555566=6655555444433=32222111111=.........",
+      "..........=1111112222333=44pppppppp77888=888777766=555444333pp~~~~pp233344=455556666=6666555544443=32222111111=.........",
+      "..........=1111112222333=45pppppppp88888=888887776=65554433pp~~~~~pp333344=555566666=6666655554443=33222211111=.........",
+      "..........=1111122223334=455566777888888=888888777=65554443pp~~~~pp2333444=555666666=6666665555444=33222211111=1........",
+      "..........=1111122223334=455666777888889=988888777=6655444pp~~~~~pp2333444=556666677=7766666555444=33222211111=1........",
+      ".........1=1111122223334=55566777888sss9=999888877=665554pp~~~~~pp22333444=55666sss7=7776666555444=33222211111=1........",
+      ".........1=1111122223334=55566777888sss9=999888877=665554pp~~~~~pp23333445=56666sss7=7777666655544=33322211111=1........",
+      ".........1=1111122223334=555667778889999=999988877=66555pp~~~~~pp223334445=566667777=7777666655544=33322221111=1........",
+      "==========================================================+++++=========================================================",
+      ".........1=1111122223334=555667778889999=999988877=6655pp~~~~~pp2223334445=566667777=7777666655544=33322221111=1........",
+      ".........1=1111122223334=555667778888999=999888877=6655pp~~~~~pp2223333445=566667777=7777666655544=33322211111=1........",
+      ".........1=1111122223334=555667778888999=999888877=665pp~~~~~pp22222333444=556666777=7776666555444=33222211111=1........",
+      "..........=1111122223334=455666777888889=988888777=665pp~~~~~pp22222333444=556666677=7766666555444=33222211111=1........",
+      "..........=1111122223334=455566777888888=888888777=655pp~~~~pp222222333444=555666666=6666665555444=33222211111=1........",
+      "..........=1111112222333=455566677788888=888887776=65pp~~~~~pp222222333344=555566666=6666655554443=33222211111=.........",
+      "..........=1111112222333=445556667777888=888777766=55pp~~~~~pp221222233344=455556666=6666555544443=32222111111=.........",
+      "..........=1111112222333=445556666777777=777777666=5pp~~~~~pp2221222233334=445555566=6655555444433=32222111111=.........",
+      "..........=1111111222233=444555666677777=777776666=5pp~~~~~pp2211222223333=444555555=5555554444333=22222111111=.........",
+      "..........=1111111222233=344455566666777=777666665=5pp~~~~~pp2211122223333=444455555=5555544443333=22221111111=.........",
+      "..........=1111111222223=344445555666666=666666555=4pp~~~~pp22211112222333=344444455=5544444433333=22211111111=.........",
+      "..........=.111111122222=334444555556666=666655555=pp~~~~~pp22111112222233=334444444=4444444333332=2221111111.=.........",
+      "..........=.111111112222=333444455555555=555555554=pp~~~~~pp21111111222223=3sss44444=4444433333322=2211111111.=.........",
+      "..........=..11111112222=333344444555555=555555444=pp~~~~~pp21111111122222=3sss33334=4333333333222=211111111..=.........",
+      "=====================================================+++++==============================================================",
+      "..........=...1111111122=223333334444444=444444433=pp~~~~~pp11111111111222=222333333=3333332222222=11111111...=.........",
+      "..........=...1111111112=222233333344444=444443333=pp~~~~~pp11111111111122=222222233=3322222222221=1111111....=.........",
+      "..........=....111111111=222223333333333=333333333=pp~~~~~pp11111111111111=222222222=2222222222111=111111.....=.........",
+      "..........=.....11111111=222222233333333=333333332=pp~~~~~pp11111111111111=222222222=2222222221111=11111......=.........",
+      "..........=.....11111111=122222222233333=333332222=pp~~~~~pp11111.11111111=111222222=2222221111111=111111.....=.........",
+      "..........=......1111111=111222222222222=222222222=2pp~~~~pp1111...1111111=111111112=2111111112222=1111111....=.........",
+      "..........=.......111111=111122222222222=222222222=2pp~~~~~pp11.....111111=111111111=1111111222222=22111111...=.........",
+      "..........=........11111=111111122222222=222222221=1pp~~~~~pp1.......11111=111111111=1111112222222=22211111...=.........",
+      "..........=.........1111=111111111122222=222221111=1pp~~~~~pp..........111=111111111=1111122223333=222211111..=.........",
+      "..........=...........11=111111111111111=111111111=11pp~~~~pp............1=111111111=1111222333333=332221111..=.........",
+      "..........=............1=111111111111111=111111111=11pp~~~~~pp............=111111111=1111222333343=332221111..=.........",
+      "..........=.............=111111111111111=111111111=11pp~~~~~pp............=....11111=1112223334444=3332221111.=.........",
+      "..........=.............=..1111111111111=111111111=111..~~~~~.............=.........=111222333sss4=3332221111.=.........",
+      "..........=.............=....11111111111=111111111=1....~~~~~.............=.........=111222334sss4=4332221111.=.........",
+      "..........=.............=.......11111111=11111111.=......~~~~.............=.........=1112223334444=3332221111.=.........",
+      "=========================================================~~~~~==========================================================",
+      "..........=.............=...............=.........=.......~~~~............=.........=1111222333343=332221111..=.........",
+      "..........=.............=...............=.........=.......~~~~~...........=.........=1111222333333=332221111..=.........",
+      "..........=.............=...............=.........=........~~~~...........=.........=1111122223333=222211111..=.........",
+      "..........=.............=...............=.........=........~~~~~..........=.........=.111112222222=22211111...=.........",
+      "..........=.............=...............=.........=.........~~~~~.........=.........=.111111222222=22111111...=.........",
+      "..........=.............=...............=.........=.........~~~~~.........=.........=..11111112222=1111111....=.........",
+      "..........=.............=...............=.........=..........~~~~~........=.........=...1111111111=111111.....=.........",
+      "..........=.............=...............=.........=..........~~~~~........=.........=....111111111=11111......=.........",
+      "..........=.............=...............=.........=...........~~~~~.......=.........=......1111111=111........=.........",
+      "..........=.............=...............=.........=...........~~~~~.......=.........=.........1111=...........=.........",
+      "..........=.............=...............=.........=............~~~~~......=.........=.............=...........=.........",
+      "..........=.............=...............=.........=............~~~~~......=.........=.............=...........=.........",
+      "..........=.............=...............=.........=.............~~~~~.....=.........=.............=...........=........."
+    ],
+    "areas": [
+      {
+        "key": "o",
+        "id": "old_town",
+        "name": "Old Town",
+        "colour": "#f1e3c8",
+        "budget": 560,
+        "segment_mix": {"value_seekers": 0.2, "trend_followers": 0.3, "quality_loyalists": 0.2, "convenience": 0.3},
+        "size_mix": {"XS": 0.1, "S": 0.22, "M": 0.32, "L": 0.24, "XL": 0.12}
+      },
+      {
+        "key": "r",
+        "id": "riverside",
+        "name": "Riverside",
+        "colour": "#dcead3",
+        "budget": 820,
+        "segment_mix": {"value_seekers": 0.15, "trend_followers": 0.2, "quality_loyalists": 0.45, "convenience": 0.2},
+        "size_mix": {"XS": 0.06, "S": 0.18, "M": 0.34, "L": 0.28, "XL": 0.14}
+      },
+      {
+        "key": "m",
+        "id": "millbrook",
+        "name": "Millbrook",
+        "colour": "#e6e0ef",
+        "budget": 420,
+        "segment_mix": {"value_seekers": 0.45, "trend_followers": 0.15, "quality_loyalists": 0.1, "convenience": 0.3},
+        "size_mix": {"XS": 0.04, "S": 0.14, "M": 0.28, "L": 0.32, "XL": 0.22}
+      },
+      {
+        "key": "e",
+        "id": "eastfield",
+        "name": "Eastfield",
+        "colour": "#f3dcd6",
+        "budget": 360,
+        "segment_mix": {"value_seekers": 0.2, "trend_followers": 0.5, "quality_loyalists": 0.05, "convenience": 0.25},
+        "size_mix": {"XS": 0.18, "S": 0.32, "M": 0.28, "L": 0.15, "XL": 0.07}
+      }
+    ],
+    "area_tiles": [
+      "........................................................................................................................",
+      "........................................................................................................................",
+      "..................mmmmmmmmm.............................................................................................",
+      "................mmmmmmmmmmmmm...........................................................................................",
+      "..............mmmmmmmmmmmmmmmmm.........................................................................................",
+      ".............mmmmmmmmmmmmmmmmmmm........................................................................................",
+      "............mmmmmmmmmmmmmmmmmmmmm.......................................................................................",
+      "............mmmmmmmmmmmmmmmmmmmmm.......................................................................................",
+      "...........mmmmmmmmmmmmmmmmmmmmmmm......................................................................................",
+      "...........mmmmmmmmmmmmmmmmmmmmmmm......................................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmm.....................................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmm.....................................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmm.....................................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmm.....................................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmm.....................................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmm.....................................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmmooooooooooooo........................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooo.....................................................................",
+      "..........mmmmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooo.......................rrrrrrrrrrrrrrr............................",
+      "...........mmmmmmmmmmmmmmmmmmmmmmoooooooooooooooooooooo...................rrrrrrrrrrrrrrrrrrrrr.........................",
+      "...........mmmmmmmmmmmmmmmmmmmmmooooooooooooooooooooooooo...............rrrrrrrrrrrrrrrrrrrrrrrrr.......................",
+      "............mmmmmmmmmmmmmmmmmmmooooooooooooooooooooooooooo..............rrrrrrrrrrrrrrrrrrrrrrrrrrr.....................",
+      "............mmmmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooo............rrrrrrrrrrrrrrrrrrrrrrrrrrrr....................",
+      ".............mmmmmmmmmmmmmmmmoooooooooooooooooooooooooooooooo...........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr..................",
+      "..............mmmmmmmmmmmmmooooooooooooooooooooooooooooooooooo..........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.................",
+      "................mmmmmmmmooooooooooooooooooooooooooooooooooooooo........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr................",
+      ".................ooooooooooooooooooooooooooooooooooooooooooooooo.......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr...............",
+      ".................ooooooooooooooooooooooooooooooooooooooooooooooo.......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr..............",
+      "................oooooooooooooooooooooooooooooooooooooooooooooooo.......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.............",
+      "...............ooooooooooooooooooooooooooooooooooooooooooooooooo......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.............",
+      "...............ooooooooooooooooooooooooooooooooooooooooooooooooo....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr............",
+      "..............oooooooooooooooooooooooooooooooooooooooooooooooooo......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr...........",
+      ".............ooooooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr...........",
+      ".............oooooooooooooooooooooooooooooooooooooooooooooooooo......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr..........",
+      ".............oooooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr..........",
+      "............ooooooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.........",
+      "............ooooooooooooooooooooooooooooooooooooooooooooooooooo....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.........",
+      "............oooooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.........",
+      "...........ooooooooooooooooooooooooooooooooooooooooooooooooooo....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooooooooo....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........ooooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........ooooooooooooooooooooooooooooooooooooooooooooooo.....rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........ooooooooooooooooooooooooooooooooooooooooooooooooo...rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooooo......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooooo......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........ooooooooooooooooooooooooooooooooooooooooooooo.......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........ooooooooooooooooooooooooooooooooooooooooooooo.......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........ooooooooooooooooooooooooooooooooooooooooooooo.......rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooo........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "...........oooooooooooooooooooooooooooooooooooooooooooo........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr........",
+      "............oooooooooooooooooooooooooooooooooooooooooo.........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.........",
+      "............oooooooooooooooooooooooooooooooooooooooooo.........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.........",
+      "............oooooooooooooooooooooooooooooooooooooooooo.........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.........",
+      ".............ooooooooooooooooooooooooooooooooooooooooo.........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr..........",
+      ".............oooooooooooooooooooooooooooooooooooooooo..........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr..........",
+      ".............oooooooooooooooooooooooooooooooooooooooo...........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr...........",
+      "..............ooooooooooooooooooooooooooooooooooooooo...........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr...........",
+      "...............ooooooooooooooooooooooooooooooooooooooooo........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr............",
+      "...............oooooooooooooooooooooooooooooooooooooo...........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.............",
+      "................ooooooooooooooooooooooooooooooooooooo...........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.............",
+      ".................oooooooooooooooooooooooooooooooooooo...........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr..............",
+      ".................oooooooooooooooooooooooooooooooooooo...........rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrreeeeeeeeee...............",
+      "..................ooooooooooooooooooooooooooooooooooo............rrrrrrrrrrrrrrrrrrrrrrrrrrreeeeeeeeeeeeee..............",
+      "...................ooooooooooooooooooooooooooooooooooo............rrrrrrrrrrrrrrrrrrrrrrrreeeeeeeeeeeeeeeee.............",
+      "....................oooooooooooooooooooooooooooooooooo.............rrrrrrrrrrrrrrrrrrrrrreeeeeeeeeeeeeeeeee.............",
+      ".....................ooooooooooooooooooooooooooooooooo...............rrrrrrrrrrrrrrrrrrreeeeeeeeeeeeeeeeeeee............",
+      ".......................ooooooooooooooooooooooooooooooo................rrrrrrrrrrrrrrrreeeeeeeeeeeeeeeeeeeeee............",
+      "........................ooooooooooooooooooooooooooooooo.................rrrrrrrrrrrrrreeeeeeeeeeeeeeeeeeeeeee...........",
+      "..........................ooooooooooooooooooooooooooooo...................rrrrrrrrrrreeeeeeeeeeeeeeeeeeeeeeee...........",
+      "...........................ooooooooooooooooooooooooooo.......................rrrrrrreeeeeeeeeeeeeeeeeeeeeeeee...........",
+      "..............................ooooooooooooooooooooo.................................eeeeeeeeeeeeeeeeeeeeeeeee...........",
+      ".................................ooooooooooooooo....................................eeeeeeeeeeeeeeeeeeeeeeeee...........",
+      "....................................................................................eeeeeeeeeeeeeeeeeeeeeeeee...........",
+      "....................................................................................eeeeeeeeeeeeeeeeeeeeeeeee...........",
+      "....................................................................................eeeeeeeeeeeeeeeeeeeeeeeee...........",
+      "....................................................................................eeeeeeeeeeeeeeeeeeeeeeeee...........",
+      ".....................................................................................eeeeeeeeeeeeeeeeeeeeeee............",
+      ".....................................................................................eeeeeeeeeeeeeeeeeeeeeee............",
+      "......................................................................................eeeeeeeeeeeeeeeeeeeee.............",
+      "......................................................................................eeeeeeeeeeeeeeeeeeeee.............",
+      ".......................................................................................eeeeeeeeeeeeeeeeeee..............",
+      "........................................................................................eeeeeeeeeeeeeeeee...............",
+      "..........................................................................................eeeeeeeeeeeee.................",
+      "............................................................................................eeeeeeeee...................",
+      "........................................................................................................................",
+      "........................................................................................................................",
+      "........................................................................................................................"
+    ],
+    "default_makeup": {
+      "budget": 519,
+      "segment_mix": {
+        "value_seekers": 0.2688,
+        "trend_followers": 0.2802,
+        "quality_loyalists": 0.1812,
+        "convenience": 0.2698
+      },
+      "size_mix": {"XS": 0.0921, "S": 0.2104, "M": 0.3021, "L": 0.2519, "XL": 0.1435}
+    }
+  },
+  "layouts": [
+    {"prefab": "flagship"},
+    {"prefab": "standard"},
+    {"prefab": "small"},
+    {"prefab": "intimates"}
+  ],
+  "stores": [
+    {
+      "id": "ours_ot",
+      "name": "Ours Old Town flagship",
+      "short": "Ours OT",
+      "brand": "ours",
+      "layout": "flagship",
+      "x": 1825,
+      "y": 2375,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 6,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "ours_rs",
+      "name": "Ours Riverside",
+      "short": "Ours RS",
+      "brand": "ours",
+      "layout": "standard",
+      "x": 4025,
+      "y": 2375,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "ours_mm",
+      "name": "Ours Millbrook Mall",
+      "short": "Ours MM",
+      "brand": "ours",
+      "layout": "standard",
+      "x": 1025,
+      "y": 3875,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "ours_ef",
+      "name": "Ours Eastfield",
+      "short": "Ours EF",
+      "brand": "ours",
+      "layout": "small",
+      "x": 4725,
+      "y": 825,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 2,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "ours_int_ot",
+      "name": "Ours Intimates Old Town",
+      "short": "Ours Int OT",
+      "brand": "ours_intimates",
+      "layout": "intimates",
+      "x": 3825,
+      "y": 1575,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "ours_int_rs",
+      "name": "Ours Intimates Riverside",
+      "short": "Ours Int RS",
+      "brand": "ours_intimates",
+      "layout": "intimates",
+      "x": 1875,
+      "y": 2375,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "ours_int_mm",
+      "name": "Ours Intimates Millbrook Mall",
+      "short": "Ours Int MM",
+      "brand": "ours_intimates",
+      "layout": "intimates",
+      "x": 4075,
+      "y": 2375,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "value_ot",
+      "name": "Value Old Town",
+      "short": "Value OT",
+      "brand": "value",
+      "layout": "small",
+      "x": 1075,
+      "y": 3875,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 0,
+        "fitting_rooms": 2,
+        "skill": 1,
+        "scan_s": 10,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "value_mm",
+      "name": "Value Millbrook Mall",
+      "short": "Value MM",
+      "brand": "value",
+      "layout": "standard",
+      "x": 4775,
+      "y": 825,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 0,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 10,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "value_mr",
+      "name": "Value Millbrook Retail Park",
+      "short": "Value MR",
+      "brand": "value",
+      "layout": "standard",
+      "x": 3875,
+      "y": 1575,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 0,
+        "fitting_rooms": 4,
+        "skill": 1,
+        "scan_s": 10,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "value_ef",
+      "name": "Value Eastfield",
+      "short": "Value EF",
+      "brand": "value",
+      "layout": "small",
+      "x": 1925,
+      "y": 2375,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 0,
+        "fitting_rooms": 2,
+        "skill": 1,
+        "scan_s": 10,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "prem_ot",
+      "name": "Premium Old Town",
+      "short": "Prem OT",
+      "brand": "premium",
+      "layout": "intimates",
+      "x": 4125,
+      "y": 2375,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 2,
+        "fitting_rooms": 4,
+        "skill": 1.2,
+        "scan_s": 14,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "prem_rs",
+      "name": "Premium Riverside",
+      "short": "Prem RS",
+      "brand": "premium",
+      "layout": "intimates",
+      "x": 1125,
+      "y": 3875,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 2,
+        "fitting_rooms": 4,
+        "skill": 1.2,
+        "scan_s": 14,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "prem_mo",
+      "name": "Premium Millbrook Outlet",
+      "short": "Prem MO",
+      "brand": "premium",
+      "layout": "intimates",
+      "x": 4825,
+      "y": 825,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 2,
+        "fitting_rooms": 4,
+        "skill": 1.2,
+        "scan_s": 14,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "fast_ot",
+      "name": "Fast Old Town",
+      "short": "Fast OT",
+      "brand": "fast",
+      "layout": "standard",
+      "x": 3925,
+      "y": 1575,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 0.9,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "fast_mm",
+      "name": "Fast Millbrook Mall",
+      "short": "Fast MM",
+      "brand": "fast",
+      "layout": "standard",
+      "x": 1825,
+      "y": 2325,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 0.9,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "fast_ec",
+      "name": "Fast Eastfield Campus",
+      "short": "Fast EC",
+      "brand": "fast",
+      "layout": "small",
+      "x": 4025,
+      "y": 2325,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 2,
+        "skill": 0.9,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "fast_eh",
+      "name": "Fast Eastfield High St",
+      "short": "Fast EH",
+      "brand": "fast",
+      "layout": "standard",
+      "x": 1025,
+      "y": 3825,
+      "staff": {
+        "cashiers": 1,
+        "assistants": 1,
+        "fitting_rooms": 4,
+        "skill": 0.9,
+        "scan_s": 12,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    },
+    {
+      "id": "prem_rq",
+      "name": "Premium Riverside Quay",
+      "short": "Prem RQ",
+      "brand": "premium",
+      "layout": "intimates",
+      "x": 4725,
+      "y": 775,
+      "staff": {
+        "cashiers": 2,
+        "assistants": 2,
+        "fitting_rooms": 4,
+        "skill": 1.2,
+        "scan_s": 14,
+        "try_s": 150,
+        "max_fr_q": 8,
+        "max_till_q": 10
+      }
+    }
+  ],
+  "families": [
+    {"id": "ours", "name": "Our group", "ours": true},
+    {"id": "value_co", "name": "Value Co", "ours": false},
+    {"id": "premium_co", "name": "Premium Co", "ours": false},
+    {"id": "fast_co", "name": "Fast Co", "ours": false}
+  ],
+  "brands": [
+    {
+      "id": "ours",
+      "name": "Ours",
+      "family": "ours",
+      "colour": "#eb6834",
+      "fit": {"value_seekers": 0.3, "trend_followers": 0.3, "quality_loyalists": 0.3, "convenience": 0.3},
+      "levers": {"price": 1, "ad": 0.4, "cashiers": 1, "assistants": 1, "skill": 1, "scan_s": 12},
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.2,
+        "plan": {
+          "denim": 105,
+          "tops": 101,
+          "knitwear": 102,
+          "outerwear": 56,
+          "dresses": 84,
+          "shoes": 217,
+          "accessories": 268
+        }
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "none",
+            "name": "No loyalty",
+            "share": 0.45,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "low",
+            "name": "Low",
+            "share": 0.3,
+            "spend": 60,
+            "pull": 0.3,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "mid",
+            "name": "Mid",
+            "share": 0.17,
+            "spend": 115,
+            "pull": 0.7,
+            "price": 0.8,
+            "memory": 1,
+            "radius": 1.2,
+            "offers": 1
+          },
+          {
+            "id": "high",
+            "name": "High",
+            "share": 0.08,
+            "spend": 255,
+            "pull": 1.2,
+            "price": 0.6,
+            "memory": 1,
+            "radius": 1.5,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "straight_leg_jeans",
+          "name": "Straight-leg jeans",
+          "category": "denim",
+          "price": 48,
+          "cost": 21.6,
+          "day": 1
+        },
+        {"id": "slim_jeans", "name": "Slim jeans", "category": "denim", "price": 54, "cost": 24.3, "day": 1},
+        {
+          "id": "denim_jacket",
+          "name": "Denim jacket",
+          "category": "denim",
+          "price": 60,
+          "cost": 27,
+          "day": 29
+        },
+        {
+          "id": "wide_leg_jeans",
+          "name": "Wide-leg jeans",
+          "category": "denim",
+          "price": 69,
+          "cost": 31.05,
+          "day": 29
+        },
+        {
+          "id": "selvedge_jeans",
+          "name": "Selvedge jeans",
+          "category": "denim",
+          "price": 78,
+          "cost": 35.1,
+          "day": 57
+        },
+        {"id": "cotton_tee", "name": "Cotton tee", "category": "tops", "price": 24, "cost": 10.8, "day": 1},
+        {
+          "id": "striped_top",
+          "name": "Striped top",
+          "category": "tops",
+          "price": 27,
+          "cost": 12.15,
+          "day": 1
+        },
+        {
+          "id": "oxford_shirt",
+          "name": "Oxford shirt",
+          "category": "tops",
+          "price": 30,
+          "cost": 13.5,
+          "day": 29
+        },
+        {
+          "id": "linen_shirt",
+          "name": "Linen shirt",
+          "category": "tops",
+          "price": 34.5,
+          "cost": 15.525,
+          "day": 29
+        },
+        {
+          "id": "silk_blouse",
+          "name": "Silk blouse",
+          "category": "tops",
+          "price": 39,
+          "cost": 17.55,
+          "day": 57
+        },
+        {
+          "id": "cotton_jumper",
+          "name": "Cotton jumper",
+          "category": "knitwear",
+          "price": 40,
+          "cost": 18,
+          "day": 1
+        },
+        {"id": "cardigan", "name": "Cardigan", "category": "knitwear", "price": 45, "cost": 20.25, "day": 1},
+        {
+          "id": "merino_jumper",
+          "name": "Merino jumper",
+          "category": "knitwear",
+          "price": 50,
+          "cost": 22.5,
+          "day": 29
+        },
+        {
+          "id": "cable_knit",
+          "name": "Cable knit",
+          "category": "knitwear",
+          "price": 57.5,
+          "cost": 25.875,
+          "day": 29
+        },
+        {
+          "id": "cashmere_jumper",
+          "name": "Cashmere jumper",
+          "category": "knitwear",
+          "price": 65,
+          "cost": 29.25,
+          "day": 57
+        },
+        {
+          "id": "rain_jacket",
+          "name": "Rain jacket",
+          "category": "outerwear",
+          "price": 96,
+          "cost": 43.2,
+          "day": 1
+        },
+        {
+          "id": "bomber_jacket",
+          "name": "Bomber jacket",
+          "category": "outerwear",
+          "price": 108,
+          "cost": 48.6,
+          "day": 1
+        },
+        {
+          "id": "trench_coat",
+          "name": "Trench coat",
+          "category": "outerwear",
+          "price": 120,
+          "cost": 54,
+          "day": 29
+        },
+        {
+          "id": "puffer_jacket",
+          "name": "Puffer jacket",
+          "category": "outerwear",
+          "price": 138,
+          "cost": 62.1,
+          "day": 29
+        },
+        {
+          "id": "wool_coat",
+          "name": "Wool coat",
+          "category": "outerwear",
+          "price": 156,
+          "cost": 70.2,
+          "day": 57
+        },
+        {
+          "id": "jersey_dress",
+          "name": "Jersey dress",
+          "category": "dresses",
+          "price": 56,
+          "cost": 25.2,
+          "day": 1
+        },
+        {
+          "id": "shirt_dress",
+          "name": "Shirt dress",
+          "category": "dresses",
+          "price": 63,
+          "cost": 28.35,
+          "day": 1
+        },
+        {
+          "id": "wrap_dress",
+          "name": "Wrap dress",
+          "category": "dresses",
+          "price": 70,
+          "cost": 31.5,
+          "day": 29
+        },
+        {
+          "id": "slip_dress",
+          "name": "Slip dress",
+          "category": "dresses",
+          "price": 80.5,
+          "cost": 36.225,
+          "day": 29
+        },
+        {
+          "id": "evening_dress",
+          "name": "Evening dress",
+          "category": "dresses",
+          "price": 91,
+          "cost": 40.95,
+          "day": 57
+        },
+        {
+          "id": "canvas_trainers",
+          "name": "Canvas trainers",
+          "category": "shoes",
+          "price": 64,
+          "cost": 28.8,
+          "day": 1
+        },
+        {"id": "loafers", "name": "Loafers", "category": "shoes", "price": 72, "cost": 32.4, "day": 1},
+        {
+          "id": "leather_trainers",
+          "name": "Leather trainers",
+          "category": "shoes",
+          "price": 80,
+          "cost": 36,
+          "day": 29
+        },
+        {
+          "id": "chelsea_boots",
+          "name": "Chelsea boots",
+          "category": "shoes",
+          "price": 92,
+          "cost": 41.4,
+          "day": 29
+        },
+        {
+          "id": "heeled_boots",
+          "name": "Heeled boots",
+          "category": "shoes",
+          "price": 104,
+          "cost": 46.8,
+          "day": 57
+        },
+        {"id": "beanie", "name": "Beanie", "category": "accessories", "price": 20, "cost": 9, "day": 1},
+        {"id": "scarf", "name": "Scarf", "category": "accessories", "price": 22.5, "cost": 10.125, "day": 1},
+        {"id": "belt", "name": "Belt", "category": "accessories", "price": 25, "cost": 11.25, "day": 29},
+        {
+          "id": "tote_bag",
+          "name": "Tote bag",
+          "category": "accessories",
+          "price": 28.75,
+          "cost": 12.9375,
+          "day": 29
+        },
+        {
+          "id": "crossbody_bag",
+          "name": "Crossbody bag",
+          "category": "accessories",
+          "price": 32.5,
+          "cost": 14.625,
+          "day": 57
+        }
+      ],
+      "calendar": {
+        "promotions": [],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_markdown",
+            "name": "Final markdown",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ],
+        "offers": [
+          {
+            "id": "launch_email",
+            "name": "Launch email",
+            "from": 8,
+            "to": 21,
+            "depth": 0.15,
+            "send_cost": 0.02,
+            "audience": 0.6,
+            "holdout": 0.1,
+            "tiers": ["none", "low", "mid", "high"],
+            "areas": [],
+            "also_at": []
+          },
+          {
+            "id": "loyalty_mailer",
+            "name": "Loyalty mailer",
+            "from": 50,
+            "to": 63,
+            "depth": 0.2,
+            "send_cost": 0.85,
+            "audience": 1,
+            "holdout": 0.15,
+            "tiers": ["mid", "high"],
+            "areas": [],
+            "also_at": []
+          }
+        ]
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 3,
+        "delivery_charge": 3.95,
+        "fulfilment_cost": 3.5,
+        "shipping_cost": 6,
+        "plan_stores": 2
+      },
+      "returns": {"window_days": 30, "post_cost": 6, "write_off_rate": 0.1}
+    },
+    {
+      "id": "ours_intimates",
+      "name": "Ours Intimates",
+      "family": "ours",
+      "colour": "#e87ba4",
+      "fit": {"value_seekers": 0.3, "trend_followers": 0.3, "quality_loyalists": 0.3, "convenience": 0.3},
+      "levers": {"price": 1, "ad": 0.4, "cashiers": 1, "assistants": 1, "skill": 1, "scan_s": 12},
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.2,
+        "plan": {"bras": 177, "briefs": 201, "sleepwear": 103, "loungewear": 177}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "none",
+            "name": "No loyalty",
+            "share": 0.45,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "low",
+            "name": "Low",
+            "share": 0.3,
+            "spend": 30,
+            "pull": 0.3,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "mid",
+            "name": "Mid",
+            "share": 0.17,
+            "spend": 65,
+            "pull": 0.7,
+            "price": 0.8,
+            "memory": 1,
+            "radius": 1.2,
+            "offers": 1
+          },
+          {
+            "id": "high",
+            "name": "High",
+            "share": 0.08,
+            "spend": 95,
+            "pull": 1.2,
+            "price": 0.6,
+            "memory": 1,
+            "radius": 1.5,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "wireless_bra",
+          "name": "Wireless bra",
+          "category": "bras",
+          "price": 42,
+          "cost": 16.8,
+          "day": 1
+        },
+        {
+          "id": "t_shirt_bra",
+          "name": "T-shirt bra",
+          "category": "bras",
+          "price": 46,
+          "cost": 18.4,
+          "day": 1
+        },
+        {
+          "id": "full_coverage_bra",
+          "name": "Full-coverage bra",
+          "category": "bras",
+          "price": 48,
+          "cost": 19.2,
+          "day": 1
+        },
+        {"id": "sports_bra", "name": "Sports bra", "category": "bras", "price": 40, "cost": 16, "day": 29},
+        {
+          "id": "balconette_bra",
+          "name": "Balconette bra",
+          "category": "bras",
+          "price": 52,
+          "cost": 20.8,
+          "day": 29
+        },
+        {
+          "id": "lace_plunge_bra",
+          "name": "Lace plunge bra",
+          "category": "bras",
+          "price": 56,
+          "cost": 22.4,
+          "day": 57
+        },
+        {
+          "id": "cotton_brief",
+          "name": "Cotton brief",
+          "category": "briefs",
+          "price": 10,
+          "cost": 4,
+          "day": 1
+        },
+        {
+          "id": "seamless_hipster",
+          "name": "Seamless hipster",
+          "category": "briefs",
+          "price": 12,
+          "cost": 4.8,
+          "day": 1
+        },
+        {
+          "id": "lace_thong",
+          "name": "Lace thong",
+          "category": "briefs",
+          "price": 12,
+          "cost": 4.8,
+          "day": 29
+        },
+        {
+          "id": "high_waist_brief",
+          "name": "High-waist brief",
+          "category": "briefs",
+          "price": 13,
+          "cost": 5.2,
+          "day": 29
+        },
+        {
+          "id": "lace_cheeky",
+          "name": "Lace cheeky",
+          "category": "briefs",
+          "price": 14,
+          "cost": 5.6,
+          "day": 57
+        },
+        {
+          "id": "modal_nightgown",
+          "name": "Modal nightgown",
+          "category": "sleepwear",
+          "price": 40,
+          "cost": 16,
+          "day": 1
+        },
+        {
+          "id": "cotton_pyjama_set",
+          "name": "Cotton pyjama set",
+          "category": "sleepwear",
+          "price": 46,
+          "cost": 18.4,
+          "day": 1
+        },
+        {
+          "id": "satin_sleep_shirt",
+          "name": "Satin sleep shirt",
+          "category": "sleepwear",
+          "price": 44,
+          "cost": 17.6,
+          "day": 29
+        },
+        {
+          "id": "flannel_pyjama_set",
+          "name": "Flannel pyjama set",
+          "category": "sleepwear",
+          "price": 54,
+          "cost": 21.6,
+          "day": 57
+        },
+        {
+          "id": "ribbed_lounge_top",
+          "name": "Ribbed lounge top",
+          "category": "loungewear",
+          "price": 42,
+          "cost": 16.8,
+          "day": 1
+        },
+        {
+          "id": "lounge_jogger",
+          "name": "Lounge jogger",
+          "category": "loungewear",
+          "price": 46,
+          "cost": 18.4,
+          "day": 1
+        },
+        {
+          "id": "waffle_knit_hoodie",
+          "name": "Waffle-knit hoodie",
+          "category": "loungewear",
+          "price": 54,
+          "cost": 21.6,
+          "day": 29
+        },
+        {
+          "id": "plush_robe",
+          "name": "Plush robe",
+          "category": "loungewear",
+          "price": 60,
+          "cost": 24,
+          "day": 57
+        }
+      ],
+      "calendar": {
+        "promotions": [],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_markdown",
+            "name": "Final markdown",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ],
+        "offers": [
+          {
+            "id": "new_arrivals_email",
+            "name": "New-arrivals email",
+            "from": 29,
+            "to": 42,
+            "depth": 0.15,
+            "send_cost": 0.02,
+            "audience": 0.5,
+            "holdout": 0.1,
+            "tiers": ["none", "low", "mid", "high"],
+            "areas": [],
+            "also_at": []
+          },
+          {
+            "id": "family_coupon",
+            "name": "Family coupon",
+            "from": 64,
+            "to": 77,
+            "depth": 0.2,
+            "send_cost": 0.02,
+            "audience": 0.3,
+            "holdout": 0.1,
+            "tiers": ["none", "low", "mid", "high"],
+            "areas": [],
+            "also_at": ["ours"]
+          }
+        ]
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 3,
+        "delivery_charge": 2.95,
+        "fulfilment_cost": 3,
+        "shipping_cost": 4.5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 30, "post_cost": 6, "write_off_rate": 0.1}
+    },
+    {
+      "id": "value",
+      "name": "Value",
+      "family": "value_co",
+      "colour": "#2a78d6",
+      "fit": {"value_seekers": 0.8, "trend_followers": -0.2, "quality_loyalists": -0.6, "convenience": 0.2},
+      "levers": {"price": 1, "ad": 0.3, "cashiers": 1, "assistants": 0, "skill": 1, "scan_s": 10},
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.2,
+        "plan": {
+          "denim": 164,
+          "tops": 187,
+          "knitwear": 128,
+          "outerwear": 83,
+          "dresses": 59,
+          "shoes": 360,
+          "accessories": 709
+        }
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "none",
+            "name": "No loyalty",
+            "share": 0.45,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "low",
+            "name": "Low",
+            "share": 0.3,
+            "spend": 35,
+            "pull": 0.3,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "mid",
+            "name": "Mid",
+            "share": 0.17,
+            "spend": 70,
+            "pull": 0.7,
+            "price": 0.8,
+            "memory": 1,
+            "radius": 1.2,
+            "offers": 1
+          },
+          {
+            "id": "high",
+            "name": "High",
+            "share": 0.08,
+            "spend": 185,
+            "pull": 1.2,
+            "price": 0.6,
+            "memory": 1,
+            "radius": 1.5,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "skinny_jeans",
+          "name": "Skinny jeans",
+          "category": "denim",
+          "price": 42,
+          "cost": 23.1,
+          "day": 1
+        },
+        {
+          "id": "straight_leg_jeans",
+          "name": "Straight-leg jeans",
+          "category": "denim",
+          "price": 42,
+          "cost": 23.1,
+          "day": 1
+        },
+        {"id": "jeggings", "name": "Jeggings", "category": "denim", "price": 30, "cost": 16.5, "day": 1},
+        {
+          "id": "bootcut_jeans",
+          "name": "Bootcut jeans",
+          "category": "denim",
+          "price": 42,
+          "cost": 23.1,
+          "day": 29
+        },
+        {"id": "mom_jeans", "name": "Mom jeans", "category": "denim", "price": 44, "cost": 24.2, "day": 29},
+        {
+          "id": "denim_jacket",
+          "name": "Denim jacket",
+          "category": "denim",
+          "price": 48,
+          "cost": 26.4,
+          "day": 57
+        },
+        {"id": "basic_tee", "name": "Basic tee", "category": "tops", "price": 12, "cost": 6.6, "day": 1},
+        {"id": "v_neck_tee", "name": "V-neck tee", "category": "tops", "price": 13, "cost": 7.15, "day": 1},
+        {
+          "id": "long_sleeve_tee",
+          "name": "Long-sleeve tee",
+          "category": "tops",
+          "price": 16,
+          "cost": 8.8,
+          "day": 1
+        },
+        {
+          "id": "printed_tee",
+          "name": "Printed tee",
+          "category": "tops",
+          "price": 21,
+          "cost": 11.55,
+          "day": 1
+        },
+        {"id": "polo_shirt", "name": "Polo shirt", "category": "tops", "price": 22, "cost": 12.1, "day": 29},
+        {
+          "id": "flannel_shirt",
+          "name": "Flannel shirt",
+          "category": "tops",
+          "price": 26,
+          "cost": 14.3,
+          "day": 29
+        },
+        {"id": "blouse", "name": "Blouse", "category": "tops", "price": 28, "cost": 15.4, "day": 29},
+        {"id": "tunic_top", "name": "Tunic top", "category": "tops", "price": 24, "cost": 13.2, "day": 57},
+        {
+          "id": "crew_neck_jumper",
+          "name": "Crew-neck jumper",
+          "category": "knitwear",
+          "price": 35,
+          "cost": 19.25,
+          "day": 1
+        },
+        {"id": "cardigan", "name": "Cardigan", "category": "knitwear", "price": 38, "cost": 20.9, "day": 1},
+        {
+          "id": "fleece_hoodie",
+          "name": "Fleece hoodie",
+          "category": "knitwear",
+          "price": 35,
+          "cost": 19.25,
+          "day": 29
+        },
+        {
+          "id": "roll_neck_jumper",
+          "name": "Roll-neck jumper",
+          "category": "knitwear",
+          "price": 40,
+          "cost": 22,
+          "day": 57
+        },
+        {
+          "id": "rain_jacket",
+          "name": "Rain jacket",
+          "category": "outerwear",
+          "price": 65,
+          "cost": 35.75,
+          "day": 1
+        },
+        {
+          "id": "padded_jacket",
+          "name": "Padded jacket",
+          "category": "outerwear",
+          "price": 85,
+          "cost": 46.75,
+          "day": 29
+        },
+        {
+          "id": "t_shirt_dress",
+          "name": "T-shirt dress",
+          "category": "dresses",
+          "price": 36,
+          "cost": 19.8,
+          "day": 1
+        },
+        {
+          "id": "skater_dress",
+          "name": "Skater dress",
+          "category": "dresses",
+          "price": 49,
+          "cost": 26.95,
+          "day": 29
+        },
+        {
+          "id": "canvas_pumps",
+          "name": "Canvas pumps",
+          "category": "shoes",
+          "price": 36,
+          "cost": 19.8,
+          "day": 1
+        },
+        {"id": "trainers", "name": "Trainers", "category": "shoes", "price": 56, "cost": 30.8, "day": 1},
+        {
+          "id": "ankle_boots",
+          "name": "Ankle boots",
+          "category": "shoes",
+          "price": 60,
+          "cost": 33,
+          "day": 29
+        },
+        {"id": "slippers", "name": "Slippers", "category": "shoes", "price": 30, "cost": 16.5, "day": 57},
+        {
+          "id": "socks_3_pack",
+          "name": "Socks 3-pack",
+          "category": "accessories",
+          "price": 12,
+          "cost": 6.6,
+          "day": 1
+        },
+        {"id": "beanie", "name": "Beanie", "category": "accessories", "price": 14, "cost": 7.7, "day": 1},
+        {"id": "scarf", "name": "Scarf", "category": "accessories", "price": 18, "cost": 9.9, "day": 29},
+        {
+          "id": "tote_bag",
+          "name": "Tote bag",
+          "category": "accessories",
+          "price": 20,
+          "cost": 11,
+          "day": 57
+        }
+      ],
+      "calendar": {
+        "promotions": [],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_markdown",
+            "name": "Final markdown",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ],
+        "offers": []
+      },
+      "online": {
+        "on": false,
+        "delivery_days": 4,
+        "delivery_charge": 4.95,
+        "fulfilment_cost": 2.5,
+        "shipping_cost": 5,
+        "plan_stores": 1
+      },
+      "returns": {"window_days": 14, "post_cost": 6, "write_off_rate": 0.1}
+    },
+    {
+      "id": "premium",
+      "name": "Premium",
+      "family": "premium_co",
+      "colour": "#4a3aa7",
+      "fit": {"value_seekers": -0.8, "trend_followers": 0.1, "quality_loyalists": 0.9, "convenience": -0.1},
+      "levers": {"price": 1, "ad": 0.5, "cashiers": 2, "assistants": 2, "skill": 1.2, "scan_s": 14},
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.2,
+        "plan": {"bras": 61, "briefs": 64, "sleepwear": 18, "loungewear": 35}
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "none",
+            "name": "No loyalty",
+            "share": 0.45,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "low",
+            "name": "Low",
+            "share": 0.3,
+            "spend": 25,
+            "pull": 0.3,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "mid",
+            "name": "Mid",
+            "share": 0.17,
+            "spend": 45,
+            "pull": 0.7,
+            "price": 0.8,
+            "memory": 1,
+            "radius": 1.2,
+            "offers": 1
+          },
+          {
+            "id": "high",
+            "name": "High",
+            "share": 0.08,
+            "spend": 70,
+            "pull": 1.2,
+            "price": 0.6,
+            "memory": 1,
+            "radius": 1.5,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {
+          "id": "moulded_t_shirt_bra",
+          "name": "Moulded T-shirt bra",
+          "category": "bras",
+          "price": 68,
+          "cost": 23.8,
+          "day": 1
+        },
+        {
+          "id": "lace_underwire_bra",
+          "name": "Lace underwire bra",
+          "category": "bras",
+          "price": 76,
+          "cost": 26.6,
+          "day": 1
+        },
+        {
+          "id": "silk_balconette_bra",
+          "name": "Silk balconette bra",
+          "category": "bras",
+          "price": 78,
+          "cost": 27.3,
+          "day": 1
+        },
+        {
+          "id": "longline_lace_bralette",
+          "name": "Longline lace bralette",
+          "category": "bras",
+          "price": 64,
+          "cost": 22.4,
+          "day": 29
+        },
+        {
+          "id": "silk_plunge_bra",
+          "name": "Silk plunge bra",
+          "category": "bras",
+          "price": 88,
+          "cost": 30.8,
+          "day": 57
+        },
+        {"id": "lace_brief", "name": "Lace brief", "category": "briefs", "price": 18, "cost": 6.3, "day": 1},
+        {"id": "silk_brief", "name": "Silk brief", "category": "briefs", "price": 20, "cost": 7, "day": 1},
+        {
+          "id": "lace_thong",
+          "name": "Lace thong",
+          "category": "briefs",
+          "price": 17,
+          "cost": 5.95,
+          "day": 29
+        },
+        {
+          "id": "silk_high_waist_brief",
+          "name": "Silk high-waist brief",
+          "category": "briefs",
+          "price": 24,
+          "cost": 8.4,
+          "day": 57
+        },
+        {
+          "id": "silk_camisole_set",
+          "name": "Silk camisole set",
+          "category": "sleepwear",
+          "price": 68,
+          "cost": 23.8,
+          "day": 1
+        },
+        {
+          "id": "silk_pyjama_set",
+          "name": "Silk pyjama set",
+          "category": "sleepwear",
+          "price": 88,
+          "cost": 30.8,
+          "day": 29
+        },
+        {
+          "id": "silk_slip_nightdress",
+          "name": "Silk slip nightdress",
+          "category": "sleepwear",
+          "price": 72,
+          "cost": 25.2,
+          "day": 57
+        },
+        {
+          "id": "merino_lounge_top",
+          "name": "Merino lounge top",
+          "category": "loungewear",
+          "price": 72,
+          "cost": 25.2,
+          "day": 1
+        },
+        {
+          "id": "cashmere_lounge_pants",
+          "name": "Cashmere lounge pants",
+          "category": "loungewear",
+          "price": 90,
+          "cost": 31.5,
+          "day": 29
+        },
+        {
+          "id": "silk_robe",
+          "name": "Silk robe",
+          "category": "loungewear",
+          "price": 98,
+          "cost": 34.3,
+          "day": 57
+        }
+      ],
+      "calendar": {
+        "promotions": [],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_markdown",
+            "name": "Final markdown",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ],
+        "offers": []
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 2,
+        "delivery_charge": 0,
+        "fulfilment_cost": 4.5,
+        "shipping_cost": 7.5,
+        "plan_stores": 1.5
+      },
+      "returns": {"window_days": 60, "post_cost": 6, "write_off_rate": 0.1}
+    },
+    {
+      "id": "fast",
+      "name": "Fast",
+      "family": "fast_co",
+      "colour": "#1baf7a",
+      "fit": {"value_seekers": 0.1, "trend_followers": 0.9, "quality_loyalists": -0.5, "convenience": 0.1},
+      "levers": {"price": 1, "ad": 0.6, "cashiers": 1, "assistants": 1, "skill": 0.9, "scan_s": 12},
+      "stock": {
+        "allocation": "flat",
+        "season_buy": 1,
+        "lead_days": 4,
+        "opening_weeks": 2,
+        "delivery_fee": 150,
+        "unit_fee": 0.4,
+        "salvage": 0.2,
+        "plan": {
+          "denim": 98,
+          "tops": 211,
+          "knitwear": 26,
+          "outerwear": 20,
+          "dresses": 203,
+          "shoes": 192,
+          "accessories": 673
+        }
+      },
+      "pricing": {"promos_on_markdowns": true, "md_target": 0.8},
+      "loyalty": {
+        "tiers": [
+          {
+            "id": "none",
+            "name": "No loyalty",
+            "share": 0.45,
+            "spend": 0,
+            "pull": 0,
+            "price": 1,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "low",
+            "name": "Low",
+            "share": 0.3,
+            "spend": 50,
+            "pull": 0.3,
+            "price": 0.9,
+            "memory": 1,
+            "radius": 1,
+            "offers": 1
+          },
+          {
+            "id": "mid",
+            "name": "Mid",
+            "share": 0.17,
+            "spend": 100,
+            "pull": 0.7,
+            "price": 0.8,
+            "memory": 1,
+            "radius": 1.2,
+            "offers": 1
+          },
+          {
+            "id": "high",
+            "name": "High",
+            "share": 0.08,
+            "spend": 250,
+            "pull": 1.2,
+            "price": 0.6,
+            "memory": 1,
+            "radius": 1.5,
+            "offers": 1
+          }
+        ]
+      },
+      "range": [
+        {"id": "baggy_jeans", "name": "Baggy jeans", "category": "denim", "price": 52, "cost": 26, "day": 1},
+        {
+          "id": "flared_jeans",
+          "name": "Flared jeans",
+          "category": "denim",
+          "price": 50,
+          "cost": 25,
+          "day": 15
+        },
+        {
+          "id": "low_rise_jeans",
+          "name": "Low-rise jeans",
+          "category": "denim",
+          "price": 51,
+          "cost": 25.5,
+          "day": 29
+        },
+        {
+          "id": "cargo_jeans",
+          "name": "Cargo jeans",
+          "category": "denim",
+          "price": 55,
+          "cost": 27.5,
+          "day": 43
+        },
+        {
+          "id": "denim_skirt",
+          "name": "Denim skirt",
+          "category": "denim",
+          "price": 40,
+          "cost": 20,
+          "day": 57
+        },
+        {"id": "graphic_tee", "name": "Graphic tee", "category": "tops", "price": 20, "cost": 10, "day": 1},
+        {"id": "crop_top", "name": "Crop top", "category": "tops", "price": 26, "cost": 13, "day": 1},
+        {"id": "bodysuit", "name": "Bodysuit", "category": "tops", "price": 26, "cost": 13, "day": 15},
+        {"id": "mesh_top", "name": "Mesh top", "category": "tops", "price": 26, "cost": 13, "day": 15},
+        {"id": "satin_cami", "name": "Satin cami", "category": "tops", "price": 25, "cost": 12.5, "day": 29},
+        {"id": "corset_top", "name": "Corset top", "category": "tops", "price": 32, "cost": 16, "day": 29},
+        {
+          "id": "puff_sleeve_blouse",
+          "name": "Puff-sleeve blouse",
+          "category": "tops",
+          "price": 30,
+          "cost": 15,
+          "day": 43
+        },
+        {"id": "ruched_top", "name": "Ruched top", "category": "tops", "price": 26, "cost": 13, "day": 43},
+        {
+          "id": "oversized_shirt",
+          "name": "Oversized shirt",
+          "category": "tops",
+          "price": 28,
+          "cost": 14,
+          "day": 57
+        },
+        {"id": "halter_top", "name": "Halter top", "category": "tops", "price": 26, "cost": 13, "day": 57},
+        {"id": "cut_out_top", "name": "Cut-out top", "category": "tops", "price": 26, "cost": 13, "day": 71},
+        {"id": "sheer_shirt", "name": "Sheer shirt", "category": "tops", "price": 30, "cost": 15, "day": 71},
+        {
+          "id": "cropped_cardigan",
+          "name": "Cropped cardigan",
+          "category": "knitwear",
+          "price": 43,
+          "cost": 21.5,
+          "day": 29
+        },
+        {
+          "id": "faux_leather_jacket",
+          "name": "Faux-leather jacket",
+          "category": "outerwear",
+          "price": 102,
+          "cost": 51,
+          "day": 15
+        },
+        {
+          "id": "mini_dress",
+          "name": "Mini dress",
+          "category": "dresses",
+          "price": 45,
+          "cost": 22.5,
+          "day": 1
+        },
+        {"id": "slip_dress", "name": "Slip dress", "category": "dresses", "price": 60, "cost": 30, "day": 1},
+        {
+          "id": "bodycon_dress",
+          "name": "Bodycon dress",
+          "category": "dresses",
+          "price": 48,
+          "cost": 24,
+          "day": 15
+        },
+        {
+          "id": "tiered_dress",
+          "name": "Tiered dress",
+          "category": "dresses",
+          "price": 58,
+          "cost": 29,
+          "day": 15
+        },
+        {
+          "id": "satin_midi_dress",
+          "name": "Satin midi dress",
+          "category": "dresses",
+          "price": 62,
+          "cost": 31,
+          "day": 29
+        },
+        {
+          "id": "cut_out_dress",
+          "name": "Cut-out dress",
+          "category": "dresses",
+          "price": 60,
+          "cost": 30,
+          "day": 29
+        },
+        {
+          "id": "maxi_dress",
+          "name": "Maxi dress",
+          "category": "dresses",
+          "price": 65,
+          "cost": 32.5,
+          "day": 43
+        },
+        {
+          "id": "smock_dress",
+          "name": "Smock dress",
+          "category": "dresses",
+          "price": 60,
+          "cost": 30,
+          "day": 57
+        },
+        {
+          "id": "sequin_mini_dress",
+          "name": "Sequin mini dress",
+          "category": "dresses",
+          "price": 68,
+          "cost": 34,
+          "day": 71
+        },
+        {
+          "id": "shirt_dress",
+          "name": "Shirt dress",
+          "category": "dresses",
+          "price": 58,
+          "cost": 29,
+          "day": 71
+        },
+        {
+          "id": "platform_trainers",
+          "name": "Platform trainers",
+          "category": "shoes",
+          "price": 65,
+          "cost": 32.5,
+          "day": 1
+        },
+        {
+          "id": "chunky_loafers",
+          "name": "Chunky loafers",
+          "category": "shoes",
+          "price": 68,
+          "cost": 34,
+          "day": 15
+        },
+        {
+          "id": "knee_boots",
+          "name": "Knee boots",
+          "category": "shoes",
+          "price": 85,
+          "cost": 42.5,
+          "day": 29
+        },
+        {
+          "id": "strappy_heels",
+          "name": "Strappy heels",
+          "category": "shoes",
+          "price": 55,
+          "cost": 27.5,
+          "day": 43
+        },
+        {"id": "mules", "name": "Mules", "category": "shoes", "price": 48, "cost": 24, "day": 57},
+        {"id": "mini_bag", "name": "Mini bag", "category": "accessories", "price": 22, "cost": 11, "day": 1},
+        {
+          "id": "hoop_earrings",
+          "name": "Hoop earrings",
+          "category": "accessories",
+          "price": 14,
+          "cost": 7,
+          "day": 1
+        },
+        {
+          "id": "claw_clip_set",
+          "name": "Claw clip set",
+          "category": "accessories",
+          "price": 12,
+          "cost": 6,
+          "day": 15
+        },
+        {
+          "id": "sunglasses",
+          "name": "Sunglasses",
+          "category": "accessories",
+          "price": 18,
+          "cost": 9,
+          "day": 29
+        },
+        {
+          "id": "chain_belt",
+          "name": "Chain belt",
+          "category": "accessories",
+          "price": 18,
+          "cost": 9,
+          "day": 43
+        },
+        {
+          "id": "shoulder_bag",
+          "name": "Shoulder bag",
+          "category": "accessories",
+          "price": 28,
+          "cost": 14,
+          "day": 57
+        }
+      ],
+      "calendar": {
+        "promotions": [],
+        "markdowns": [
+          {
+            "id": "first_markdown",
+            "name": "First markdown",
+            "on": "range",
+            "items": [],
+            "from": 43,
+            "to": 43,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.2,
+            "max": 0.6
+          },
+          {
+            "id": "second_markdown",
+            "name": "Second markdown",
+            "on": "range",
+            "items": [],
+            "from": 64,
+            "to": 64,
+            "weekdays": [],
+            "which": "behind",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.4,
+            "max": 0.6
+          },
+          {
+            "id": "final_markdown",
+            "name": "Final markdown",
+            "on": "range",
+            "items": [],
+            "from": 78,
+            "to": 78,
+            "weekdays": [],
+            "which": "all",
+            "by": 0.05,
+            "min_days": 14,
+            "rest_days": 0,
+            "mode": "to",
+            "depth": 0.5,
+            "max": 0.6
+          }
+        ],
+        "replenishment": [
+          {
+            "id": "weekly_replenishment",
+            "name": "Weekly replenishment",
+            "on": "range",
+            "items": [],
+            "from": 1,
+            "to": 91,
+            "weekdays": ["Mon"],
+            "rule": "top_up",
+            "cover": 1.25,
+            "reorder": 1.25
+          }
+        ],
+        "offers": []
+      },
+      "online": {
+        "on": true,
+        "delivery_days": 4,
+        "delivery_charge": 2.95,
+        "fulfilment_cost": 2.5,
+        "shipping_cost": 5,
+        "plan_stores": 2
+      },
+      "returns": {"window_days": 30, "post_cost": 6, "write_off_rate": 0.1}
+    }
+  ],
+  "segments": [
+    {
+      "id": "value_seekers",
+      "name": "Value seekers",
+      "colour": "#2a78d6",
+      "shop": 0.1,
+      "price": 2.2,
+      "promo": 1.6,
+      "km": 1,
+      "radius_km": 8,
+      "zones": 2.5,
+      "browse": 220,
+      "patience": 420,
+      "max_ahead": 8,
+      "budget": 0.8,
+      "category_taste": {
+        "denim": 3,
+        "tops": 3,
+        "knitwear": 2,
+        "outerwear": 1,
+        "dresses": 1,
+        "shoes": 2,
+        "accessories": 2,
+        "bras": 1.5,
+        "briefs": 1.5,
+        "sleepwear": 1,
+        "loungewear": 1
+      },
+      "offer_response": {"shop": 0.9, "appeal": 0.9},
+      "online": -1.4,
+      "returns": 1
+    },
+    {
+      "id": "trend_followers",
+      "name": "Trend followers",
+      "colour": "#eb6834",
+      "shop": 0.15,
+      "price": 1.1,
+      "promo": 1,
+      "km": 0.9,
+      "radius_km": 9,
+      "zones": 3.2,
+      "browse": 270,
+      "patience": 300,
+      "max_ahead": 6,
+      "budget": 1.1,
+      "category_taste": {
+        "denim": 2,
+        "tops": 3,
+        "knitwear": 1,
+        "outerwear": 2,
+        "dresses": 3,
+        "shoes": 2,
+        "accessories": 3,
+        "bras": 1.5,
+        "briefs": 1,
+        "sleepwear": 0.5,
+        "loungewear": 1.5
+      },
+      "offer_response": {"shop": 0.3, "appeal": 0.4},
+      "online": -0.2,
+      "returns": 1
+    },
+    {
+      "id": "quality_loyalists",
+      "name": "Quality loyalists",
+      "colour": "#1baf7a",
+      "shop": 0.08,
+      "price": 0.4,
+      "promo": 0.5,
+      "km": 0.7,
+      "radius_km": 12,
+      "zones": 2.2,
+      "browse": 300,
+      "patience": 360,
+      "max_ahead": 6,
+      "budget": 1.4,
+      "category_taste": {
+        "denim": 2,
+        "tops": 2,
+        "knitwear": 3,
+        "outerwear": 3,
+        "dresses": 2,
+        "shoes": 2,
+        "accessories": 1,
+        "bras": 2,
+        "briefs": 1,
+        "sleepwear": 1,
+        "loungewear": 1
+      },
+      "offer_response": {"shop": 0.05, "appeal": 0.1},
+      "online": -0.8,
+      "returns": 1
+    },
+    {
+      "id": "convenience",
+      "name": "Convenience",
+      "colour": "#eda100",
+      "shop": 0.11,
+      "price": 0.9,
+      "promo": 0.8,
+      "km": 1.8,
+      "radius_km": 5,
+      "zones": 1.5,
+      "browse": 150,
+      "patience": 180,
+      "max_ahead": 4,
+      "budget": 0.9,
+      "category_taste": {
+        "denim": 3,
+        "tops": 3,
+        "knitwear": 1,
+        "outerwear": 1,
+        "dresses": 1,
+        "shoes": 1,
+        "accessories": 2,
+        "bras": 1,
+        "briefs": 1,
+        "sleepwear": 0.5,
+        "loungewear": 1
+      },
+      "offer_response": {"shop": 0.35, "appeal": 0.4},
+      "online": 0.2,
+      "returns": 1
+    }
+  ],
+  "market": {
+    "taste_w": 1.2,
+    "price_w": 1.5,
+    "km_w": 0.22,
+    "memory": 0.97,
+    "grudge_w": 0.8,
+    "wom": 0.35,
+    "outside": 2,
+    "range_w": 1
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "about": "The coordinate contract between the editors' grids and the model's NetLogoR worlds: a tile in row r (from the north edge) and column c (from the west edge) is the patch pxcor = c, pycor = height - 1 - r; its middle is x = (c + 0.5) * cell, y = (height - r - 0.5) * cell metres east and north of the south-west corner. tools/test-world-builder.mjs checks the page's helpers against it, tools/test-world-builder.R the model's.",
+  "map": {
+    "world": "worlds/default.world.json",
+    "width": 160,
+    "height": 120,
+    "patch_m": 50,
+    "cells": [
+      {
+        "r": 0,
+        "c": 0,
+        "pxcor": 0,
+        "pycor": 119,
+        "x": 25.0,
+        "y": 5975.0
+      },
+      {
+        "r": 0,
+        "c": 159,
+        "pxcor": 159,
+        "pycor": 119,
+        "x": 7975.0,
+        "y": 5975.0
+      },
+      {
+        "r": 119,
+        "c": 0,
+        "pxcor": 0,
+        "pycor": 0,
+        "x": 25.0,
+        "y": 25.0
+      },
+      {
+        "r": 119,
+        "c": 159,
+        "pxcor": 159,
+        "pycor": 0,
+        "x": 7975.0,
+        "y": 25.0
+      },
+      {
+        "r": 37,
+        "c": 101,
+        "pxcor": 101,
+        "pycor": 82,
+        "x": 5075.0,
+        "y": 4125.0
+      },
+      {
+        "r": 60,
+        "c": 80,
+        "pxcor": 80,
+        "pycor": 59,
+        "x": 4025.0,
+        "y": 2975.0
+      },
+      {
+        "r": 1,
+        "c": 2,
+        "pxcor": 2,
+        "pycor": 118,
+        "x": 125.0,
+        "y": 5925.0
+      }
+    ]
+  },
+  "floor": {
+    "layout": "layouts/flagship.layout.json",
+    "width": 66,
+    "height": 36,
+    "cell_m": 0.5,
+    "cells": [
+      {
+        "r": 0,
+        "c": 0,
+        "pxcor": 0,
+        "pycor": 35,
+        "x": 0.25,
+        "y": 17.75
+      },
+      {
+        "r": 0,
+        "c": 65,
+        "pxcor": 65,
+        "pycor": 35,
+        "x": 32.75,
+        "y": 17.75
+      },
+      {
+        "r": 35,
+        "c": 0,
+        "pxcor": 0,
+        "pycor": 0,
+        "x": 0.25,
+        "y": 0.25
+      },
+      {
+        "r": 35,
+        "c": 65,
+        "pxcor": 65,
+        "pycor": 0,
+        "x": 32.75,
+        "y": 0.25
+      },
+      {
+        "r": 13,
+        "c": 40,
+        "pxcor": 40,
+        "pycor": 22,
+        "x": 20.25,
+        "y": 11.25
+      }
+    ]
+  }
+}

@@ -4,6 +4,11 @@
 // how one is used). Nothing here is random: the same script writes the
 // same files.
 //
+// It also writes, for each, the default world started from it, as the
+// editor would (tools/fixtures/geographies/<id>.world.json): the worlds
+// tools/test-world-builder.R checks and runs with the model, and
+// tools/test-world-builder.mjs keeps in step with geography.js.
+//
 //   node tools/build-geographies.mjs
 //
 //   river_town    120 x 90 tiles: a river running north to south with
@@ -13,11 +18,12 @@
 //                 into it and a bridge across its mouth, a coast road, a
 //                 dense harbour front and three districts round it
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { worldText } from "../js/fashion/world-store.js";
-import { GEOGRAPHY_KIND, geographyProblems } from "../js/fashion/geography.js";
+import { GEOGRAPHY_KIND, geographyProblems, applyGeography } from "../js/fashion/geography.js";
 
 const out = new URL("../worlds/geographies/", import.meta.url);
+const fixtures = new URL("fixtures/geographies/", import.meta.url);
 
 // A map being drawn: a grid of tiles, row 0 the north edge.
 function sheet(W, H) {
@@ -148,3 +154,13 @@ for (const g of all) {
   console.log(`${g.id}: ${g.width} x ${g.height}, ${g.tiles.join("").replace(/[^1-9]/g, "").length} home tiles, ${count("=")} road, ${count("+")} bridge, ${count("~")} water, ${g.sites.length} store sites, ${g.areas.length} districts`);
 }
 writeFileSync(new URL("index.json", out), worldText({ geographies: all.map((g) => g.id) }));
+
+// The default world, started from each.
+mkdirSync(fixtures, { recursive: true });
+const base = readFileSync(new URL("../worlds/default.world.json", import.meta.url), "utf8");
+for (const g of all) {
+  const w = JSON.parse(base);
+  const how = applyGeography(w, g);
+  writeFileSync(new URL(`${g.id}.world.json`, fixtures), worldText(w));
+  console.log(`  the default world on ${g.id}: ${how.placed} stores on its sites, ${how.unplaced} waiting; ${how.reused} areas repainted, ${how.added} added`);
+}

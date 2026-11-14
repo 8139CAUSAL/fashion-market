@@ -62,12 +62,16 @@ button shows the files that are running, and the world they run in.
    or *Fastest*: a market day per tick, without drawing.
 3. **Click any store** on the map to watch its floor, then **click a
    shopper** to see their basket, their loyalty and their thoughts.
-4. **Change something.** Settings marked *live* act at once, even
+4. **Draw your world** (in the header): paint the map's homes, roads and
+   water with a brush, start from another geography, place stores, draw
+   their floors. The model previews every stroke: households placed,
+   stores in reach, problems on the floor where they are.
+5. **Change something.** Settings marked *live* act at once, even
    mid-season. Anything that changes the world waits for **Setup**, which
    counts the changes waiting. Setup checks the world first; if anything is
    wrong, it lists every problem where it is, and the season carries on in
    the world set up before.
-5. **Export world** saves the whole market as one JSON file, to share or
+6. **Export world** saves the whole market as one JSON file, to share or
    import later.
 
 ---
@@ -179,7 +183,60 @@ stages.
 
 ## Build your market
 
-Everything is set on the **Setup** tab, in seven sections:
+Everything is set on the **Setup** tab, set out as three stages: **Draw
+your world** (the Macro and Micro world), **Define your market** (Shoppers,
+Brands, Range and calendar, Offers) and **Run the simulation** (Season, and
+Check and run). Every section is one click away at any time, and none has
+to be finished first. **Draw your world**, in the header, opens the map.
+
+### Draw your world
+
+The map and the floors are drawn on one canvas with the same tools: **Draw**
+with a brush of 1, 3 × 3 or 7 × 7 tiles (`[` and `]` change it; the brush's
+whole footprint shows before it paints, and a stroke paints every tile it
+crosses, however fast it's drawn), **Fill**, **Erase**, **Place** (a store
+on the map, a fitting room or till unit on a floor), **Undo** and **Redo**,
+one step for each drag. Rectangle, line, eyedropper, select and move, pan
+and the queue tool sit in the row below. One click switches between the
+**Overview**, the whole map or floor, and the **Draw** view, tiles big
+enough to paint one by one (16 px, 20 for a finger) where you were working.
+A line under the tools says what a press would do: the tile, the layer and
+the brush's footprint in tiles and metres. Zoom and pan never change the
+grid or what a tile stands for. On a phone or tablet one finger draws and
+two move and zoom the view, and Undo, Redo and the view stay on the
+canvas's corner.
+
+![Setup, Draw your world: the default city in the Draw view, the large brush about to paint homes of density 6, every tile named on the palette, and what each does in the simulation beside the map](screenshots/macro-world.png)
+
+On the **map**, every tile is named, with what it does in the model:
+homes (a ramp from sparse to dense, with how many households a tile of each
+density holds), roads, water, open land, and the parks and shops that are
+looks only. A road painted over water is a bridge. Stores are pins in their
+brand's colour, apart from the shops tiles under them. Areas are painted on
+their own layer: a new one comes with the large brush, its name shows on
+the map, and the households, budget and segment and size mix of whoever
+lives on it are set beside the map. Under the map, three chips tell the
+**draft** (what's drawn, kept in the browser), the model's **preview** of
+it (households placed, stores in reach, households with none) and the
+**installed** world (what Go runs, until Setup) apart.
+
+A map can start from a **geography**: Blank, the default city, a river
+town or a harbour bay. It replaces the map's tiles, after asking, repaints
+your areas onto its districts and puts your stores on its sites; nothing
+else in the world changes, and Undo brings the old map back.
+
+![Setup, Draw your world: the Flagship's floor, its tiles by name beside the plan, racks, stockroom, fitting rooms and tills named on it, and what the model says about it](screenshots/micro-world.png)
+
+On a **floor**, the tiles are listed by name beside the plan; fitting rooms
+and till units are put down whole and turned with `[` and `]`, and each
+queue is dragged out from its head. Racks, the stockroom, the fitting rooms
+and the tills are named on the plan, and every problem the model finds is
+outlined on the tiles it's about. A new layout starts from a blank shell or
+a copy of a prefab.
+
+### Every section
+
+The seven sections that set the world and the market:
 
 - **Brands.** Families (exactly one is ours) and their brands, each with its
   price change, marketing, staffing, stock rules, plan by category, and
@@ -238,10 +295,17 @@ store's, and sets how much of the category it plans to sell and puts on the
 floor. Racks buried in a block, or of a category the brand doesn't sell,
 hold nothing.
 
-Both editors share pencil, rectangle (Shift for its edge only), line, fill,
-eraser, eyedropper, select and move, undo and redo, canvas size, zoom and
-pan. The draft is kept in the browser, so a reload loses nothing, and
-**Import world → Default world** puts the default back.
+Both editors share draw and erase with three brush sizes, rectangle (Shift
+for its edge only), line, fill, eyedropper, select and move, undo and redo,
+canvas size, the Overview and Draw views, zoom and pan. The draft is kept in
+the browser, so a reload loses nothing, and **Import world → Default world**
+puts the default back (it asks first when the draft holds changes Setup
+hasn't installed).
+
+**Check and run**, the last stage, shows the model's own check of the draft
+world, the one Setup makes before it installs a world, with every problem a
+click from where it is; and Setup, Go and Step, so a drawn world can be
+installed and watched from there.
 
 ---
 
@@ -745,8 +809,28 @@ for p in terra quickPlot SpaDES.tools; do R CMD INSTALL -l tools/.cache/rlib too
 R CMD INSTALL -l tools/.cache/rlib NetLogoR_1.0.6.tar.gz   # the CRAN source tarball
 ```
 
-`npm test` runs it after the service worker's test (`tools/test-sw.mjs`) and
-the shims' (`tools/test-shims.R`).
+If CRAN can't be reached, the NetLogoR package in the app's own library
+image (`vfs/netlogor-lib`) is plain R and can be copied out of it instead.
+
+`npm test` runs it after the service worker's test (`tools/test-sw.mjs`),
+the editors' canvas test (`tools/test-grid-editor.mjs`), the world
+builder's page side (`tools/test-world-builder.mjs`) and the shims'
+(`tools/test-shims.R`), and then the world builder's model side
+(`tools/test-world-builder.R`):
+
+```bash
+node --test tools/test-grid-editor.mjs tools/test-world-builder.mjs
+Rscript tools/test-world-builder.R
+```
+
+`tools/test-grid-editor.mjs` runs the canvas against a stand-in for the
+browser (`tools/fake-dom.mjs`): brush footprints and their edges, strokes
+with no gaps however fast, fill, erase, layers, one undo for each drag,
+cancelled presses, two fingers, and a view whose zoom and pan never change
+a cell. `tools/test-world-builder.R` checks that what's drawn is what the
+model's NetLogoR worlds hold, and what each kind of edit does in the
+model's own calculations (below). Both sides read the coordinate contract
+in `tools/fixtures/spatial-contract.json`.
 
 <details>
 <summary><b>Everything the test checks</b></summary>
@@ -858,6 +942,21 @@ the shims' (`tools/test-shims.R`).
   cut off, and a ramp from no change starts at it; with the same seed, a
   day at -2 has about half the households in the market, and at 2 about
   twice as many; and every broken event is refused, where it is
+- the world builder (`tools/test-world-builder.R`): a tile in row r and
+  column c is the patch (c, height - 1 - r) on all three of the map's
+  layers, in the routing and in NetLogoR's own cell order, for every
+  household, every store and a floor's tiles, its doors, tills, cubicles
+  and walking paths; word of mouth keeps its own patches; the starter
+  worlds read back as written and every older world still reads; the
+  preview leaves the installed world alone; a road shortens trips along it
+  (621 s to 316 s in the test), water cuts households off and a bridge
+  joins them again, denser homes hold households in proportion, an area's
+  make-up is who lives on it, a store moved away from the homes reaches
+  fewer, a wall lengthens a walk and can cut a till off, a plan with no
+  door is refused, rack tiles with floor beside them are rack space at the
+  store too, and tills, fitting rooms and queues are counted, with
+  staffing beyond them refused; and the default world on each starting
+  geography passes the world check, runs, and runs the same twice
 - the forecast: on a known series (a weekly pattern, AR(1) noise and
   events) it sees the weekly season and estimates the events' coefficient
   near the 1 it was given; in a season it waits three weeks, then
@@ -877,6 +976,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
   world-store.js  the draft and installed worlds  model/*.R, sourced in order
   tabs/*.js       one module per tab        ⇄     world_load(), setup(), go(), set_*(), reports
   grid-editor.js  the editors' shared canvas ◀─   GEOMETRY  the installed world, its map and floors
+  geography.js    maps to start a world from
   map-editor.js   the macro world            ◀─   FRAME     packed doubles, every tick (acknowledged)
   layout-editor.js the micro world           ◀─   REPORT    JSON for the visible tab, 1–4 times a second
   inspector.js    inside a head              ◀─   HOMES     household colours, when they change
@@ -901,6 +1001,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `workers/sim.worker.js` | the webR session and the run loop |
 | `model/` | the model, in R (`index.json` gives the order; `events.R` is what's said about a visit, `calendar.R` the calendar and its markdowns, `stock.R` replenishment, `online.R` the online stores, `returns.R` the ledger and returns, `forecast.R` the Strategy tab's forecast) |
 | `worlds/default.world.json` | the world the app opens with |
+| `worlds/geographies/` | the maps a world can start from (`tools/build-geographies.mjs` draws them; `js/fashion/geography.js` uses them) |
 | `layouts/` | the four prefab layouts (`index.json` lists them) |
 | `vfs/` | the pre-built NetLogoR library image for webR (`tools/build-vfs.R`) |
 | `tools/shims/` | stand-ins for the parts of `terra`, `quickPlot` and `SpaDES.tools` NetLogoR calls, in plain R (`tools/test-shims.R` tests them) |
@@ -909,4 +1010,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `tools/build-default-world.R` | how the default world was made from the city the model used to generate |
 | `tools/test-fashion.R` | the headless test, with its older worlds in `tools/fixtures/` |
 | `tools/test-sw.mjs` | the service worker's test |
+| `tools/test-grid-editor.mjs`, `tools/fake-dom.mjs` | the editors' canvas, tested against a stand-in for the browser |
+| `tools/test-world-builder.mjs`, `tools/test-world-builder.R` | the world builder: drawn tiles to the model's NetLogoR patches, and what drawn edits do in the model (`tools/fixtures/spatial-contract.json`, `tools/fixtures/geographies/`) |
+| `docs/world-builder-checklist.md` | the world builder's checklist, with the audit it started from |
 | `screenshots/` | the images in this README |

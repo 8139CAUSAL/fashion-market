@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "build:editor": "node tools/build-editor.mjs",
-    "test": "node --test tools/test-sw.mjs && Rscript tools/test-shims.R && Rscript tools/test-fashion.R"
+    "test": "node --test tools/test-sw.mjs tools/test-grid-editor.mjs tools/test-world-builder.mjs && Rscript tools/test-shims.R && Rscript tools/test-fashion.R && Rscript tools/test-world-builder.R",
+    "build:geographies": "node tools/build-geographies.mjs"
   },
   "comment": "Dev-only: the app itself is static files. vendor/codemirror.js is committed, so nothing here is needed to run or deploy the app.",
   "devDependencies": {
