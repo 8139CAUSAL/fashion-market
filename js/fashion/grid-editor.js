@@ -55,6 +55,7 @@ const HISTORY = 100;
 const DRAW_PX = 16;              // Draw view: screen px per cell (20 for a finger)
 const MIN_ZOOM = 0.5; const MAX_ZOOM = 64;
 const EDGE = 24;                 // how far the grid's edge may be panned into the view, px
+const SNAP_PX = 6;               // cells this many device px or more are kept a whole number of px
 
 export class GridEditor {
   // layers: [{ id, erase, colour(ch) -> css colour or null (transparent), alpha }]
@@ -67,7 +68,27 @@ export class GridEditor {
     this.wrap = wrap;
     this.canvas = el("canvas", { tabindex: 0, "aria-label": "Editor canvas" });
     this.status = el("div", { class: "editor-status" });
-    wrap.append(this.canvas, this.status);
+    // On a touch screen or a narrow window the toolbar is often scrolled out
+    // of sight while drawing: undo, redo and the view stay on the canvas.
+    // A finger's tap acts as it lifts (a click a browser drops after a
+    // stroke can't lose it); the click that follows is then let go by.
+    const quick = (text, label, fn) => {
+      const b = el("button", { type: "button", class: "quick-btn", text, title: label, "aria-label": label });
+      let down = null; let lifted = 0;
+      b.addEventListener("pointerdown", (ev) => { down = ev.pointerId; });
+      b.addEventListener("pointerup", (ev) => {
+        if (ev.pointerType === "mouse" || down !== ev.pointerId || b.disabled) return;
+        down = null; lifted = performance.now(); fn();
+      });
+      b.addEventListener("click", () => { if (performance.now() - lifted < 800) return; fn(); });
+      return b;
+    };
+    this.quick = {
+      undo: quick("↶", "Undo", () => this.undo()), redo: quick("↷", "Redo", () => this.redo()),
+      view: quick("⤢", "Overview or Draw view", () => this.setView(this.mode === "overview" ? "draw" : "overview")),
+    };
+    this.quickBar = el("div", { class: "canvas-quick", role: "group", "aria-label": "Undo, redo and the view" }, this.quick.undo, this.quick.redo, this.quick.view);
+    wrap.append(this.canvas, this.status, this.quickBar);
     this.ctx = this.canvas.getContext("2d");
     this.layers = layers.map((L) => ({ ...L, data: new Uint16Array(0), image: null }));
     this.active = 0;
@@ -155,7 +176,14 @@ export class GridEditor {
 
   // Something the toolbar shows changed: the tool, the brush, what's
   // painted, the layer, the view, or what undo and redo can do.
-  #state() { this.cb.onState?.(this); }
+  #state() {
+    if (this.quick) {
+      this.quick.undo.disabled = !this.canUndo; this.quick.redo.disabled = !this.canRedo;
+      this.quick.view.textContent = this.mode === "overview" ? "Draw" : "Overview";
+      this.quick.view.title = this.mode === "overview" ? "Draw view: tiles big enough to paint one by one" : "Overview: the whole grid";
+    }
+    this.cb.onState?.(this);
+  }
 
   // ---- In words --------------------------------------------------------------------------
 
@@ -270,14 +298,14 @@ export class GridEditor {
 
   get dpr() { return globalThis.devicePixelRatio || 1; }
 
-  // The zoom at which the whole grid fits, a whole number of device pixels
-  // a cell once cells are big enough to tell apart (every cell the same
-  // size on screen, its edges sharp).
+  // The zoom at which the whole grid fits: a whole number of device pixels
+  // a cell once cells are big enough for their edges to show (every cell
+  // the same size on screen, its edges sharp); below that, as big as fits.
   #fitZoom() {
     const w = this.wrap.clientWidth; const h = this.wrap.clientHeight;
     let z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, (w - 16) / this.W, (h - 16) / this.H));
     const d = this.dpr;
-    if (z * d >= 2) z = Math.floor(z * d) / d;
+    if (z * d >= SNAP_PX) z = Math.floor(z * d) / d;
     return z;
   }
 

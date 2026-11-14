@@ -80,6 +80,24 @@ export function tileAt(m, x, y) { return { r: m.height - 1 - Math.floor(y / m.pa
 export function tileCentre(m, r, c) { return { x: (c + 0.5) * m.patch_m, y: (m.height - r - 0.5) * m.patch_m }; }
 export function patchOf(m, r, c) { return { pxcor: c, pycor: m.height - 1 - r }; }
 
+// Puts a store at (x, y) metres, in place. A store not on the map yet gets
+// its x and y where the world file keeps them (after its layout, before
+// its staff), so a store taken off the map and put back writes out as it
+// was.
+export function setPlace(s, x, y) {
+  if ("x" in s && "y" in s) { s.x = x; s.y = y; return s; }
+  const entries = Object.entries(s).filter(([k]) => k !== "x" && k !== "y");
+  for (const [k] of entries) delete s[k];
+  let done = false;
+  for (const [k, v] of entries) {
+    if (k === "staff" && !done) { s.x = x; s.y = y; done = true; }
+    s[k] = v;
+  }
+  if (!done) { s.x = x; s.y = y; }
+  return s;
+}
+export function unplace(s) { delete s.x; delete s.y; return s; }
+
 // ---- Live settings, and what waits for Setup ----------------------------------------
 
 export const LIVE_STOCK = ["allocation", "lead_days", "opening_weeks", "delivery_fee", "unit_fee", "salvage"];

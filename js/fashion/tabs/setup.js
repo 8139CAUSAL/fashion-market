@@ -1,24 +1,33 @@
 // Setup: every setting of the model, and the world itself, on one tab.
 // Setup (in the header) starts a season from them; Go runs it.
 //
-//   Brands       brands in their families, and each brand's settings (its
-//                online store and return policy among them)
-//   Range and calendar  each brand's products, promotions and markdowns,
-//                and its price rules (range-editor.js)
-//   Shoppers     the categories, segments, and the market's weights
-//   Offers       each brand's offers: named coupons on its calendar
-//                (offer-editor.js)
-//   Macro world  the market map, its areas, and where each store stands
-//   Micro world  the stores (name, brand, layout, staff) and the layouts
-//   Season       its length, the seed, and its demand events: days whose
-//                demand is lifted or suppressed (season-editor.js)
+// Its sections are set out as three stages, every section one click away
+// at any time (none has to be finished before the next):
+//
+//   1 Draw your world
+//     Macro world  the market map, its areas, and where each store stands
+//     Micro world  the stores (name, brand, layout, staff) and the layouts
+//   2 Define your market
+//     Shoppers     the categories, segments, and the market's weights
+//     Brands       brands in their families, and each brand's settings (its
+//                  loyalty tiers, online store and return policy among them)
+//     Range and calendar  each brand's products, promotions and markdowns,
+//                  and its price rules (range-editor.js)
+//     Offers       each brand's offers: named coupons on its calendar
+//                  (offer-editor.js)
+//   3 Run the simulation
+//     Season       its length, the seed, and its demand events: days whose
+//                  demand is lifted or suppressed (season-editor.js)
+//     Check and run  the model's own check of the draft world (the one
+//                  Setup makes before it installs a world), what waits
+//                  for Setup, and Setup, Go and Step
 //
 // Live settings (a brand's prices, staff, stock and price rules, a store's
 // staffing, the market's weights) act from the moment they change.
 // Everything else changes the world, which waits for the next Setup: the tab says how many changes are waiting, and Setup
 // sends the world to the model, which checks it before starting it.
 
-import { el, fmt, card, select, segmented, textField, numberField, colourField, checkbox, settingLever, lever } from "../ui.js";
+import { el, fill, fmt, card, select, textField, numberField, colourField, checkbox, settingLever, lever } from "../ui.js";
 import { MapEditor } from "../map-editor.js";
 import { LayoutEditor, layoutCapacity } from "../layout-editor.js";
 import { RangeEditor } from "../range-editor.js";
@@ -29,9 +38,23 @@ import { clone, newId, newName, slug, download, pickFile, worldText, LIVE_STOCK 
 import { unreplenished, plural } from "../entry-text.js";
 
 const SECTIONS = [
-  { value: "brands", label: "Brands" }, { value: "range", label: "Range and calendar" }, { value: "shoppers", label: "Shoppers" }, { value: "offers", label: "Offers" },
-  { value: "macro", label: "Macro world" }, { value: "micro", label: "Micro world" }, { value: "season", label: "Season" },
+  { value: "macro", label: "Macro world" }, { value: "micro", label: "Micro world" },
+  { value: "shoppers", label: "Shoppers" }, { value: "brands", label: "Brands" }, { value: "range", label: "Range and calendar" }, { value: "offers", label: "Offers" },
+  { value: "season", label: "Season" }, { value: "run", label: "Check and run" },
 ];
+// The three stages, and what each is for. `find` are the stage's existing
+// controls, each a jump to where it's set.
+const STAGES = [
+  { id: "draw", label: "Draw your world", sections: ["macro", "micro"],
+    about: "Draw the map your households live on and the floors your stores run. What you draw is a draft: the model previews it as you go, and nothing reaches the simulation until Setup." },
+  { id: "market", label: "Define your market", sections: ["shoppers", "brands", "range", "offers"],
+    about: "Say who lives in the world you drew and who sells to them.",
+    find: [["Population", "the households of each area", "population"], ["Segments", "how each kind of shopper behaves", "shoppers"], ["Brands", "prices, staff and stock", "brands"],
+      ["Promotions and markdowns", "each brand's calendar", "range"], ["Offers", "coupons", "offers"], ["Loyalty", "each brand's tiers", "loyalty"], ["Online and returns", "each brand's online store and return policy", "online"]] },
+  { id: "run", label: "Run the simulation", sections: ["season", "run"],
+    about: "Set the season, let the model check the world, then Setup installs it and Go runs it: the shoppers live in the world you drew." },
+];
+const stageOf = (section) => STAGES.find((st) => st.sections.includes(section));
 const MARKET_SHOWN = ["taste_w", "range_w", "km_w", "memory", "wom"];
 const LIVE = el("span", { class: "tag live", text: "live" });
 const WAITS = el("span", { class: "tag", text: "at Setup" });
@@ -40,10 +63,11 @@ const tag = (live) => (live ? LIVE : WAITS).cloneNode(true);
 export class SetupTab {
   constructor(root, app) {
     this.app = app; this.world = app.world;
-    this.section = "brands"; this.brand = null; this.segment = null; this.confirm = null;
+    this.section = "macro"; this.brand = null; this.segment = null; this.confirm = null;
+    this.checkRev = 0; this.checkTimer = 0; this.worldCheck = { state: "none", problems: [] };
 
     root.append(el("div", { class: "tab-intro" }, el("h1", { text: "Setup" }),
-      el("p", { text: "Every setting of the model, and the world it runs in. Settings marked live act at once; the rest change the world, which waits for the next Setup. Press Setup to start the season, then Go." })));
+      el("p", { text: "Draw your world, define your market, run the simulation. Settings marked live act at once; the rest change the draft world, which waits for the next Setup. Press Setup to start the season in it, then Go." })));
 
     // The world: its name, import and export, and what waits for Setup.
     this.nameField = textField({ label: "World", value: "", onChange: (v) => this.world.edit((d) => { d.name = v; }) });
@@ -53,9 +77,20 @@ export class SetupTab {
     const exportBtn = el("button", { type: "button", class: "btn", text: "Export world", onclick: () => download(`${slug(this.world.draft?.name ?? "world")}.world.json`, this.world.text()) });
     this.pendingBox = el("span", { class: "pending" });
     this.problemsBox = el("div", { class: "problems-panel", hidden: true });
-    this.sectionSeg = segmented({ label: "Setup sections", value: this.section, options: SECTIONS, onChange: (v) => this.#show(v) });
-    root.append(el("div", { class: "world-bar" }, this.nameField.root, this.importSel.root, exportBtn, this.pendingBox), this.problemsBox,
-      el("div", { class: "section-strip" }, this.sectionSeg.root));
+    // The three stages, each with its sections: every one a click away.
+    this.sectionButtons = new Map();
+    this.stageStrip = el("nav", { class: "section-strip stage-strip", "aria-label": "Setup: three stages and their sections" },
+      ...STAGES.map((st, i) => el("div", { class: "stage", dataset: { stage: st.id } },
+        el("button", { type: "button", class: "stage-title", title: st.about, onclick: () => this.#show(st.sections[0]) }, el("span", { class: "stage-n", text: String(i + 1) }), st.label),
+        el("div", { class: "seg", role: "group", "aria-label": st.label }, ...st.sections.map((id) => {
+          const b = el("button", { type: "button", text: SECTIONS.find((x) => x.value === id).label, "aria-pressed": "false", dataset: { section: id }, onclick: () => this.#show(id) });
+          this.sectionButtons.set(id, b);
+          return b;
+        })))));
+    this.stageGuide = el("div", { class: "stage-guide" });
+    this.askBox = el("div", { class: "world-ask", hidden: true });
+    root.append(el("div", { class: "world-bar" }, this.nameField.root, this.importSel.root, exportBtn, this.pendingBox), this.askBox, this.problemsBox,
+      this.stageStrip, this.stageGuide);
 
     this.panels = {};
     for (const s of SECTIONS) { this.panels[s.value] = el("div", { class: "setup-section", hidden: s.value !== this.section }); root.append(this.panels[s.value]); }
@@ -72,9 +107,18 @@ export class SetupTab {
     this.rangeEditor = new RangeEditor(this.panels.range, app, { goTo: (p) => this.#goTo(p) });
     this.offerEditor = new OfferEditor(this.panels.offers, app);
     this.eventEditor = new DemandEventEditor(app);
+    // Back and on, through the sections in order.
+    this.stepNav = el("div", { class: "step-nav" });
+    root.append(this.stepNav);
+    this.#markSection();
 
     this.world.addEventListener("change", ({ detail }) => this.#changed(detail));
   }
+
+  // Opens a section from outside the tab (the header's Draw your world).
+  open(section) { this.#show(section); }
+  // The season started or stopped: the Check and run section's buttons follow.
+  onRunState() { if (this.section === "run") this.#renderRun(); }
 
   onSchema() { this.#render(); }
   onGeometry() { this.#render(); }
@@ -115,11 +159,43 @@ export class SetupTab {
     else if (path.startsWith("demand_events")) { this.eventEditor.goTo(path); this.#show("season"); }
   }
 
-  #show(section) {
+  #show(section, { from } = {}) {
+    // A jump from a stage's shortcut to another stage keeps a way back.
+    this.cameFrom = from && stageOf(section).id !== from ? from : null;
     this.section = section;
-    this.sectionSeg.set(section);
     for (const [k, p] of Object.entries(this.panels)) p.hidden = k !== section;
+    this.#markSection();
     this.#render();
+  }
+
+  // The section and its stage, marked on the strip; what the stage is for,
+  // under it; and the way back and on, under the section.
+  #markSection() {
+    const stage = stageOf(this.section);
+    for (const [id, b] of this.sectionButtons) b.setAttribute("aria-pressed", String(id === this.section));
+    for (const node of this.stageStrip.children) {
+      const on = node.dataset.stage === stage.id;
+      node.classList.toggle("is-on", on);
+      if (on) node.setAttribute("aria-current", "step"); else node.removeAttribute("aria-current");
+    }
+    const back = this.cameFrom ? STAGES.find((st) => st.id === this.cameFrom) : null;
+    fill(this.stageGuide, el("span", { class: "stage-about" }, el("b", { text: `${STAGES.indexOf(stage) + 1}. ${stage.label}. ` }), stage.about),
+      stage.find ? el("span", { class: "stage-find" }, ...stage.find.map(([name, what, where]) => el("button", { type: "button", class: "chip-btn", title: `${name}: ${what}`, dataset: { find: where }, onclick: () => this.#find(where) }, name))) : null,
+      back ? el("button", { type: "button", class: "chip-btn", dataset: { back: back.id }, title: `Back to ${back.label}`, onclick: () => this.#show(back.sections[0]) }, `← Back to ${back.label}`) : null);
+    const order = SECTIONS.map((x) => x.value); const i = order.indexOf(this.section);
+    const go = (id, text) => el("button", { type: "button", class: "btn", text, onclick: () => { this.#show(id); this.stageStrip.scrollIntoView({ block: "start" }); } });
+    const label = (id) => { const st = stageOf(id); const name = SECTIONS.find((x) => x.value === id).label; return st === stage ? name : `${st.label}: ${name}`; };
+    fill(this.stepNav, i > 0 ? go(order[i - 1], `← ${label(order[i - 1])}`) : el("span"), i < order.length - 1 ? go(order[i + 1], `Next: ${label(order[i + 1])} →`) : null);
+  }
+
+  // One of the market's existing controls, by what it's for: its section,
+  // and the card that holds it brought into view.
+  #find(where) {
+    const card = (title) => requestAnimationFrame(() => [...this.panels[this.section].querySelectorAll(".card-head h2")].find((h) => h.textContent.includes(title))?.closest(".card")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    if (where === "population") { this.#show("macro", { from: "market" }); this.mapEditor.showAreas(); }
+    else if (where === "loyalty") { this.#show("brands"); card("Loyalty tiers"); }
+    else if (where === "online") { this.#show("brands"); card("Online store and returns"); }
+    else this.#show(where);
   }
 
   #changed(detail) {
@@ -142,6 +218,7 @@ export class SetupTab {
       case "macro": this.mapEditor.show(); break;
       case "micro": this.storeEditor.show(); this.layoutEditor.show(); break;
       case "season": this.#renderSeason(); break;
+      case "run": this.#renderRun(); this.#scheduleCheck(0); break;
       default: break;
     }
   }
@@ -153,6 +230,20 @@ export class SetupTab {
   // becomes the draft (as this version of the model reads it: a file from an
   // older version is upgraded), and takes effect at the next Setup.
   async #import(from) {
+    // The draft holds changes Setup hasn't installed: importing would drop
+    // them, so it asks first.
+    if (this.world.pending > 0 && this.askedImport !== from) {
+      const n = this.world.pending;
+      this.askBox.hidden = false;
+      fill(this.askBox, el("div", { class: "confirm" },
+        el("p", {}, el("b", { text: `Replace the draft with ${from === "default" ? "the default world" : "a world from a file"}?` }),
+          ` The draft has ${n} change${n === 1 ? "" : "s"} that Setup hasn't installed: importing replaces the whole draft world, and ${n === 1 ? "it is" : "they are"} lost. Export world saves the draft to a file first.`),
+        el("div", { class: "row" },
+          el("button", { type: "button", class: "btn small danger", text: "Replace the draft", onclick: () => { this.askedImport = from; this.askBox.hidden = true; this.#import(from); } }),
+          el("button", { type: "button", class: "btn small", text: "Keep the draft", onclick: () => { this.askBox.hidden = true; } }))));
+      return;
+    }
+    this.askedImport = null;
     let text; let name = "the default world";
     try {
       if (from === "default") text = await fetch(new URL("../../../worlds/default.world.json", import.meta.url)).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); });
@@ -567,9 +658,78 @@ export class SetupTab {
   // The line about the season running now, from the last report.
   #seasonFacts() {
     const f = this.facts;
-    if (!this.factsLine) return;
-    this.factsLine.hidden = !f;
-    if (f) this.factsLine.textContent = `Running now: ${f.world}, ${fmt.int(f.households)} households, ${f.stores.length} stores${f.stranded ? `; ${fmt.int(f.stranded)} households have no store in reach` : ""}.`;
+    for (const line of [this.factsLine, this.runFacts]) {
+      if (!line) continue;
+      line.hidden = !f;
+      if (f) line.textContent = `Running now: ${f.world}, ${fmt.int(f.households)} households, ${f.stores.length} stores${f.stranded ? `; ${fmt.int(f.stranded)} households have no store in reach` : ""}.`;
+    }
+  }
+
+  // ---- Check and run ---------------------------------------------------------------------------------
+
+  // The draft, checked by the model the way Setup checks it before it
+  // installs a world: one request once the section is open (and after each
+  // Setup), its answer dropped if the draft has changed since.
+  #scheduleCheck(ms = 400) {
+    this.checkRev++;
+    this.worldCheck = { state: "waiting", problems: [] };
+    clearTimeout(this.checkTimer);
+    this.checkTimer = setTimeout(() => this.#runCheck(), ms);
+    this.#renderRun();
+  }
+
+  async #runCheck() {
+    if (!this.app.ready) { clearTimeout(this.checkTimer); this.checkTimer = setTimeout(() => this.#runCheck(), 500); return; }
+    const rev = this.checkRev;
+    const out = await this.app.client.request("CHECK_WORLD", { text: this.world.text() }).catch((e) => ({ problems: [{ path: "", message: e.message }] }));
+    if (rev !== this.checkRev) return;
+    const problems = out.problems ?? [];
+    this.worldCheck = { state: problems.length ? "problems" : "ok", problems };
+    if (this.section === "run") this.#renderRun();
+  }
+
+  // The last stage: what the model says of the draft, what waits for
+  // Setup, and the simulation's controls.
+  #renderRun() {
+    const d = this.world.draft; if (!d) return;
+    const n = this.world.pending; const chk = this.worldCheck;
+    const unplaced = d.stores.filter((s) => !(Number.isFinite(s.x) && Number.isFinite(s.y))).length;
+    const m = d.macro;
+    const check = card("The model's check of your world", { sub: "the check Setup makes before it installs a world" });
+    const facts = el("div", { class: "stats compact" }, ...[
+      ["Map", `${fmt.int(m.width)} × ${fmt.int(m.height)} tiles`, `${fmt.num1(m.width * m.patch_m / 1000)} × ${fmt.num1(m.height * m.patch_m / 1000)} km`],
+      ["Households", fmt.int(m.households), `${m.areas.length} area${m.areas.length === 1 ? "" : "s"}`],
+      ["Stores", `${d.stores.length - unplaced} of ${d.stores.length} on the map`, `${d.layouts.length} layout${d.layouts.length === 1 ? "" : "s"}`],
+      ["Brands", fmt.int(d.brands.length), `${d.segments.length} segments`],
+      ["Season", `${fmt.int(d.season_days)} days`, `seed ${d.seed}`],
+    ].map(([k, v, sub]) => el("div", { class: "stat" }, el("div", { class: "stat-label", text: k }), el("div", { class: "stat-value small", text: v }), el("div", { class: "stat-sub", text: sub }))));
+    const verdict = chk.state === "ok" ? el("div", { class: "ok-line run-verdict", text: "Ready to run: the model finds no problems in this world." })
+      : chk.state === "problems" ? el("div", { class: "problems" }, el("b", { text: `${chk.problems.length} problem${chk.problems.length === 1 ? "" : "s"} to fix before this world can run. Click one to go where it is.` }),
+        ...chk.problems.map((p) => el("button", { type: "button", class: "problem", onclick: () => this.#goTo(p) }, el("code", { text: p.path || "file" }), ` ${p.message}`)))
+        : el("p", { class: "note", text: "The model is checking the draft…" });
+    check.body.append(facts, verdict, el("div", { class: "row wrap" }, el("button", { type: "button", class: "btn small", text: "Check again", onclick: () => this.#scheduleCheck(0) })));
+
+    const run = card("Install it and run", { sub: n ? `${n} change${n === 1 ? "" : "s"} wait${n === 1 ? "s" : ""} for Setup` : "nothing waits for Setup" });
+    const blocked = chk.state === "problems";
+    const setup = el("button", { type: "button", class: "btn primary", dataset: { run: "setup" }, disabled: blocked || !this.app.ready || null,
+      text: n ? "Setup: install this world and start the season" : "Setup: start the season again", onclick: async () => { await this.app.setupSeason(); this.#scheduleCheck(0); } });
+    const go = el("button", { type: "button", class: "btn", dataset: { run: "go" }, disabled: !this.app.ready || this.app.seasonOver || null,
+      text: this.app.seasonOver ? "Season over" : this.app.running ? "Pause" : "Go", onclick: () => this.app.toggleRun() });
+    const step = el("button", { type: "button", class: "btn", text: "Step", title: "Advance one tick", disabled: !this.app.ready || null, onclick: () => this.app.client.request("STEP").catch((e) => this.app.error("Step failed", e)) });
+    this.runFacts = el("p", { class: "note" });
+    run.body.append(
+      el("p", { class: "note", text: n ? "The simulation is still running the world installed at the last Setup. Setup installs the draft (everything drawn and set on this tab) and starts a season in it; Go runs it."
+        : "The draft is the installed world. Setup starts its season again from day 1; Go runs it." }),
+      blocked ? el("p", { class: "note bad", text: "Setup waits for the problems beside this to be fixed." }) : null,
+      el("div", { class: "row wrap" }, setup, go, step),
+      el("h3", { class: "setup-heading", text: "Watch it" }),
+      el("div", { class: "row wrap" },
+        el("button", { type: "button", class: "btn small", text: "The market: shoppers on your map", onclick: () => this.app.selectTab("market") }),
+        el("button", { type: "button", class: "btn small", text: "A store: shoppers on your floor plan", onclick: () => this.app.selectTab("store") }),
+        el("button", { type: "button", class: "btn small", text: "The scorecard", onclick: () => this.app.selectTab("scorecard") })),
+      this.runFacts);
+    this.#seasonFacts();
+    fill(this.panels.run, el("div", { class: "grid setup-two run-grid" }, check.root, run.root));
   }
 }
 

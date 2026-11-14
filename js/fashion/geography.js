@@ -35,7 +35,7 @@
 // the middle of the tile in row r, column c is u = c + 0.5,
 // v = height - r - 0.5.
 
-import { clone, newId, newName, placed } from "./world-store.js";
+import { clone, newId, newName, placed, setPlace, unplace } from "./world-store.js";
 
 export const GEOGRAPHY_KIND = "fashion-geography";
 export const AREA_KEYS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -133,7 +133,7 @@ export function applyGeography(d, g) {
   // corner, to the millimetre.
   const sites = (g.sites ?? []).slice();
   const mm = (v) => Math.round(v * m.patch_m * 1000) / 1000;
-  const put = (s, site) => { s.x = mm(site.u); s.y = mm(site.v); };
+  const put = (s, site) => setPlace(s, mm(site.u), mm(site.v));
   const waiting = [];
   let n = 0;
   for (const s of d.stores) {
@@ -142,7 +142,7 @@ export function applyGeography(d, g) {
   }
   for (const s of waiting) {
     const site = sites.shift();
-    if (site) { put(s, site); n++; } else { delete s.x; delete s.y; }
+    if (site) { put(s, site); n++; } else unplace(s);
   }
   return { placed: n, unplaced: d.stores.length - n, reused, added };
 }

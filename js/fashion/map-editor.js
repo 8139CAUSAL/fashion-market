@@ -33,7 +33,7 @@
 import { el, fill, fmt, card, textField, numberField, colourField, settingLever, cssVar, checkbox, segmented } from "./ui.js";
 import { GridEditor, toolbar } from "./grid-editor.js";
 import { mix } from "./city-view.js";
-import { clone, newId, newName, placed, tileAt, tileCentre } from "./world-store.js";
+import { clone, newId, newName, placed, tileAt, tileCentre, setPlace, unplace } from "./world-store.js";
 import { loadGeographies, applyGeography, geographyNeeds, AREA_KEYS } from "./geography.js";
 
 const mps = (v) => `${fmt.num1(v)} m/s`;
@@ -271,6 +271,10 @@ export class MapEditor {
       : "Place store · select a store on the map or in the list and drag it to move it; one not on the map yet goes where you click once it's selected";
   }
 
+  // The areas and their households' make-up, for painting (from Setup's
+  // "Population").
+  showAreas() { this.#setLayer("areas"); this.areasCard.root.scrollIntoView({ block: "nearest" }); }
+
   // A store from the list (or the micro world): selected, on the Stores layer.
   placeStore(id) {
     this.selected = id;
@@ -295,7 +299,7 @@ export class MapEditor {
       for (const s of d.stores) {
         if (!(s.id in u.at)) continue;
         const p = u.at[s.id];
-        if (p) { s.x = p[0]; s.y = p[1]; } else { delete s.x; delete s.y; }
+        if (p) setPlace(s, p[0], p[1]); else unplace(s);
       }
       const now = new Map(d.macro.areas.map((a) => [a.id, a]));
       d.macro.areas = u.areas.map((a) => now.get(a.id) ?? clone(a));
@@ -340,7 +344,7 @@ export class MapEditor {
     this.world.edit(() => {
       for (const s of moving) {
         const x = s.x + mv.dc * m.patch_m; const y = s.y - mv.dr * m.patch_m;
-        if (x >= 0 && y >= 0 && x < m.width * m.patch_m && y < m.height * m.patch_m) { s.x = x; s.y = y; } else { delete s.x; delete s.y; off++; }
+        if (x >= 0 && y >= 0 && x < m.width * m.patch_m && y < m.height * m.patch_m) setPlace(s, x, y); else { unplace(s); off++; }
       }
     });
     if (off) this.app.banner(`${off} store${off === 1 ? "" : "s"} moved off the map`, "They're still in the world, not on the map yet: the Stores layer puts them back.");
@@ -547,7 +551,7 @@ export class MapEditor {
       if (!this.editor.inside(cell.r, cell.c)) return true;
       if (this.editor.at(0, cell.r, cell.c) === "~") { this.app.banner("Not on water", "A store has to stand on land."); return true; }
       this.editor.record();
-      this.world.edit(() => { Object.assign(waiting, tileCentre(m, cell.r, cell.c)); });
+      this.world.edit(() => { const p = tileCentre(m, cell.r, cell.c); setPlace(waiting, p.x, p.y); });
       const next = d.stores.find((s) => !placed(s));
       if (next) this.selected = next.id;
       this.#renderPalette(); this.#renderSide(); this.editor.draw(); this.#schedulePreview();
@@ -860,7 +864,7 @@ export class MapEditor {
       for (const s of w.stores) {
         if (!placed(s)) continue;
         const x = s.x + dx * m.patch_m; const y = s.y + south * m.patch_m;
-        if (x >= 0 && y >= 0 && x < W * m.patch_m && y < H * m.patch_m) { s.x = x; s.y = y; } else { delete s.x; delete s.y; off++; }
+        if (x >= 0 && y >= 0 && x < W * m.patch_m && y < H * m.patch_m) setPlace(s, x, y); else { unplace(s); off++; }
       }
     });
     this.loadedKey = JSON.stringify([W, H, rows[0], rows[1]]); this.loadedSize = `${W}x${H}`;

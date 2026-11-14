@@ -463,14 +463,15 @@ test("zooming and panning change no cell and no size; painting lands on the same
   }
 });
 
-test("Overview fits the whole grid in the canvas, on whole pixels a cell", () => {
-  for (const [W, H, w, h] of [[160, 120, 970, 628], [66, 36, 716, 628], [36, 21, 716, 628], [600, 100, 970, 628], [160, 120, 358, 420]]) {
+test("Overview fits the whole grid in the canvas, as big as fits, on whole pixels a cell once cells are 6 px or more", () => {
+  for (const [W, H, w, h] of [[160, 120, 970, 628], [160, 120, 970, 562], [66, 36, 716, 628], [36, 21, 716, 628], [600, 100, 970, 628], [160, 120, 358, 420]]) {
     const t = make({ W, H, w, h });
     assert.equal(t.editor.mode, "overview");
     const p0 = t.editor.toScreen(0, 0); const p1 = t.editor.toScreen(H, W);
     assert.ok(p0.x >= 0 && p0.y >= 0 && p1.x <= w && p1.y <= h, `${W} x ${H} in ${w} x ${h}`);
-    if (t.editor.zoom >= 2) assert.equal(t.editor.zoom, Math.floor(t.editor.zoom));
-    assert.ok(t.editor.zoom * W > w - 16 - W || t.editor.zoom * H > h - 16 - H);     // as big as fits
+    const most = Math.min((w - 16) / W, (h - 16) / H);
+    if (most >= 6) assert.equal(t.editor.zoom, Math.floor(most));
+    else assert.ok(Math.abs(t.editor.zoom - most) < 1e-9, `${W} x ${H} in ${w} x ${h}: ${t.editor.zoom} for ${most}`);
   }
 });
 

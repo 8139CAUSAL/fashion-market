@@ -220,6 +220,8 @@ class App {
     this.runButton.addEventListener("click", () => this.toggleRun());
     $("#btn-step").addEventListener("click", () => this.client.request("STEP").catch((e) => this.error("Step failed", e)));
     $("#btn-setup").addEventListener("click", () => this.setupSeason());
+    // Straight to the drawing: the Setup tab's first stage, the map.
+    $("#btn-build").addEventListener("click", () => { this.selectTab("setup"); this.tabs.setup.open("macro"); });
     $("#speed").addEventListener("change", (ev) => this.setSpeed(ev.target.value));
   }
 
@@ -325,6 +327,7 @@ class App {
     b.textContent = this.seasonOver ? "Season over" : this.running ? "Pause" : "Go";
     b.disabled = !this.ready || this.seasonOver;
     b.setAttribute("aria-pressed", String(this.running));
+    this.tabs.setup.onRunState?.();
   }
 
   #renderLoop() {

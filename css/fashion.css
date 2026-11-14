@@ -396,8 +396,12 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
 .settings-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; }
 
-/* Phones: the header folds into two compact rows. */
+/* Phones: the header folds into two compact rows, and scrolls away with
+   the page so the drawing has the screen. */
 @media (max-width: 640px) {
+  .app-header { position: static; }
+  .tabbar { top: 0; }
+  #btn-build { order: 2; height: 28px; }
   .brand-mark { flex: 1 1 auto; }
   .brand-mark b { font-size: 15px; }
   #btn-code { order: 2; height: 28px; }
@@ -420,6 +424,28 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .badge.warn { background: color-mix(in srgb, var(--warning) 30%, var(--surface)); color: var(--ink); }
 .section-strip { position: sticky; top: calc(var(--header-h, 56px) + 42px); z-index: 12; background: var(--page); padding: 4px 0; }
 .section-strip .seg button { height: 34px; padding: 0 16px; }
+/* The three stages, each with its sections. */
+.stage-strip { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: stretch; }
+.stage { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 3px 6px 3px 4px; border-radius: 10px; border: 1px solid var(--hairline); background: var(--surface); }
+.stage.is-on { border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+.stage + .stage { position: relative; }
+.stage-title { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; padding: 0 4px; height: 32px; cursor: pointer; font-weight: 650; color: var(--ink-2); white-space: nowrap; }
+.stage.is-on .stage-title { color: var(--ink); }
+.stage-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.stage-n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-3); font-size: 11.5px; font-weight: 700; color: var(--ink-2); }
+.stage.is-on .stage-n { background: var(--accent); color: #fff; }
+.stage-strip .seg button { height: 30px; padding: 0 12px; }
+.stage-guide { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.stage-about b { color: var(--ink); }
+.stage-find { display: inline-flex; flex-wrap: wrap; gap: 5px; }
+.stage-find .chip-btn { height: 24px; }
+.step-nav { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.world-ask .confirm { margin-top: 0; }
+.run-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+@media (max-width: 1100px) { .run-grid { grid-template-columns: minmax(0, 1fr); } }
+.run-verdict { font-weight: 600; margin: 4px 0 8px; }
+.btn.build { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 45%, transparent); font-weight: 600; }
+.btn.build:hover { background: color-mix(in srgb, var(--accent) 20%, var(--surface)); }
 .setup-section { display: grid; gap: 14px; }
 .setup-two { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); align-items: start; }
 .setup-three { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
@@ -510,7 +536,7 @@ table.tier-matrix td.down { background: color-mix(in srgb, var(--tier-down) 12%,
 .brush-dot { display: block; width: calc(3px + var(--n) * 2px); height: calc(3px + var(--n) * 2px); background: currentColor; border-radius: 1px; }
 .view-seg button { height: 30px; padding: 0 10px; font-size: 12.5px; }
 .tool-info { font-size: 12px; color: var(--ink-2); min-height: 17px; font-variant-numeric: tabular-nums; }
-.editor-canvas { position: relative; height: clamp(360px, calc(100dvh - var(--header-h, 56px) - 330px), 860px); border-radius: var(--radius-sm); border: 1px solid var(--hairline); background: var(--surface-2); overflow: hidden; }
+.editor-canvas { position: relative; height: clamp(440px, calc(100dvh - var(--header-h, 56px) - 220px), 900px); border-radius: var(--radius-sm); border: 1px solid var(--hairline); background: var(--surface-2); overflow: hidden; }
 .editor-canvas canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
 .editor-canvas canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
 .editor-status { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: var(--ink-2); background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 1px 6px; border-radius: 4px; pointer-events: none; }
@@ -578,7 +604,7 @@ table.tier-matrix td.down { background: color-mix(in srgb, var(--tier-down) 12%,
 @media (max-width: 1000px) { .map-editor, .layout-editor { grid-template-columns: minmax(0, 1fr); } }
 /* The plan with its tiles beside it: the palette scrolls on its own, as tall as the canvas. */
 .plan-work { display: grid; grid-template-columns: minmax(170px, 200px) minmax(0, 1fr); gap: 10px; align-items: start; }
-.plan-palette { max-height: clamp(360px, calc(100dvh - var(--header-h, 56px) - 330px), 860px); overflow: auto; margin: 0; padding: 0 4px 4px 0; gap: 8px; align-content: start; }
+.plan-palette { max-height: clamp(440px, calc(100dvh - var(--header-h, 56px) - 220px), 900px); overflow: auto; margin: 0; padding: 0 4px 4px 0; gap: 8px; align-content: start; }
 .plan-palette .palette-row { display: grid; gap: 3px; }
 .plan-palette .swatch.named { justify-content: flex-start; width: 100%; height: 26px; }
 .plan-palette .swatch.named em { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -733,3 +759,22 @@ svg.calendar-chart { display: block; font-size: 11px; }
 .store-editor { margin-bottom: 14px; }
 .store-editor .field.end { display: flex; align-items: flex-end; }
 .store-editor .store-list { max-height: 340px; overflow: auto; }
+
+/* Phones: the stages scroll away with the page (not stuck over the
+   canvas), each on a line of its own, and the canvas takes the screen.
+   (After the rules above, so it wins over them.) */
+@media (max-width: 640px) {
+  .section-strip, .stage-strip { position: static; }
+  .stage { flex: 1 1 100%; }
+  .editor-canvas { height: clamp(340px, calc(100dvh - 230px), 700px); }
+  .plan-palette { max-height: none; }
+}
+
+/* Undo, redo and the view, on the canvas's corner: for fingers, and for
+   windows too narrow to keep the toolbar in sight while drawing. */
+.canvas-quick { display: none; position: absolute; top: 8px; right: 8px; gap: 6px; z-index: 2; }
+.quick-btn { min-width: 40px; height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--ink); font: 600 15px var(--font); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); cursor: pointer; touch-action: manipulation; }
+.quick-btn[disabled] { opacity: 0.4; }
+.quick-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+@media (pointer: coarse), (max-width: 640px) { .canvas-quick { display: flex; } }
