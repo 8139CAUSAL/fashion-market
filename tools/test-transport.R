@@ -425,6 +425,31 @@ same <- identical(lapply(a, function(D) list(D$og[c("t_depart", "t_home", "fac",
   identical(la, lb)
 check(same, "30. the same world and seed run the same days again: every outing's departure, return, facility, visits and end, every parking event, every leg, and the ledger")
 
+# Sensitivity of the assumed weights (none is calibrated): the direction of
+# each one's effect on what the simulation does, on the mall town with homes
+# up to the venues (so walking and driving compete), the same seed each time.
+sens <- function(walk_w = NULL, cluster_w = NULL, drive_w = NULL) {
+  W <- Wm
+  W$macro$tiles <- rows_of(put(do.call(rbind, strsplit(unlist(W$macro$tiles), "")), 3:16, 9:10, "5"))
+  if (!is.null(walk_w)) W$market$walk_w <- walk_w
+  if (!is.null(cluster_w)) W$market$cluster_w <- cluster_w
+  if (!is.null(drive_w)) W$market$drive_w <- drive_w
+  install_world(W, root, seed = 41); D <- run_days(2)
+  sh <- unlist(lapply(D, function(x) x$og$kind == OG_SHOP & x$og$n_visits > 0))
+  nv <- unlist(lapply(D, function(x) x$og$n_visits))
+  walkers <- unlist(lapply(D, function(x) x$og$mode == MODE_WALK))
+  dest <- unlist(lapply(D, function(x) x$og$dest[x$og$kind == OG_SHOP]))
+  c(walk = mean(walkers), stops = mean(nv[sh]), venue = mean(dest %in% which(STORE_VENUE > 0)),
+    mall = mean(dest %in% which(STORE_VENUE == 1L)), km = mean(unlist(lapply(D, function(x) mk$km[cbind(x$og$hh, x$og$dest)]))))
+}
+w0 <- Wm$market$walk_w; d0 <- Wm$market$drive_w
+lo <- sens(walk_w = w0 / 2); hi <- sens(walk_w = w0 * 2)
+c0 <- sens(cluster_w = 0); c1 <- sens(cluster_w = 1)
+dl <- sens(drive_w = d0 / 2); dh <- sens(drive_w = d0 * 2)
+check(lo[["walk"]] > hi[["walk"]] && lo[["stops"]] > hi[["stops"]] && c1[["mall"]] > c0[["mall"]] && dh[["walk"]] > dl[["walk"]],
+      sprintf("sensitivity, assumed weights (directions only): walking half as disliked, %.0f%% of outings on foot and %.2f stores an outing, against %.0f%% and %.2f at twice; the pull of nearby stores at 1, %.0f%% of outings to the mall, against %.0f%% at 0; driving twice as disliked, %.0f%% of outings on foot, against %.0f%% at half",
+              100 * lo[["walk"]], lo[["stops"]], 100 * hi[["walk"]], hi[["stops"]], 100 * c1[["mall"]], 100 * c0[["mall"]], 100 * dh[["walk"]], 100 * dl[["walk"]]))
+
 # ---- Parking: the acceptance checks ------------------------------------------------------------
 
 cat("Parking, as the end user builds it\n")

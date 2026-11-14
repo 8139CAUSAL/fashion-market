@@ -61,6 +61,8 @@ export class StoreTab {
     const kbox = el("div", { class: "stats" });
     this.kpi = stats(kbox, [
       { key: "traffic", label: "Traffic" }, { key: "inside", label: "In the store now" },
+      { key: "drawn", label: "Outings it drew", title: "Households that chose this store as their outing's destination today (not all arrive: some find nowhere to park, or come too late)" },
+      { key: "walked_on", label: "Walked on to it", title: "Visits by shoppers already out, who walked here from another store's door: the venue's and the neighbourhood's pull, not the store's own" },
       { key: "receipts", label: "Receipts" }, { key: "conversion", label: "Conversion" },
       { key: "sales", label: "Sales", title: "Rung up today, before refunds" }, { key: "net", label: "Net sales", title: "Sales less today's refunds of this store's sales, wherever they were returned" },
       { key: "avg_receipt", label: "Average receipt" },
@@ -155,6 +157,7 @@ export class StoreTab {
     this.kpiCard.setSub(r.day_label);
     this.kpi.update({
       traffic: fmt.int(k.traffic), inside: r.live ? fmt.int(k.inside) : "—", receipts: fmt.int(k.receipts),
+      drawn: { value: fmt.int(k.drawn), sub: `${fmt.int(k.destination)} came in` }, walked_on: { value: fmt.int(k.walked_on), sub: k.traffic ? `${fmt.pct(k.walked_on / k.traffic, 0)} of its traffic` : "" },
       conversion: fmt.pct(k.conversion, 0), sales: fmt.money(k.sales), net: { value: fmt.money(k.net_sales), sub: k.refunds ? `${fmt.money(k.refunds)} refunded` : "" },
       returns: { value: fmt.int(k.taken_back), sub: `${fmt.int(k.return_trips)} trip${k.return_trips === 1 ? "" : "s"}` }, refund_s: fmt.mins(k.refund_s),
       avg_receipt: fmt.money2(k.avg_receipt),

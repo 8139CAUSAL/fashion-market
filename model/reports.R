@@ -532,6 +532,8 @@ report_store <- function(s, heat = FALSE) {
     area = if (STORES$area[s] > 0) AREAS$name[STORES$area[s]] else "Outside every area",
     format = FORMATS[f], layout = LAYOUT_NAMES[f], day_label = rd$label, live = live_now,
     kpi = list(traffic = sum(here), inside = if (live_now) fa$in_store else 0, receipts = sum(paid),
+               drawn = if (rd$day >= 1 && rd$day <= SEASON_DAYS) tally$drawn[rd$day, s] else 0,      # outings that chose it as their destination
+               destination = sum(here & dv$stop == 1L), walked_on = sum(here & dv$stop > 1L),             # visits as the outing's destination, and from another store's door
                conversion = if (sum(ended)) sum(paid) / sum(ended) else NA,
                sales = sum(dv$sales[paid]), refunds = rd$today$refunds[s], net_sales = sum(dv$sales[paid]) - rd$today$refunds[s],
                taken_back = rd$today$taken_back[s], return_trips = sum(back),
