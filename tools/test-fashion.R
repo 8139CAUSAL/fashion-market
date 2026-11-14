@@ -23,13 +23,13 @@
 # day it goes, broken offers and tiers are refused, and a version 5 file
 # (tiers by visits, an offers programme) upgrades and runs; a version 6
 # file (a promotion depth and length for the Market tab's old promotion
-# buttons, no online stores, no returns) upgrades and runs the season the
-# version 6 model ran, with no online orders and no returns; a version 7
-# file (every segment returning at the same rates) upgrades to a tendency
-# to return of 1 and runs the season the version 7 model ran, returns
-# included (both with word of mouth not spreading, as in those models);
-# a version 8 file (no demand events) upgrades and runs the
-# season the version 8 model ran; demand events: a solid event's strength
+# buttons, no online stores, no returns) upgrades and runs with no online
+# orders and no returns; a version 7 file (every segment returning at the
+# same rates) upgrades to a tendency to return of 1 and runs, returns
+# included; a version 8 file (no demand events) upgrades and runs; all
+# three with no parking built, so on foot only (their recorded seasons
+# drove across open land and parked anywhere: see "Older worlds under the
+# version 11 transport"); demand events: a solid event's strength
 # and a ramp's walk on the days they touch (the user's examples: days 3
 # and 23 at 1.3, day 90 at -2 over 7 days from -1.4), overlaps multiply,
 # an event scales the day's households in the market, and broken events

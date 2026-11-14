@@ -1,6 +1,8 @@
 # Transportation, parking, shopping venues and multi-store outings: design
 
-Status: design, written after inspecting `main` at 42b4db7 and before changing any code.
+Status: implemented (`model/transport.R`, `model/outings.R`, world version 11). Written after inspecting
+`main` at 42b4db7 and before changing any code; sections 2 and 4 were revised where the implementation
+settled details (noted there), and section 7 records how it ended.
 Baseline (`npm test` as shipped, R 4.3.3 + NetLogoR 1.0.6 from the app's own `vfs` image):
 Node 59/59, shims 23/23, `test-fashion.R` 113/113, `test-world-builder.R` 23/23.
 
@@ -101,9 +103,13 @@ An outing ends: shopping list satisfied, budget gone, no reachable candidate bef
 wins the continuation choice. A household's outings run one after another: a shopping outing whose departure falls
 while its return trip is still out waits until the household is home (or is dropped if that is past last entry).
 
-Processing order in each one-minute step: the floor (as now), then outing events due before the step's end in time
-order (departures, store exits, parking arrivals). Every departure decided before an arrival's time is therefore known
-when that arrival asks for a space, so occupancy is exact.
+Processing order in each one-minute step (as implemented): the floor (as before), then the outing events due before
+the step's end, a kind at a time in causal order (store exits, arrivals home, departures, then parking arrivals in the
+order they arrive), then the shoppers who reached a store's door within the step come in, and so on until nothing
+else falls due in the step. Every space freed before a car arrives is known when that car asks for one; a car's
+occupancy runs from its arrival to the moment it pulls out. (Grouping by kind, rather than one strict time order
+across kinds, made a market day about twice as fast; it can change which of two cars arriving at one facility
+within the same minute, both created in that minute, takes its last space. Capacity is never exceeded.)
 
 ## 3. Changes for several visits per household per day
 
@@ -141,7 +147,13 @@ also gets `cluster_w × log(1 + Σ exp(W(h,s') − κβ_w T_walk(s→s')))` over
 −κβ_w(T_walk(s→s') + T_walk(s'→f) − T_walk(s→f)).
 
 None of these is empirically calibrated: no calibration data exists in the repository. All are world settings,
-the defaults are stated assumptions, and `tools/test-transport.R` checks the direction and size of their consequences.
+the defaults are stated assumptions, and `tools/test-transport.R` checks the direction of their consequences
+(cost falls with a trail, a footbridge or a closer facility; a fuller budget or fewer categories left makes going
+on less likely). No sensitivity sweep over the weights' values was run (section 7).
+
+As implemented, β_f (a parking fee) does not exist: parking has no price (section 6). The facility memory: a
+household turned away by a full facility adds 1 to its memory of that facility, which fades by the market's
+`memory` each day and costs `grudge_w` per unit in the trip's utility, as a bad visit to a brand does.
 
 ## 5. Calibrated versus assumed
 
@@ -162,3 +174,46 @@ Calibrated: nothing in this change. Assumed and configurable: β_d, β_p, β_w, 
    the exact-season comparison is replaced by independently defined expectations of the upgraded world under the new
    physics (no parking → no driving outings, no parking events, every visit made on foot within walking range),
    and the cause is documented in the test.
+
+## 7. As built
+
+**Files.** New: `model/transport.R` (tile permissions, graphs, fields, facilities, venues, checks, warnings,
+travel costs), `model/outings.R` (outings, parking occupancy, legs, continuation choice, visits made at the door,
+positions), `js/fashion/transport-editor.js` (the Parking & venues layer and the mall plan editor),
+`tools/build-transport.mjs` (the bundled worlds' parking and venues, built explicitly), `tools/test-transport.R`
+and `tools/transport-worlds.R`, `tools/test-browser.mjs`, `tools/fixtures/v10-default.world.json`.
+
+**World version 11.** `macro.park_s` is gone; `macro.walk_mps`, `macro.parking` and `macro.venues` are new;
+a store may name its `venue`; the market's `km_w` became `drive_w`, `park_w`, `walk_w`, `cluster_w` and
+`max_walk_km`; each segment has a `car_share`. New tiles: `w # - f H x d P G m` (city.R). An older world upgrades
+with no parking and no venues (`upgrade_v10`), its tiles unchanged: it loads and runs on foot, and the warnings
+(the map editor's "Getting there" card) name every store no car can reach.
+
+**Parameters, as shipped** (all assumptions, all world settings except the bounds):
+
+| Setting | Default world | Upgrade from v10 | Meaning |
+|---|---|---|---|
+| `market.drive_w` | 0.132 / min | km_w × road_mps × 0.06 | dislike of a minute driving |
+| `market.park_w` | 0.198 / min | 1.5 × drive_w | of a minute finding a space, climbing, walking to the exit |
+| `market.walk_w` | 0.264 / min | 2 × drive_w | of a minute walking |
+| `market.cluster_w` | 0.3 | 0.3 | pull of the stores one could walk on to from a destination |
+| `market.max_walk_km` | 2 | 2 | the longest walk (home to store, facility to store, store to store) |
+| `macro.walk_mps` | 1.3 m/s | 1.3 | walking outdoors and in malls |
+| `segment.car_share` | 1 | 1 | households with a car |
+| `M2_PER_SPACE` | 25 m² | — | the most a lot's or a garage level's area holds (a bound, not a capacity) |
+| `KERB_M_PER_SPACE` | 6 m | — | the most a street tile's kerbs hold |
+| facility `search_s`, `level_s`, `transfer_s` | set per facility | — | its own times |
+
+**Units counted apart** (tally.R): outings home by how they ended, by car and on foot; outings by number of
+stores visited; households in stores; destination visits and follow-on visits by store; purchases (paid visits);
+units (ledger lines); cars parked, cars turned away and the most at once, by facility.
+
+**Not done, or done differently:**
+- Multiple parking stops in one outing: the state allows it (a facility per outing, changed when one is full),
+  but a shopper never moves the car to park again nearer another store; they walk, within `max_walk_km`.
+- No sensitivity sweep over β values was run; the tests check directions, not elasticities.
+- A shopper who finds every facility for a store full goes home; they don't choose a different store instead.
+- Return trips are made on the household's cheapest way to the brand's nearest store; one that can't park posts
+  its items back that day.
+- Performance: a market day of the default world takes about 2.2 s in native R (1.1 s before) and about 5 s in
+  webR (1.5–1.9 s before), measured on the same machine (section in README).

@@ -82,8 +82,15 @@ button shows the files that are running, and the world they run in.
 
 The whole market at once (above): households coloured by the brand they last
 bought from (or by segment, offer held, or area), stores in their brand's
-colour, and shoppers driving the fastest route there and back (online
-stores aren't on the map). Beside the map, the promotions running today,
+colour, the parking lots and garages, the malls' corridors, and everyone
+outdoors: cars driving the road network, shoppers walking (from their car,
+from home, from store to store, along a mall's corridors) and cars parked
+(online stores aren't on the map). Below the charts, **Getting about**
+counts the day's outings (by car and on foot, and how they ended), the
+households in stores, the store visits (each outing's destination, and
+those walked on to from another store), the purchases, and each parking
+facility's spaces, cars in it now, the most at once and the cars that found
+it full. Beside the map, the promotions running today,
 brand by brand; each brand's calendar sets them (Setup → Range and
 calendar). Below, each brand's share of net sales, its net revenue split
 into its stores and online, and weekly net revenue. Click a home to see that
@@ -208,10 +215,14 @@ canvas's corner.
 
 ![Setup, Draw your world: the default city in the Draw view, the large brush about to paint homes of density 6, every tile named on the palette, and what each does in the simulation beside the map](screenshots/macro-world.png)
 
-On the **map**, every tile is named, with what it does in the model:
-homes (a ramp from sparse to dense, with how many households a tile of each
-density holds), roads, water, open land, and the parks and shops that are
-looks only. A road painted over water is a bridge. Stores are pins in their
+On the **map**, every tile is named, with what it does in the model: who
+can cross it, cars or people, both or neither (the table under
+[Getting about](#getting-about-roads-paths-parking-and-venues)). Ground
+(open land, parks, woodland, water, buildings), streets for cars and people,
+highways, crossings and driveways, footpaths and pedestrian streets for
+people only, the ground of parking lots, garages and malls, and homes (a
+ramp from sparse to dense, with how many households a tile of each density
+holds). A street painted over water is a bridge, a footpath a footbridge. Stores are pins in their
 brand's colour, apart from the shops tiles under them. Areas are painted on
 their own layer: a new one comes with the large brush, its name shows on
 the map, and the households, budget and segment and size mix of whoever
@@ -260,12 +271,19 @@ The seven sections that set the world and the market:
 - **Offers.** Each brand's named coupons: days, discount, cost to send, the
   share of households reached that it's sent to and the share of those held
   out, the tiers and areas it reaches, and the brands where it's good.
-- **Macro world.** The city, painted in tiles: roads, bridges, water, parks,
-  shops, and homes by density; named areas with their household make-up; and
+- **Macro world.** The city, painted in tiles: streets, highways, bridges,
+  footpaths, water, woodland, buildings, parks, plazas, and homes by
+  density; named areas with their household make-up; the **parking and
+  venues** you build (lots and garages made from painted tiles, with the
+  spaces, levels, vehicle entrances and pedestrian exits you give them;
+  kerb spaces clicked onto streets one at a time; enclosed malls with a plan
+  of corridors, entrances and storefronts, strip malls and districts); and
   where each store stands (pick a store on the Stores layer and click the
-  map, or drag it). As you paint, the model places the households,
-  routes every trip, and reports how many households each store has in
-  reach, and how many have none.
+  map, or drag it). As you paint, the model places the households, works
+  out every way there by car and on foot, and reports how many households
+  each store has in reach, how many have none, each facility's households
+  and the stores within walking distance of it, everything that can't be
+  reached, and (the trip tool) any household's trip to any store.
 - **Micro world.** The stores and their floor plans, painted in half-metre
   tiles: walls, doors, the stockroom, racks by category, fitting-room
   cubicles, and tills with their queues. The **queue tool** drags a queue
@@ -393,20 +411,87 @@ Older files are upgraded as they're read or imported, a version at a time:
 </details>
 
 <details>
-<summary><b>The city</b>: households on a painted map, trips on the fastest route (<code>model/city.R</code>, <code>model/grid.R</code>)</summary>
+<summary><b>The city</b>: households on a painted map (<code>model/city.R</code>)</summary>
 
 The macro world is a painted map of tiles, read into a NetLogoR world (see
 NetLogoR above). Households are placed on home tiles in proportion to their
 density, each taking a segment, a size and a budget from the area it lives
 in (or the map's default make-up), the same way whatever the season's seed,
-so the map editor's preview shows the households Setup creates. Every trip
-follows the fastest route across the map: at road speed on roads and
-bridges, slower elsewhere, and never over water. Parks and shops only look
-different: trips cross them like open land. `model/grid.R` works out every
-store's routes at Setup, growing them outward from the store, roughly in
-order of travel time. A household only weighs the stores within its radius:
-its segment's radius, in route distance, stretched brand by brand by its
-loyalty tier with the brand.
+so the map editor's preview shows the households Setup creates. Each
+household has a car or not, drawn from its segment's share of households
+with one. How they get about is the next section.
+
+</details>
+
+<details>
+<summary><b>Getting about</b>: roads, paths, parking and venues (<code>model/transport.R</code>, <code>model/outings.R</code>)</summary>
+
+Cars and people move on **separate networks**, both read from the map's
+tiles on the NetLogoR world. A move goes to one of the eight neighbouring
+tiles without cutting a corner past anything it can't cross.
+
+| Tile | Cars | People |
+|---|---|---|
+| Open land, park | no | yes |
+| Woodland, water, building or barrier | no | no |
+| Homes (their local streets) | yes, at local speed | yes |
+| Street, road bridge | yes, at road speed | yes (sidewalks, footway) |
+| Highway | yes, at road speed | no |
+| Highway crossing | yes, at road speed | yes (across) |
+| Driveway | yes, at local speed | yes |
+| Footpath (a trail through woodland), footbridge, pedestrian street or plaza | no | yes |
+| Parking lot | only into its facility, by its entrances | yes |
+| Parking garage | only into its facility, by its entrances | only by its exits |
+| Enclosed mall | no | only along its plan's corridors |
+
+Named areas are a layer of their own: painting one over water or woodland
+changes nothing about crossing it.
+
+**Parking** exists only where you build it. A **lot** or a **garage** is a
+block of painted P or G tiles made a facility on the Parking & venues
+layer: its spaces (never more than its tiles hold: 25 m² a space, on each
+of a garage's levels), the tiles cars enter it by (each beside a street,
+driveway or homes tile), the tiles people leave it by, and how long it
+takes to find a space, to climb a level, and to get from the space to the
+exit. **Kerb spaces** are clicked onto a street or driveway one at a time
+(at most a tile's two kerbs' length, 6 m a car). A road gives connectivity,
+not permission to park: a world with no facility has no driving at all,
+and its households can only walk. A facility's occupancy is every car in it
+at that moment: a car takes a space when it arrives and frees it when it
+pulls out, after its own shopper has walked back to it. A garage fills
+from its lowest level up, and parking higher takes longer.
+
+**Venues** tie stores together: an **enclosed mall** (a rectangle of mall
+tiles whose inside is a plan of 10 m cells: walls, corridors, entrances on
+its edge opening onto the map tile beyond, and each store's storefront), a
+**strip mall** (stores whose doors open onto a walkway beside the parking
+they share), or a **district** (stores on a town's streets and plazas, with
+its parking). The default world's Millbrook Mall is an enclosed mall of
+four stores with a three-level garage and a surface lot; Old Town,
+Riverside and Eastfield are districts.
+
+**A shopping outing** starts with the morning's choice (below) of a
+destination store. A driver drives the road network to the facility that
+makes the whole trip cheapest, parks if a space is free, gets out, and
+walks the pedestrian network to the store's door; a walker walks from home.
+At a full facility the shopper drives on to the next facility serving the
+store, while the trip still beats having stayed home, else goes home. After
+each visit, at the store's door, the shopper decides between going home and
+walking to another store (below); at the end, they walk back to the same car
+in the same facility and drive home, or walk home. A household's outings
+run one after another (a trip to return items first, then its shopping).
+Every leg is logged (driving, parking, walking, inside a store, pulling
+out), from leaving home to getting back, and the map draws everyone from it.
+
+**The trip's cost**, in utility, is the segment's dislike of travel times
+the minutes of each part: driving (`drive_w`, 0.132 a minute in the
+default world), finding a space and getting out (`park_w`, 1.5 times that)
+and walking (`walk_w`, twice it), no walk longer than `max_walk_km` (2 km).
+It replaces the old cost per km of route; the segment's radius still bounds
+the route's length. A facility a household found full lately weighs on it
+as a bad visit does, fading the same way. None of these weights is
+calibrated to data: they are assumptions, set on the Shoppers tab
+(`docs/transport-design.md` says how each was chosen).
 
 </details>
 
@@ -439,15 +524,29 @@ shoppers in by each, in proportion to its width, and out by the nearest.
    brand selling none of them is never chosen); the pull of the household's
    loyalty tier with the brand; its price sensitivity (smaller, the more
    loyal it is) times the brand's price position, less what its promotions
-   take off; promotions and marketing; the trip; memory of bad visits (no
+   take off; promotions and marketing; the trip (its generalized cost, by
+   car via parking or on foot: see Getting about); memory of bad visits (no
    size, a queue walked out of); word of mouth (the buzz about the brand on
    the patch it lives on); the store's layout; the brand's return window;
-   and any offers good at the brand. An online store's appeal is the same,
+   and any offers good at the brand; and the pull of the other stores it
+   could walk on to from there (`cluster_w`, 0.3, of the log of the sum of
+   their appeal less the walk). An online store's appeal is the same,
    with the segment's taste for shopping online, the wait for delivery and
    the delivery charge (as a share of a typical order, added to the price)
    in place of the trip and the layout; its return window pulls harder,
    since nothing can be tried on.
-3. It drives there along the fastest route, and home again afterwards.
+3. It goes there (Getting about): by car to a parking facility and on foot
+   to the door, or on foot from home. After each visit, at the door, it
+   chooses between home and every store it hasn't been to today that sells
+   a category it still wants, that it can walk to and enter before last
+   entry, and that is within its radius: each weighed as in the morning,
+   with the range counted over the categories still wanted, today's bad
+   visits remembered, and the extra walk (there, and back to the car or
+   home) in place of the trip; home gets the appeal of staying home and the
+   budget already spent (as the morning's chance of shopping falls with it).
+   Once it has bought in as many categories as it came out for, or spent
+   its budget, it goes home. Its budget, coupons and categories bought carry
+   from one visit to the next.
 4. After closing, loyalty moves: what a household paid, less what it was
    refunded, adds to its season's spend with the brand, and a household
    whose spend reaches a higher tier moves up to it. It keeps its tier to
@@ -628,12 +727,12 @@ multiplies each chance, which never goes above certain. A return the
 brand's window has closed on doesn't happen: the household keeps the item.
 
 On the day a return is due, the household takes it, with any others for
-the brand due that day, to the brand's store nearest by route, if one is
-within its reach for the brand, whichever channel sold it. It drives
-there, joins the till queue whatever its length, and a cashier takes the
+the brand due that day, to the brand's store nearest by its way there, if
+one is within its reach for the brand, whichever channel sold it. It goes
+there as a shopper would (driving and parking, or walking), joins the till queue whatever its length, and a cashier takes the
 items back: a minute, and half a minute an item, recorded in the staff log
 and in the tills' utilisation. It doesn't shop on that trip. If the brand
-has no store in its reach (or none at all), it posts them to the brand's DC
+has no store in its reach (or none at all), or it can't park, it posts them to the brand's DC
 that morning, one parcel a household, and the brand pays the return
 postage. A returned unit goes back into that store's stock (or the DC's),
 except the brand's return write-off rate of them (10% in the default world),
@@ -739,6 +838,17 @@ the season's last weeks).
 | A 120 × 80 layout, read and routed, native R | 0.1 s |
 | The forecast, fitted again as each day ends (only while the Strategy tab is open) | in webR, about 0.3–0.6 s at day 61 of the default world, a series; native R, about 0.1–0.25 s; between days it's kept, and costs nothing |
 
+**Getting about** (the two networks, parking, venues and outings that visit
+several stores) made the default world's market day slower, measured side
+by side against the code before it on one machine (headless Chromium,
+webR 0.6.0 served locally; native R 4.3.3): in webR, a market day at the
+fastest speed took 1.5–1.9 s before and about 5 s after (about 2,100
+outings, 2,100 cars parked, 4,300 store visits); in native R, about 1.1 s
+before and 2.2 s after. Boot in webR is about 9 s (Setup 3.1 s, most of it
+the walking and driving fields toward every store and every facility's
+entrances). A 13-week season at the fastest speed now takes about 8 minutes
+in webR. The rows above were measured before it.
+
 Those are the largest a world can be: 24 brands, 80 stores, 12 segments, 6
 tiers a brand, 40 areas, a map of 60,000 tiles, 60,000 households, and
 layouts up to 120 × 80 tiles (60 × 40 m).
@@ -816,12 +926,33 @@ image (`vfs/netlogor-lib`) is plain R and can be copied out of it instead.
 the editors' canvas test (`tools/test-grid-editor.mjs`), the world
 builder's page side (`tools/test-world-builder.mjs`) and the shims'
 (`tools/test-shims.R`), and then the world builder's model side
-(`tools/test-world-builder.R`):
+(`tools/test-world-builder.R`) and getting about (`tools/test-transport.R`):
 
 ```bash
 node --test tools/test-grid-editor.mjs tools/test-world-builder.mjs
 Rscript tools/test-world-builder.R
+Rscript tools/test-transport.R
 ```
+
+`tools/test-transport.R` checks the two networks, the parking, the venues
+and the outings on small maps drawn tile by tile (`tools/transport-worlds.R`),
+on the bundled worlds and on a version 10 world upgraded, numbered as the
+requirements number them; and follows whole outings end to end: a shopper
+who drives to the enclosed mall, parks in its garage (which turns other
+cars away), browses one store without buying, buys at two others, walks
+back to the same car and drives home, every leg, route, parking event,
+ledger line, unit of stock and dollar of budget checked; and the same at the
+strip mall.
+
+`npm run test:browser` runs the world builder and the simulation in headless
+Chromium (Playwright), the real model in webR: it paints a lot by pointer,
+makes it a facility, gives it an entrance and an exit, marks and removes a
+kerb space, asks for a trip, walls off a storefront on Millbrook Mall's plan
+(the model says it can't be reached) and undoes it, makes a strip-mall
+venue, installs the world with Setup, runs a day, and reads back from R
+what the simulation did with the new lot and where everyone outdoors is.
+`node tools/test-browser.mjs --webr=<dir>` serves webR from the `dist/` of
+its npm package where its CDN can't be reached.
 
 `tools/test-grid-editor.mjs` runs the canvas against a stand-in for the
 browser (`tools/fake-dom.mjs`): brush footprints and their edges, strokes
@@ -848,8 +979,8 @@ in `tools/fixtures/spatial-contract.json`.
 - a cashier added at 14:00 serves from 14:00 on, and not before
 - the same seed gives identical days at season pace and at watch pace, with
   frames drawn between ticks
-- shoppers on the road stay on the map, and every trip runs from the home
-  to the store
+- shoppers outdoors stay on the map, and every outing's legs follow on from
+  one another, from leaving home to getting back
 - the map is one NetLogoR world that reads back as painted: at each tile's
   own patch, in the matrices the routing and the homes are read into, and
   in the tiles sent to the page; its households are turtles standing on
@@ -921,21 +1052,16 @@ in `tools/fixtures/spatial-contract.json`.
   (`tools/fixtures/v1-world`, its floor plans' old tables kept as they
   were) and the version 2 and version 5 default worlds
   (`tools/fixtures/v2-default.world.json`,
-  `tools/fixtures/v5-default.world.json`) upgrade and run; the version 6
-  default world (`tools/fixtures/v6-default.world.json`) upgrades and runs
-  the season the version 6 model ran (`tools/fixtures/v6-season.json`),
-  identical by day and outcome, and in sales and units by brand, with no
-  online orders and no returns; and the version 7 default world
-  (`tools/fixtures/v7-default.world.json`) upgrades to a tendency to return
-  of 1 for every segment and runs the season the version 7 model ran
-  (`tools/fixtures/v7-season.json`), identical by day and outcome, and in
-  gross sales, units, refunds and returns by brand. Those two seasons were
-  recorded before word of mouth spread between patches, so they're run
-  with `WOM_SPREAD` at 0; and the version 8 default world
-  (`tools/fixtures/v8-default.world.json`) upgrades to no demand events
-  and runs the season the version 8 model ran
-  (`tools/fixtures/v8-season.json`), identical by day and outcome, and in
-  gross sales, units, refunds and returns by brand
+  `tools/fixtures/v5-default.world.json`) upgrade and run; the version 6,
+  7 and 8 default worlds upgrade (their promotion buttons go; a tendency to
+  return of 1; no demand events) and run. They used to replay seasons their
+  models recorded (`tools/fixtures/v*-season.json`); those seasons drove
+  across parks and open land and parked anywhere, which version 11 doesn't,
+  and an upgraded world is given no parking, because none was built. So the
+  checks say what must happen instead: no one drives, no car parks, and
+  every store visit is made on foot by a household within walking range of
+  the store's door; version 6 still has no online orders or returns, and
+  version 7 still has both
 - demand events do what they say: days 3 and 23 at 1.3 are demand ×1.3,
   and day 90 at -2, ramped over 7 days from -1.4, walks -1.4, -1.5 … -2 on
   days 84 to 90; overlapping events multiply, ramp days before day 1 are
@@ -999,7 +1125,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `index.html`, `css/fashion.css`, `js/fashion/` | the page |
 | `coi-serviceworker.js` | cross-origin isolation on hosts that can't send the headers, and a cache for the large downloads |
 | `workers/sim.worker.js` | the webR session and the run loop |
-| `model/` | the model, in R (`index.json` gives the order; `events.R` is what's said about a visit, `calendar.R` the calendar and its markdowns, `stock.R` replenishment, `online.R` the online stores, `returns.R` the ledger and returns, `forecast.R` the Strategy tab's forecast) |
+| `model/` | the model, in R (`index.json` gives the order; `events.R` is what's said about a visit, `calendar.R` the calendar and its markdowns, `stock.R` replenishment, `online.R` the online stores, `returns.R` the ledger and returns, `forecast.R` the Strategy tab's forecast, `transport.R` the road and pedestrian networks, parking and venues, `outings.R` the journeys: outings, parking occupancy and the stores visited one after another) |
 | `worlds/default.world.json` | the world the app opens with |
 | `worlds/geographies/` | the maps a world can start from (`tools/build-geographies.mjs` draws them; `js/fashion/geography.js` uses them) |
 | `layouts/` | the four prefab layouts (`index.json` lists them) |
@@ -1008,9 +1134,13 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `vendor/codemirror.js` | the R code drawer's viewer (`tools/build-editor.mjs` bundles it) |
 | `tools/serve.R` | the local server |
 | `tools/build-default-world.R` | how the default world was made from the city the model used to generate |
+| `tools/build-transport.mjs` | the parking, venues and the tiles they need, built by hand into the default and strip-mall worlds |
+| `tools/test-transport.R`, `tools/transport-worlds.R` | getting about: the networks, parking, venues, outings and their accounting, and two outings end to end |
+| `tools/test-browser.mjs` | the world builder and a day of the simulation in headless Chromium, the real model in webR |
 | `tools/test-fashion.R` | the headless test, with its older worlds in `tools/fixtures/` |
 | `tools/test-sw.mjs` | the service worker's test |
 | `tools/test-grid-editor.mjs`, `tools/fake-dom.mjs` | the editors' canvas, tested against a stand-in for the browser |
 | `tools/test-world-builder.mjs`, `tools/test-world-builder.R` | the world builder: drawn tiles to the model's NetLogoR patches, and what drawn edits do in the model (`tools/fixtures/spatial-contract.json`, `tools/fixtures/geographies/`) |
 | `docs/world-builder-checklist.md` | the world builder's checklist, with the audit it started from |
+| `docs/transport-design.md` | getting about: what the model assumed before, the design, the parameters and their assumptions |
 | `screenshots/` | the images in this README |

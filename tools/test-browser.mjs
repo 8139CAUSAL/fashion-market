@@ -150,6 +150,45 @@ const trip = await page.evaluate((e) => eval(e).transport.trip, ed);
 check(trip.ok && trip.walk.ok && (trip.mode === "walk" || trip.mode === "drive") && trip.walk.route.length > 2,
   `the trip tool, from a home tile to Ours Eastfield: ${trip.mode === "drive" ? `by car via ${trip.drive.facility}` : "on foot"} (${trip.walk.min.toFixed(1)} min on foot), its route drawn from the model's own route`);
 
+// The mall's plan: wall off one storefront from the corridor, and the model says it can't be reached.
+await page.click('button.chip-btn:text-is("Select")');
+await page.evaluate((e) => { const t = eval(e).transport; t.venue = "millbrook_mall"; t.render(); eval(e).renderPalette(); }, ed);
+await page.waitForFunction(`!${ed}.transport.planCard.root.hidden && ${ed}.transport.plan?.editor.W === 25`, null, { timeout: 30_000 });
+// The cells' middles on the plan's canvas, all at once, after bringing it into view at the Draw scale.
+const patAll = async (cells) => page.evaluate(([cells, e]) => {
+  const pe = eval(e).transport.plan.editor;
+  pe.drawView({ r: cells[0][0], c: cells[0][1] });
+  pe.canvas.scrollIntoView({ block: "center" });           // the side column scrolls on its own: this reaches it
+  const rect = pe.canvas.getBoundingClientRect();
+  return cells.map(([r, c]) => { const p = pe.toScreen(r, c); return { x: rect.left + p.x + pe.zoom / 2, y: rect.top + p.y + pe.zoom / 2 }; });
+}, [cells, ed]);
+await page.click('button.swatch:has-text("Wall")');
+{
+  const ps = await patAll([17, 18, 19, 20, 21].map((c) => [11, c]));
+  await page.mouse.move(ps[0].x, ps[0].y); await page.mouse.down();
+  for (const p of ps.slice(1)) await page.mouse.move(p.x, p.y, { steps: 3 });
+  await page.mouse.up();
+}
+const walled = await page.evaluate((e) => eval(e).world.draft.macro.venues[0].plan.rows[11].slice(17, 22), ed);
+await page.waitForFunction(`${ed}.previewState === "fresh"`, null, { timeout: 120_000 });
+const mallWarn = await page.evaluate((e) => eval(e).preview.warnings.map((w) => w.message), ed);
+await page.evaluate((e) => eval(e).transport.plan.editor.undo(), ed);
+await page.waitForFunction(`${ed}.previewState === "fresh"`, null, { timeout: 120_000 });
+const after = await page.evaluate((e) => ({ row: eval(e).world.draft.macro.venues[0].plan.rows[11].slice(17, 22), warn: eval(e).preview.warnings.map((w) => w.message) }), ed);
+check(walled === "#####" && mallWarn.some((m) => /Ours Intimates Millbrook Mall's storefront can't be reached from any entrance/.test(m)) &&
+  after.row === "....." && !after.warn.some((m) => /storefront can't be reached/.test(m)),
+  "on Millbrook Mall's plan, a wall drawn by pointer across the corridor in front of a storefront: the model's preview says that store can't be reached from any entrance; undo, and it can again" +
+  (walled === "#####" ? "" : ` [painted: ${walled}; after undo: ${after.row}; warnings: ${mallWarn.join(" | ").slice(0, 300)}]`));
+// A strip-mall venue, made and given a store.
+await page.click('button:has-text("+ Strip mall")');
+const sv = await page.evaluate((e) => eval(e).world.draft.macro.venues.at(-1), ed);
+await page.evaluate((e) => { const box = [...eval(e).transport.venuesCard.root.querySelectorAll("label.check")].find((l) => /^Value MR/.test(l.textContent)); box.querySelector("input").click(); }, ed);
+const sv2 = await page.evaluate((e) => ({ v: eval(e).world.draft.macro.venues.at(-1), store: eval(e).world.draft.stores.find((s) => s.id === "value_mr") }), ed);
+check(sv?.kind === "strip" && JSON.stringify(sv2.v.stores) === '["value_mr"]' && sv2.store.venue === sv2.v.id,
+  "a strip-mall venue made with a click, and a store ticked into it: the venue lists it and the store names its venue");
+await page.click('button:has-text("Remove the venue")');
+check(await page.evaluate((e) => eval(e).world.draft.macro.venues.length === 4 && !eval(e).world.draft.stores.find((s) => s.id === "value_mr").venue, ed), "and removed again");
+
 // ---- Setup, a day, and what the simulation did -----------------------------------------------------
 
 console.log("Setup and a day");

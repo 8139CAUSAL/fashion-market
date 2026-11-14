@@ -56,6 +56,11 @@ OL_FIELDS <- c("outing", "kind", "t0", "t1", "graph", "field", "from", "rev", "f
 PK_FIELDS <- c("fac", "outing", "vehicle", "t_in", "t_out", "level")
 
 og <- NULL; pk <- NULL; ol <- NULL
+door_q <- list(o = integer(), s = integer(), t = numeric())     # shoppers reaching a store's door in this pass of outings_step
+
+queue_door <- function(o, s, t) {
+  door_q$o <<- c(door_q$o, o); door_q$s <<- c(door_q$s, s); door_q$t <<- c(door_q$t, t)
+}
 
 # ---- The day's outings ---------------------------------------------------------------------
 
@@ -91,6 +96,7 @@ new_outings <- function(h, store, door, ct, n_want, margin, tc, r = integer(), r
     visited = matrix(FALSE, n, N_STORES), grudge = matrix(0, n, N_BRANDS), tried = matrix(FALSE, n, max(1L, N_FAC)),
     ret_lines = c(vector("list", length(h)), lines), park_row = integer(n), parked_leg = integer(n), busy = integer(mk$hh$n), fails = integer())
   pk <<- list(n = 0L, m = matrix(0, 256, length(PK_FIELDS), dimnames = list(NULL, PK_FIELDS)), rows = vector("list", N_FAC))
+  door_q <<- list(o = integer(), s = integer(), t = numeric())
   ol <<- list(n = 0L, m = matrix(0, 8L * n + 64L, length(OL_FIELDS), dimnames = list(NULL, OL_FIELDS)), route = list())
 }
 
@@ -153,17 +159,32 @@ outings_pending <- function() !is.null(og) && og$n > 0L && any(is.na(og$t_home) 
 
 # ---- Each step ---------------------------------------------------------------------------------
 
-# Every outing event due before s1, in time order (a run of events of one
-# kind at a time).
+# Every outing event due before s1, a kind at a time, in an order that
+# keeps each one's causes ahead of it: shoppers back at a door (deciding
+# where next, and when their cars will pull out), then those reaching home
+# (which frees a household's next outing to leave), then departures (whose
+# cars may reach a facility within the step), then cars reaching
+# facilities, in the order they arrive. So every space a car will free
+# before another arrives is known when that one asks for it. Whatever
+# these make due within the step is taken in the next pass.
 outings_step <- function(s1) {
   if (is.null(og) || !og$n) return(invisible())
   repeat {
-    due <- which(og$ev_at < s1)
-    if (!length(due)) break
-    o <- due[order(og$ev_at[due], due)]
-    kind <- og$ev_kind[o]
-    run <- o[seq_len(match(TRUE, kind != kind[1], nomatch = length(o) + 1L) - 1L)]
-    switch(kind[1], og_depart(run), og_at_fac(run), og_left(run), og_home(run))
+    any_due <- FALSE
+    for (kind in c(OE_LEFT, OE_HOME, OE_DEPART, OE_AT_FAC)) {
+      o <- which(og$ev_at < s1 & og$ev_kind == kind)
+      if (!length(o)) next
+      any_due <- TRUE
+      o <- o[order(og$ev_at[o], o)]
+      switch(kind, og_depart(o), og_at_fac(o), og_left(o), og_home(o))
+    }
+    # Everyone who reached a store's door in this pass comes to it at once.
+    if (length(door_q$o)) {
+      q <- door_q; door_q <<- list(o = integer(), s = integer(), t = numeric())
+      k <- order(q$t, q$o)
+      at_door(q$o[k], q$s[k], q$t[k])
+    }
+    if (!any_due) break
   }
 }
 
@@ -205,7 +226,7 @@ og_depart <- function(o) {
     wt <- T$wf$time[cbind(tile[w1], s)]
     ol_add(o[w1], OL_WALK, t[w1], t[w1] + wt, 2L, s, tile[w1], 0L, 0L, s)
     og$ev_at[o[w1]] <<- Inf
-    at_door(o[w1], s, t[w1] + wt)
+    queue_door(o[w1], s, t[w1] + wt)
   }
 }
 
@@ -242,7 +263,7 @@ og_at_fac <- function(o) {
       occ[j] <- base + seq_along(j) - 1L
     }
     per <- ceiling(FAC$spaces[f] / FAC$levels[f])
-    level <- ifelse(FAC$kind[f] == "garage", pmin(FAC$levels[f], occ %/% per + 1), 1)
+    level <- pmin(FAC$levels[f], occ %/% per + 1)        # a lot or a kerb has one level
     og$park_row[e] <<- pk_add_many(f, e, t, level)
     t1 <- t + FAC$search_s[f] + (level - 1) * FAC$level_s[f]; t2 <- t1 + FAC$transfer_s[f]
     ex <- T$fw_node[cbind(f, s)]; wt <- T$fw_t[cbind(f, s)]
@@ -311,7 +332,7 @@ og_at_fac <- function(o) {
     pr <- rows[L$kind == OL_PARKED]
     og$parked_leg[L$o[L$kind == OL_PARKED]] <<- pr
   }
-  if (length(door_o)) { k <- order(match(door_o, o)); at_door(door_o[k], door_s[k], door_t[k]) }   # in the order they arrived
+  if (length(door_o)) queue_door(door_o, door_s, door_t)
 }
 
 # A return trip that couldn't park: the household posts the items back.
@@ -384,7 +405,8 @@ og_left <- function(o) {
     from <- T$entrance[s[on]]
     wt <- T$wf$time[cbind(from, s2)]
     ol_add(o[on], OL_WALK, t[on], t[on] + wt, 2L, s2, from, 0L, 0L, s2)
-    at_door(o[on], s2, t[on] + wt)
+    og$ev_at[o[on]] <<- Inf
+    queue_door(o[on], s2, t[on] + wt)
   }
   home <- which(next_s == 0L)
   if (length(home)) og_end(o[home], t[home], reason[home])
@@ -402,20 +424,21 @@ og_end <- function(o, t, reason, travelled = TRUE) {
   s <- og$at[o]; tile <- mk$hh$tile[og$hh[o]]
   back <- numeric(length(o))
   drv <- og$mode[o] == MODE_DRIVE & og$park_row[o] > 0L
-  for (j in which(drv)) {
-    i <- o[j]; f <- og$fac[i]; row <- og$park_row[i]
-    ex <- T$fw_node[f, s[j]]; wt <- T$fw_t[f, s[j]]
+  j <- which(drv)
+  if (length(j)) {
+    i <- o[j]; f <- og$fac[i]; row <- og$park_row[i]; sj <- s[j]
+    ex <- T$fw_node[cbind(f, sj)]; wt <- T$fw_t[cbind(f, sj)]
     t1 <- t[j] + wt; t2 <- t1 + FAC$transfer_s[f]
     level <- pk$m[row, "level"]
     t3 <- t2 + (level - 1) * FAC$level_s[f]
-    field <- which(T$vnodes == og$vnode[i] & T$vnode_fac == f)[1]
-    dt <- T$vf$time[tile[j], field]
-    ol_add(i, OL_WALK, t[j], t1, 2L, s[j], ex, 1L, f, s[j])
-    ol_add(i, OL_TRANSFER, t1, t2, 2L, s[j], ex, 1L, f)
+    field <- match(og$vnode[i] * 1000 + f, T$vnodes * 1000 + T$vnode_fac)   # the node the car came in at, and its field
+    dt <- T$vf$time[cbind(tile[j], field)]
+    k <- length(j)
+    ol_add(c(i, i, i, i), rep(c(OL_WALK, OL_TRANSFER, OL_UNPARK, OL_DRIVE), each = k), c(t[j], t1, t2, t3), c(t1, t2, t3, t3 + dt),
+           rep(c(2L, 2L, 0L, 1L), each = k), c(sj, sj, integer(k), field), c(ex, ex, integer(k), tile[j]), rep(c(1L, 1L, 0L, 1L), each = k),
+           rep(f, 4L), c(sj, integer(3L * k)))
     pk$m[row, "t_out"] <<- t2                          # the car pulls out of its space
     ol$m[og$parked_leg[i], "t1"] <<- t2
-    ol_add(i, OL_UNPARK, t2, t3, fac = f)
-    ol_add(i, OL_DRIVE, t3, t3 + dt, 1L, field, tile[j], 1L, f)
     back[j] <- t3 + dt
   }
   wk <- which(!drv)
@@ -482,7 +505,7 @@ next_stop <- function(o, s, t) {
     walk <- T$wf$time[cbind(T$entrance[s[row]], si)]
     # The walk back: to the car's facility, or home.
     drv <- og$mode[oi] == MODE_DRIVE
-    back_from <- function(store) ifelse(drv, T$fw_t[cbind(pmax(og$fac[oi], 1L), store)], T$wf$time[cbind(mk$hh$tile[hi], store)])
+    back_from <- function(store) { out <- T$wf$time[cbind(mk$hh$tile[hi], store)]; out[drv] <- T$fw_t[cbind(og$fac[oi][drv], store[drv])]; out }
     extra <- walk + back_from(si) - back_from(s[row])
     # Still wanted: liked categories not yet bought, by the brand.
     need <- CATEGORY_TASTE[seg, , drop = FALSE] * !og$got[o, , drop = FALSE]
