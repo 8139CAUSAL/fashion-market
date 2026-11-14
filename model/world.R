@@ -1375,6 +1375,19 @@ world_preview_file <- function(path) {
   macro_preview(W)
 }
 
+# One trip on the draft (the page's trip tool): {"world": ..., "r", "c",
+# "store": a store's id, "car": true/false}, after a preview of it.
+trip_preview_file <- function(path) {
+  x <- tryCatch(world_parse(read_text(path)), error = function(e) e)
+  if (inherits(x, "error")) return(list(ok = FALSE, message = conditionMessage(x)))
+  W <- x$world
+  placed <- Filter(store_placed, W$stores)
+  s <- match(x$store, vapply(placed, function(p) p$id, ""))
+  if (is.na(s)) return(list(ok = FALSE, message = "that store isn't on the map"))
+  macro_preview(W)
+  trip_preview(as.integer(x$r), as.integer(x$c), s, isTRUE(x$car), W)
+}
+
 # The layout editor's report: a picture, read by the categories of the
 # world being edited ({"rows": [...], "categories": [{"key", "name"}]}).
 layout_report_file <- function(path) {

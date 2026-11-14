@@ -51,15 +51,56 @@ function homes(s, centres) {
 // A road: on land a road, over water a bridge where one is wanted (else the water stays).
 const road = (s, r, c, bridge) => { const ch = s.get(r, c); if (ch === null) return; if (ch === "~" || ch === "+") { if (bridge) s.set(r, c, "+"); } else s.set(r, c, "="); };
 
-// Shops in a block, and a store site in the middle of each of its tiles.
+// Shops in a block, and a store site in the middle of each of its tiles
+// (each site with an id, so a venue can name it).
 function shops(s, sites, r0, c0, h = 2, w = 3) {
   const cluster = [];
   for (let r = r0; r < r0 + h; r++) for (let c = c0; c < c0 + w; c++) {
     if (["~", "+", "="].includes(s.get(r, c))) continue;
     s.set(r, c, "s");
-    cluster.push({ u: c + 0.5, v: s.H - r - 0.5 });
+    cluster.push({ u: c + 0.5, v: s.H - r - 0.5, id: `site_${r}_${c}` });
   }
+  cluster.box = { r0, c0, h, w };
   sites.push(cluster);
+}
+
+// Parking for a block of shops, built by hand as a user would: where the
+// row just below (or above) the block is a street, kerb spaces along it;
+// otherwise a surface lot on that row, entered from the street or homes
+// beside it, its pedestrian exits on the shops' side. Each block is a
+// walkable district venue sharing its parking. Returns them.
+const DRIVABLE = new Set(["=", "+", "H", "x", "d", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+function parkingFor(s, cluster, name) {
+  const { r0, c0, h, w } = cluster.box;
+  const cols = Array.from({ length: w }, (_, i) => c0 + i);
+  for (const [row, toward] of [[r0 + h, r0 + h - 1], [r0 - 1, r0]]) {
+    if (!s.inside(row, c0)) continue;
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+    if (cols.every((c) => s.get(row, c) === "=")) {
+      const tiles = cols.map((c) => [row, c]);
+      return { facility: { id: `${id}_kerb`, name: `${name} kerb spaces`, kind: "kerb", tiles, levels: 1, spaces: 10 * w,
+        vehicle_access: tiles, pedestrian_access: tiles, search_s: 90, level_s: 0, transfer_s: 0 } };
+    }
+    if (cols.some((c) => ["~", "+", "=", "s"].includes(s.get(row, c)))) continue;
+    for (const c of cols) s.set(row, c, "P");
+    const tiles = cols.map((c) => [row, c]);
+    const beside = (r, c) => [[r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]].filter(([rr, cc]) => s.inside(rr, cc) && DRIVABLE.has(s.get(rr, cc)));
+    const roads = tiles.filter(([r, c]) => beside(r, c).some(([rr, cc]) => s.get(rr, cc) === "="));
+    const vehicle = (roads.length ? roads : tiles.filter(([r, c]) => beside(r, c).length)).slice(0, 1);
+    if (!vehicle.length) continue;
+    return { facility: { id: `${id}_lot`, name: `${name} lot`, kind: "lot", tiles, levels: 1, spaces: 60 * w,
+      vehicle_access: vehicle, pedestrian_access: tiles.filter(([, c]) => s.get(toward, c) === "s"), search_s: 50, level_s: 0, transfer_s: 20 } };
+  }
+  throw new Error(`no room for parking beside ${name}`);
+}
+function venuesFor(s, clusters, names) {
+  const parking = []; const venues = [];
+  clusters.forEach((cl, i) => {
+    const { facility } = parkingFor(s, cl, names[i]);
+    parking.push(facility);
+    venues.push({ id: facility.id.replace(/_(lot|kerb)$/, ""), name: names[i], kind: "district", parking: [facility.id], sites: cl.map((x) => x.id) });
+  });
+  return { parking, venues };
 }
 
 // The districts: each tile of land near a centre takes the nearest one
@@ -103,12 +144,13 @@ function riverTown() {
   const areas = [
     { key: "a", id: "old_town", name: "Old Town", colour: "#f1dfc1" }, { key: "b", id: "east_bank", name: "East Bank", colour: "#d9e8cf" },
     { key: "c", id: "mill_village", name: "Mill Village", colour: "#e0dcef" }, { key: "d", id: "southfields", name: "Southfields", colour: "#f2d9d3" }];
+  const built = venuesFor(s, clusters, ["Old Town shops", "East Bank shops", "Mill Village shops", "Southfields shops", "Riverside shops"]);
   const west = (r, c) => c < mid(r);
   const area_tiles = districts(s, [[45, 40, 30], [45, 84, 28], [14, 22, 13], [74, 96, 13]], areas.map((a) => a.key),
     (r, c) => { const d0 = Math.hypot(r - 45, c - 40) / 30; const d1 = Math.hypot(r - 45, c - 84) / 28; return !(d0 < 1 && !west(r, c) && d0 < d1) && !(d1 < 1 && west(r, c) && d1 < d0); });
-  return { kind: GEOGRAPHY_KIND, version: 1, id: "river_town", name: "River town",
+  return { kind: GEOGRAPHY_KIND, version: 2, id: "river_town", name: "River town",
     about: "A river running north to south with three bridges: an old town on the west bank, a newer east bank, a village and an estate, with parks along the water.",
-    width: s.W, height: s.H, tiles: s.rows(), area_tiles, areas, sites: inTurn(clusters) };
+    width: s.W, height: s.H, tiles: s.rows(), area_tiles, areas, sites: inTurn(clusters), ...built };
 }
 
 // ---- Harbour bay --------------------------------------------------------------------------------
@@ -138,10 +180,11 @@ function harbourBay() {
   const areas = [
     { key: "h", id: "harbourside", name: "Harbourside", colour: "#f1dfc1" }, { key: "u", id: "uptown", name: "Uptown", colour: "#d9e8cf" },
     { key: "w", id: "westcliff", name: "Westcliff", colour: "#e0dcef" }, { key: "e", id: "eastgate", name: "Eastgate", colour: "#f2d9d3" }];
+  const built = venuesFor(s, clusters, ["Harbourside shops", "Uptown shops", "Westcliff shops", "Eastgate shops", "North Point shops"]);
   const area_tiles = districts(s, [[47, 70, 17], [18, 80, 34], [60, 26, 26], [58, 112, 24]], areas.map((a) => a.key));
-  return { kind: GEOGRAPHY_KIND, version: 1, id: "harbour_bay", name: "Harbour bay",
+  return { kind: GEOGRAPHY_KIND, version: 2, id: "harbour_bay", name: "Harbour bay",
     about: "A coast along the south with a bay cut into it and a bridge across its mouth: a dense harbour front, a coast road and seafront, and three districts round it.",
-    width: s.W, height: s.H, tiles: s.rows(), area_tiles, areas, sites: inTurn(clusters) };
+    width: s.W, height: s.H, tiles: s.rows(), area_tiles, areas, sites: inTurn(clusters), ...built };
 }
 
 mkdirSync(out, { recursive: true });
@@ -162,5 +205,5 @@ for (const g of all) {
   const w = JSON.parse(base);
   const how = applyGeography(w, g);
   writeFileSync(new URL(`${g.id}.world.json`, fixtures), worldText(w));
-  console.log(`  the default world on ${g.id}: ${how.placed} stores on its sites, ${how.unplaced} waiting; ${how.reused} areas repainted, ${how.added} added`);
+  console.log(`  the default world on ${g.id}: ${how.placed} stores on its sites, ${how.unplaced} waiting; ${how.reused} areas repainted, ${how.added} added; ${how.parking} parking facilities, ${how.venues} venues`);
 }

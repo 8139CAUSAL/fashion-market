@@ -46,6 +46,7 @@ init_tally <- function() {
     ever = matrix(0, D, N_BRANDS + 1),                               # households that have bought from each brand; from competitors only
     share = matrix(0, D, 3),                                         # in-market households: bought ours (our family), another, nothing
     late = numeric(D),
+    follow_on = matrix(0, D, A),                                     # follow-on store visits (made from the door of another store), by area
     dest_visits = matrix(0, D, N_STORES), next_visits = matrix(0, D, N_STORES),   # store visits: destination of the outing, or a stop made from the door of another
     drawn = matrix(0, D, N_STORES),                                  # outings that chose the store as their destination
     outings = matrix(0, D, length(OUTING_ENDS)),                     # shopping and return outings home, by how they ended
@@ -194,6 +195,7 @@ tally_outings <- function(i, t) {
   floor_v <- !d$online & !d$ret & d$arrive <= t
   tally$dest_visits[i, ] <<- tabulate(d$store[floor_v & d$stop == 1L], N_STORES)
   tally$next_visits[i, ] <<- tabulate(d$store[floor_v & d$stop > 1L], N_STORES)
+  tally$follow_on[i, ] <<- tabulate(d$bin[floor_v & d$stop > 1L], AREA_BINS)
   tally$drawn[i, ] <<- today$dest %||% numeric(N_STORES)
   tally$shoppers[i] <<- length(unique(d$hh[floor_v]))
   tally$purchases[i] <<- sum(floor_v & d$outcome == 1L)

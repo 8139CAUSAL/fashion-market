@@ -175,7 +175,12 @@ offer_net <- function(k) {
   Lg <- ledger_view()
   sent <- ofr$sent[[k]]; m <- length(sent)
   L <- ofr$buys[seq_len(ofr$n_buys), , drop = FALSE]; L <- L[L[, "offer"] == k, , drop = FALSE]
-  line_of <- purchase_key(Lg$hh, Lg$day); key <- purchase_key(ofr$members[[k]][L[, "member"]], L[, "day"])
+  # A household may buy at several stores of a brand in a day: one
+  # purchase per household, day and brand, its rows summed.
+  key <- purchase_key(ofr$members[[k]][L[, "member"]], L[, "day"], L[, "brand"])
+  first <- !duplicated(key)
+  if (nrow(L)) { sums <- rowsum(L[, c("sales", "margin"), drop = FALSE], match(key, key[first]), reorder = FALSE); L <- L[first, , drop = FALSE]; L[, c("sales", "margin")] <- sums; key <- key[first] }
+  line_of <- purchase_key(Lg$hh, Lg$day, Lg$brand)
   mi <- match(line_of, key); hit <- !is.na(mi)
   cost <- PROD_COST[cbind(Lg$brand, Lg$product)] * (Lg$fate == FATE_RESTOCK)
   refund <- bin_sum(mi[hit], Lg$refund[hit], nrow(L))
@@ -353,21 +358,27 @@ check(same && b$frames > 100 && sum(a$ledger[[1]][, "store"] == 0L) > 0 && sum(a
       sprintf("season pace and watch pace (%d frames drawn) give identical days, with online orders and returns on (%d online units, %d returned): visits, sales, refunds, stock and the ledger, line by line",
               b$frames, sum(a$ledger[[1]][, "store"] == 0L), sum(a$ledger[[1]][, "ret_day"] > 0L)))
 
-# Drivers on the map follow their routes: out of the home, into the store,
-# on a sixth day (with returns due).
+# Shoppers on the map follow their routes: every outing's legs run on from
+# one another, from the home and back to it; a car only on tiles cars can
+# use or in its facility, a walker only where people can walk; on a sixth
+# day (with returns due).
 setup(5); P$pace <- "season"
 for (i in 1:5) { advance(Inf); finish_day() }
 P$pace <- "watch"
 advance(3 * 3600)
 tr <- travellers_at(clock)
 check(length(tr$x) > 0 && all(tr$x >= 0 & tr$x <= MACRO$width_m & tr$y >= 0 & tr$y <= MACRO$height_m),
-      sprintf("shoppers on the road stay on the map (%d now)", length(tr$x)))
-build_trips()
-drive <- which(d$store > 0L)                                        # visits to a store, to shop or return items; online ones make no trip
-check(max(abs(route_of(drive, rep(0, length(drive))) - cbind(mk$hh$x[d$hh[drive]], mk$hh$y[d$hh[drive]]))) < 1e-6 &&
-      max(abs(route_of(drive, rep(Inf, length(drive))) - cbind(STORES$x[d$store[drive]], STORES$y[d$store[drive]]))) < 1e-6 &&
-      sum(d$ret) > 0 && all(!d$online[tr$visit]),
-      sprintf("every trip starts at the home and ends at the store, trips to return items too (%d today); online shoppers make none", sum(d$ret)))
+      sprintf("shoppers outdoors stay on the map (%d now: %d driving, %d walking, %d cars parked)", length(tr$x), sum(tr$kind == 1L), sum(tr$kind == 2L), sum(tr$kind == 3L)))
+advance(Inf)
+m <- ol$m[seq_len(ol$n), , drop = FALSE]
+legs_ok <- vapply(which(!is.na(og$t_home) & og$t_depart < og$t_home), function(o) {
+  x <- m[m[, "outing"] == o & m[, "kind"] != OL_PARKED, , drop = FALSE]
+  x <- x[order(x[, "t0"], x[, "t1"]), , drop = FALSE]
+  abs(x[1, "t0"] - og$t_depart[o]) < 1e-6 && abs(x[nrow(x), "t1"] - og$t_home[o]) < 1e-6 && all(abs(x[-1, "t0"] - x[-nrow(x), "t1"]) < 1e-6)
+}, TRUE)
+check(length(legs_ok) > 0 && all(legs_ok) && sum(d$ret & !d$online) > 0 && all(d$outing[d$online] == 0L),
+      sprintf("every outing's legs follow on from one another, from leaving home to getting back (%d outings, trips to return items too: %d); online shoppers make none",
+              length(legs_ok), sum(d$ret)))
 
 # A change made mid-day acts from that moment: a cashier added at 14:00
 # shortens the till queue from 14:00, and not before.
@@ -563,7 +574,7 @@ big_world <- function(W) {
   area[home & X < 60] <- "w"; area[home & X >= 60 & Y < 55] <- "n"; area[home & X >= 60 & Y >= 55] <- "s"
   rows <- function(m) as.list(apply(m, 1, paste, collapse = ""))
   a0 <- W$macro$areas[[1]]
-  W$macro <- list(patch_m = 60, width = nx, height = ny, households = 30000, road_mps = 12, local_mps = 4, park_s = 180, wom_m = 600,
+  W$macro <- list(patch_m = 60, width = nx, height = ny, households = 30000, road_mps = 12, local_mps = 4, walk_mps = 1.3, wom_m = 600, parking = list(), venues = list(),
                   tiles = rows(tile),
                   areas = lapply(c("w", "n", "s"), function(k) modifyList(a0, list(key = k, id = paste0("area_", k), name = paste("Area", toupper(k))))),
                   area_tiles = rows(area), default_makeup = W$macro$default_makeup)
@@ -617,7 +628,7 @@ big_world <- function(W) {
   intimates <- vapply(W$categories, `[[`, "", "id")[keys %in% on_intimates]       # the categories the Intimates plan has racks for
   W$stores <- lapply(seq_len(30), function(s) {
     k <- (s - 1) %/% 2 + 1
-    st <- W$stores[[1]]
+    st <- W$stores[[1]]; st$venue <- NULL
     st$id <- sprintf("store_%02d", s); st$name <- sprintf("Brand %d store %d", k, (s - 1) %% 2 + 1); st$short <- sprintf("B%d-%d", k, (s - 1) %% 2 + 1)
     sold <- vapply(W$brands[[k]]$range, `[[`, "", "category")
     st$brand <- sprintf("brand_%02d", k)
@@ -1042,14 +1053,34 @@ check(own && WOM_SPREAD > 0 && max(abs(colSums(spread$buzz) - colSums(still$buzz
       sprintf("word of mouth is a NetLogoR world of %d x %d patches of %s m, a buzz for each of %d brands, read by each household on its own patch; diffuse() spreads it every evening (WOM_SPREAD %s), each brand's buzz kept, to %d patches no one shopped from that day; reaching across the map's whole height is refused",
               dim(mk$wom)[2], dim(mk$wom)[1], json_number(MACRO$wom_m), N_BRANDS, json_number(WOM_SPREAD), length(quiet)))
 
+# ---- Older worlds under the version 11 transport ----------------------------------------
+#
+# Versions 6, 7 and 8 were checked against seasons their models recorded
+# (tools/fixtures/v*-season.json). Those seasons drove every trip across
+# parks, open land and homes alike, and parked anywhere in park_s: version
+# 11 doesn't (transport.R). An upgraded world keeps its tiles and gets no
+# parking, because no one built any: so the recorded seasons can't happen
+# again, and the checks below say instead what must happen in such a world.
+# No household drives (there's nowhere to park), no car parks, and every
+# store visit is made on foot by a household whose home has a walk to that
+# store's door within the longest walk; every visit's outing is accounted
+# for from leaving home to getting back. What each version's upgrade adds
+# (no promotion buttons; a tendency to return of 1; no demand events) is
+# checked as before, and so is what the upgraded world must still do or
+# not do (no online orders or returns in version 6; returns in version 7).
+on_foot_only <- function() {
+  floor_v <- which(!d$online)
+  walk_m <- city$wf$length[cbind(mk$hh$tile[d$hh[floor_v]], d$store[floor_v])]
+  all(tally$outing_mode[seq_len(days_complete()), 1] == 0) && sum(tally$parked) == 0 && pk$n == 0L && all(og$mode == MODE_WALK) &&
+    all(walk_m <= P$max_walk_km * 1000 + 1e-6) && sum(tally$outing_mode[, 2]) > 0
+}
+walk_only_text <- function() sprintf("%s outings on foot, none by car, no car parked", format(sum(tally$outing_mode[, 2]), big.mark = ","))
+
 # ---- A version 6 world ------------------------------------------------------------------
 
 # A version 6 world upgrades: the settings of the Market tab's old promotion
 # buttons (each brand's promotion depth, the market's promotion length) go.
-# It then runs the season the version 6 model ran, recorded in
-# tools/fixtures/v6-season.json, with word of mouth not spreading between
-# patches (WOM_SPREAD 0), as in that model: the same visits by outcome,
-# and the same sales and units by brand, day by day.
+# It runs with no online orders and no returns, on foot only (above).
 cat("A version 6 world\n")
 V6 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v6-default.world.json")), collapse = "\n"))
 U <- world_resolve(world_upgrade(V6), file.path(root, "layouts"))
@@ -1064,21 +1095,17 @@ r <- run_season_days(n6)
 WOM_SPREAD <- spread
 by_brand <- function(what) t(vapply(seq_len(n6), function(i) brand_of_stores(colSums(tally[[what]][i, , ])), numeric(N_BRANDS)))
 visits6 <- t(vapply(seq_len(n6), function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
-same6 <- identical(visits6, rec$visits[seq_len(n6), , drop = FALSE]) && max(abs(by_brand("sales") - rec$sales[seq_len(n6), , drop = FALSE])) < 0.006 &&
-  identical(round(by_brand("units")), rec$units[seq_len(n6), , drop = FALSE] + 0)
+same6 <- on_foot_only()
 none6 <- !any(ONLINE$on) && all(RETURNS$window_days == 0) && sum(stock$online) == 0 && sum(tally$refunds) == 0 && sum(tally$trips) == 0 &&
   all(ledger$i[seq_len(ledger$n), "store"] > 0L) && all(ledger$i[seq_len(ledger$n), "due"] == 0L)
-check(r$ok && same6 && none6, sprintf("the upgraded version 6 world runs the season the version 6 model ran, with no online orders and no returns: %d days, %s visits, identical by day and outcome, and sales and units by brand",
-                                      n6, format(sum(visits6), big.mark = ",")))
+check(r$ok && same6 && none6, sprintf("the upgraded version 6 world runs %d days with no online orders and no returns, and with no parking built, every visit on foot within walking range: %s visits, %s",
+                                      n6, format(sum(visits6), big.mark = ","), walk_only_text()))
 
 # ---- A version 7 world ------------------------------------------------------------------
 
 # A version 7 world upgrades: each segment gets a tendency to return of 1.
-# At 1, it runs the season the version 7 model ran (every shopper returning
-# at the same rates), recorded in tools/fixtures/v7-season.json, with word
-# of mouth not spreading between patches (WOM_SPREAD 0), as in that model:
-# the same visits by outcome, and the same gross sales, units, refunds and
-# returned units by brand, day by day, with online stores and returns on.
+# It runs with online stores and returns on, on foot only (above): items
+# come back, by trips on foot or by post.
 cat("A version 7 world\n")
 V7 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v7-default.world.json")), collapse = "\n"))
 U <- world_resolve(world_upgrade(V7), file.path(root, "layouts"))
@@ -1093,21 +1120,16 @@ WOM_SPREAD <- spread
 dd <- seq_len(n7)
 per_brand <- function(m) t(vapply(dd, function(i) brand_of_stores(m[i, ]), numeric(N_BRANDS)))
 visits7 <- t(vapply(dd, function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
-same7 <- identical(visits7, rec$visits[dd, , drop = FALSE]) &&
-  max(abs(per_brand(apply(tally$sales[dd, , , drop = FALSE], c(1, 3), sum)) - rec$sales[dd, , drop = FALSE])) < 1e-6 &&
-  identical(round(per_brand(apply(tally$units[dd, , , drop = FALSE], c(1, 3), sum))), rec$units[dd, , drop = FALSE] + 0) &&
-  max(abs(per_brand(tally$refunds) - rec$refunds[dd, , drop = FALSE])) < 1e-6 &&
-  identical(round(per_brand(tally$ret_units)), rec$returned[dd, , drop = FALSE] + 0)
-check(r$ok && same7 && sum(rec$returned[dd, ]) > 0,
-      sprintf("at a tendency to return of 1, the upgraded version 7 world runs the season the version 7 model ran: %d days, %s visits, %s items returned, identical by day and outcome, and in gross sales, units, refunds and returns by brand",
-              n7, format(sum(visits7), big.mark = ","), format(sum(rec$returned[dd, ]), big.mark = ",")))
+same7 <- on_foot_only() && sum(tally$ret_units) > 0 && sum(tally$orders) > 0
+check(r$ok && same7,
+      sprintf("at a tendency to return of 1, the upgraded version 7 world runs %d days with online orders and returns, every store visit on foot within walking range: %s visits, %s items returned, %s",
+              n7, format(sum(visits7), big.mark = ","), format(sum(tally$ret_units), big.mark = ","), walk_only_text()))
 
 # ---- A version 8 world ------------------------------------------------------------------
 
 # A version 8 world upgrades: it gets no demand events, placed after the
-# season's length. It runs the season the version 8 model ran, recorded in
-# tools/fixtures/v8-season.json: the same visits by outcome, and the same
-# gross sales, units, refunds and returned units by brand, day by day.
+# season's length, and runs with every day's demand as the model sets it,
+# on foot only (above).
 cat("A version 8 world\n")
 V8 <- world_parse(paste(readLines(file.path(root, "tools", "fixtures", "v8-default.world.json")), collapse = "\n"))
 U <- world_resolve(world_upgrade(V8), file.path(root, "layouts"))
@@ -1121,14 +1143,10 @@ r <- run_season_days(n8)
 dd <- seq_len(n8)
 per_brand <- function(m) t(vapply(dd, function(i) brand_of_stores(m[i, ]), numeric(N_BRANDS)))
 visits8 <- t(vapply(dd, function(i) as.integer(apply(tally$visits[i, , , , drop = FALSE], 4, sum)), integer(N_OUTCOMES)))
-same8 <- identical(visits8, rec$visits[dd, , drop = FALSE]) &&
-  max(abs(per_brand(apply(tally$sales[dd, , , drop = FALSE], c(1, 3), sum)) - rec$sales[dd, , drop = FALSE])) < 1e-6 &&
-  identical(round(per_brand(apply(tally$units[dd, , , drop = FALSE], c(1, 3), sum))), rec$units[dd, , drop = FALSE] + 0) &&
-  max(abs(per_brand(tally$refunds) - rec$refunds[dd, , drop = FALSE])) < 1e-6 &&
-  identical(round(per_brand(tally$ret_units)), rec$returned[dd, , drop = FALSE] + 0)
+same8 <- on_foot_only()
 check(r$ok && same8 && all(DEMAND_EVENT == 1),
-      sprintf("with no demand events, the upgraded version 8 world runs the season the version 8 model ran: %d days, %s visits, identical by day and outcome, and in gross sales, units, refunds and returns by brand",
-              n8, format(sum(visits8), big.mark = ",")))
+      sprintf("with no demand events, the upgraded version 8 world runs %d days, every store visit on foot within walking range: %s visits, %s",
+              n8, format(sum(visits8), big.mark = ","), walk_only_text()))
 
 # ---- Demand events ----------------------------------------------------------------------
 

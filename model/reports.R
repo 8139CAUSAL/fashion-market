@@ -390,12 +390,14 @@ report_funnel <- function(brand = 0L, area = 0L, store = 0L, scope = "season", c
     in_s <- dv$outlet %in% outlets & dv$bin %in% bins & arrived
     o <- tabulate(dv$outcome[in_s & dv$outcome > 0], N_OUTCOMES)
     entered <- sum(in_s)
-    in_market <- sum(rd$today$in_market[bins]); stayed <- sum(rd$today$stayed_home[bins])
+    follow <- sum(dv$bin %in% bins & arrived & !dv$online & dv$stop > 1L)
+    in_market <- sum(rd$today$in_market[bins]) + if (online) 0 else follow; stayed <- sum(rd$today$stayed_home[bins])
     went_store <- sum(dv$bin %in% bins & arrived & !dv$online); went_online <- sum(dv$bin %in% bins & arrived & dv$online)
   } else {
     v <- if (length(dd)) tally$visits[dd, bins, outlets, , drop = FALSE] else array(0, c(1, 1, 1, N_OUTCOMES))
     o <- apply(v, 4, sum)
-    in_market <- sum(tally$in_market[dd, bins]); stayed <- sum(tally$stayed_home[dd, bins])
+    follow <- sum(tally$follow_on[dd, bins])
+    in_market <- sum(tally$in_market[dd, bins]) + if (online) 0 else follow; stayed <- sum(tally$stayed_home[dd, bins])
     by_ch <- function(on) if (length(dd)) sum(tally$visits[dd, bins, OUTLET_ONLINE == on, , drop = FALSE]) else 0
     went_store <- by_ch(FALSE); went_online <- by_ch(TRUE)
     entered <- sum(o)
@@ -414,7 +416,8 @@ report_funnel <- function(brand = 0L, area = 0L, store = 0L, scope = "season", c
   first <- if (online) list(list(reason = "stayed home", n = stayed), list(reason = "went to a store", n = went_store),
                             list(reason = "ordered from another brand online", n = max(0, went_online - entered)))
            else list(list(reason = "stayed home", n = stayed), list(reason = "went to another store", n = max(0, went_store - entered)),
-                     list(reason = "shopped online", n = went_online))
+                     list(reason = "shopped online", n = went_online),
+                     list(reason = "went home from another store's door, or couldn't park", n = max(0, in_market - stayed - went_store - went_online)))
   stages <- lapply(seq_along(stage_names), function(k) list(name = stage_names[k], n = n[k],
     lost = if (k == 1L) first else lapply(which(stage_of == k), function(i) list(reason = reasons[i], n = o[i]))))
   sb <- if (brand > 0) brand else if (store > 0) STORES$brand[store] else which(OURS_B)[1]

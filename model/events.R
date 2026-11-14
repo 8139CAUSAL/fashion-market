@@ -22,7 +22,11 @@
 OUTCOMES <- c("paid", "nothing appealed", "too expensive", "not in my size",
               "left the fitting-room queue", "didn't fit or like it", "walked out of the till queue")
 N_OUTCOMES <- length(OUTCOMES)
-FUNNEL_STAGES <- c("In market", "Visited", "Picked items", "Past fitting rooms", "Kept", "Paid")
+# The store funnel counts choices, then visits: each morning's households in
+# the market, and each shopper already out who chose another store at a
+# door (a store visit always follows a choice; several may follow from one
+# household's day).
+FUNNEL_STAGES <- c("Choosing a store", "Visited", "Picked items", "Past fitting rooms", "Kept", "Paid")
 OUTCOME_STAGE <- c(NA, 2L, 2L, 2L, 3L, 4L, 5L)
 ONLINE_OUTCOMES <- c("ordered", OUTCOMES[2:4])
 ONLINE_STAGES <- c("In market", "Visited online", "Ordered")

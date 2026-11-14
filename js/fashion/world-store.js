@@ -82,15 +82,15 @@ export function patchOf(m, r, c) { return { pxcor: c, pycor: m.height - 1 - r };
 
 // Puts a store at (x, y) metres, in place. A store not on the map yet gets
 // its x and y where the world file keeps them (after its layout, before
-// its staff), so a store taken off the map and put back writes out as it
-// was.
+// its venue and staff), so a store taken off the map and put back writes
+// out as it was.
 export function setPlace(s, x, y) {
   if ("x" in s && "y" in s) { s.x = x; s.y = y; return s; }
   const entries = Object.entries(s).filter(([k]) => k !== "x" && k !== "y");
   for (const [k] of entries) delete s[k];
   let done = false;
   for (const [k, v] of entries) {
-    if (k === "staff" && !done) { s.x = x; s.y = y; done = true; }
+    if ((k === "staff" || k === "venue") && !done) { s.x = x; s.y = y; done = true; }
     s[k] = v;
   }
   if (!done) { s.x = x; s.y = y; }

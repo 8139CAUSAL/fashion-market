@@ -304,26 +304,31 @@ FAC <- NULL; N_FAC <- 0L; VENUES <- NULL; N_VENUES <- 0L; STORE_VENUE <- integer
 # The facilities and venues of a checked world (after macro_install and
 # the stores): tables the networks and the outings read.
 transport_install <- function(W) {
-  M <- W$macro; ny <- MACRO$ny; nx <- MACRO$nx
+  x <- transport_tables(W$macro, STORES$id, MACRO$ny, MACRO$nx)
+  FAC <<- x$fac; N_FAC <<- nrow(FAC); VENUES <<- x$ven; N_VENUES <<- nrow(VENUES)
+  STORE_VENUE <<- x$store_venue
+}
+
+# The facilities and venues of map M as tables (stores by id).
+transport_tables <- function(M, store_ids, ny, nx) {
   fs <- M$parking %||% list()
-  FAC <<- data.frame(id = vapply(fs, function(f) f$id, ""), name = vapply(fs, function(f) f$name, ""),
-                     kind = vapply(fs, function(f) f$kind, ""), stringsAsFactors = FALSE)
-  for (k in names(FIELDS$parking)) FAC[[k]] <<- vapply(fs, function(f) as.numeric(f[[k]]), 0)
-  FAC$tiles <<- lapply(fs, function(f) rc_tiles(f$tiles, ny, nx))
-  FAC$veh <<- lapply(fs, function(f) rc_tiles(f$vehicle_access, ny, nx))
-  FAC$ped <<- lapply(fs, function(f) rc_tiles(f$pedestrian_access, ny, nx))
-  N_FAC <<- nrow(FAC)
+  fac <- data.frame(id = vapply(fs, function(f) f$id, ""), name = vapply(fs, function(f) f$name, ""),
+                    kind = vapply(fs, function(f) f$kind, ""), stringsAsFactors = FALSE)
+  for (k in names(FIELDS$parking)) fac[[k]] <- vapply(fs, function(f) as.numeric(f[[k]]), 0)
+  fac$tiles <- lapply(fs, function(f) rc_tiles(f$tiles, ny, nx))
+  fac$veh <- lapply(fs, function(f) rc_tiles(f$vehicle_access, ny, nx))
+  fac$ped <- lapply(fs, function(f) rc_tiles(f$pedestrian_access, ny, nx))
   vs <- M$venues %||% list()
-  VENUES <<- data.frame(id = vapply(vs, function(v) v$id, ""), name = vapply(vs, function(v) v$name, ""),
-                        kind = vapply(vs, function(v) v$kind, ""), stringsAsFactors = FALSE)
-  VENUES$stores <<- lapply(vs, function(v) match(unlist(v$stores), STORES$id))
-  VENUES$parking <<- lapply(vs, function(v) match(unlist(v$parking), FAC$id))
-  VENUES$tiles <<- lapply(vs, function(v) rc_tiles(v$tiles, ny, nx))
-  VENUES$plan <<- lapply(vs, function(v) if (is.list(v$plan)) list(cell_m = as.numeric(v$plan$cell_m), chars = plan_chars(v$plan$rows),
-                                                                   fronts = vapply(v$storefronts %||% list(), text_of, "")) else NULL)
-  N_VENUES <<- nrow(VENUES)
-  STORE_VENUE <<- integer(N_STORES)
-  for (k in seq_len(N_VENUES)) STORE_VENUE[VENUES$stores[[k]]] <<- k
+  ven <- data.frame(id = vapply(vs, function(v) v$id, ""), name = vapply(vs, function(v) v$name, ""),
+                    kind = vapply(vs, function(v) v$kind, ""), stringsAsFactors = FALSE)
+  ven$stores <- lapply(vs, function(v) match(unlist(v$stores), store_ids))
+  ven$parking <- lapply(vs, function(v) match(unlist(v$parking), fac$id))
+  ven$tiles <- lapply(vs, function(v) rc_tiles(v$tiles, ny, nx))
+  ven$plan <- lapply(vs, function(v) if (is.list(v$plan)) list(cell_m = as.numeric(v$plan$cell_m), chars = plan_chars(v$plan$rows),
+                                                               fronts = vapply(v$storefronts %||% list(), text_of, "")) else NULL)
+  store_venue <- integer(length(store_ids))
+  for (k in seq_len(nrow(ven))) store_venue[ven$stores[[k]][!is.na(ven$stores[[k]])]] <- k
+  list(fac = fac, ven = ven, store_venue = store_venue)
 }
 
 # The two networks of a world: its nodes (the map's tiles, then each
@@ -471,22 +476,21 @@ fac_time <- function(T, tile, k) {
 # memory of it (grudge_w x its weight, as a bad visit is remembered).
 # Returns cost, mode (1 drive, 2 walk, 0 none), facility, and the route's
 # km (for the segment's radius), households x stores.
-travel_costs <- function(tile, seg, car, T = city, fail = NULL) {
+travel_costs <- function(tile, seg, car, T = city, fail = NULL, facs = FAC, w = P, kap = SEGMENTS$km[seg]) {
   n <- length(tile); S <- length(T$entrance); F <- length(T$approach)
-  kap <- SEGMENTS$km[seg]
-  maxw <- P$max_walk_km * 1000
+  maxw <- w$max_walk_km * 1000
   wt <- matrix(T$wf$time[tile, , drop = FALSE], n); wm <- matrix(T$wf$length[tile, , drop = FALSE], n)
-  cost <- kap * P$walk_w * wt / 60
+  cost <- kap * w$walk_w * wt / 60
   cost[!(wm <= maxw)] <- Inf
   km <- wm / 1000; km[!is.finite(cost)] <- Inf
   mode <- matrix(ifelse_int(is.finite(cost), MODE_WALK, 0L), n); fac <- matrix(0L, n, S)
   for (k in seq_len(F)) {
     ft <- fac_time(T, tile, k); dt <- ft$t; dm <- ft$m
     dt[!car] <- Inf
-    pk <- (FAC$search_s[k] + FAC$transfer_s[k]) / 60
+    pk <- (facs$search_s[k] + facs$transfer_s[k]) / 60
     walk_ok <- T$fw_m[k, ] <= maxw
-    c1 <- kap * (P$drive_w * dt / 60 + P$park_w * pk) + if (is.null(fail)) 0 else P$grudge_w * fail[, k]
-    ck <- outer(c1, rep(1, S)) + outer(kap * P$walk_w, T$fw_t[k, ] / 60)
+    c1 <- kap * (w$drive_w * dt / 60 + w$park_w * pk) + if (is.null(fail)) 0 else w$grudge_w * fail[, k]
+    ck <- outer(c1, rep(1, S)) + outer(kap * w$walk_w, T$fw_t[k, ] / 60)
     ck[, !walk_ok] <- Inf
     better <- ck < cost
     better[is.na(better)] <- FALSE
@@ -504,7 +508,7 @@ travel_costs <- function(tile, seg, car, T = city, fail = NULL) {
 # same graphs the simulation uses: a list of list(path, message, tiles).
 # None of these stops a world being set up; each means some trips can't
 # happen, and the simulation doesn't let them.
-transport_warnings <- function(T, land, home_tiles, fac = FAC, ven = VENUES, store_names = STORES$name, store_venue = STORE_VENUE) {
+transport_warnings <- function(T, land, home_tiles, fac = FAC, ven = VENUES, store_names = STORES$name, store_venue = STORE_VENUE, max_walk_km = P$max_walk_km) {
   out <- list()
   add <- function(path, message, tiles = NULL) out[[length(out) + 1L]] <<- list(path = path, message = message, tiles = tiles)
   ny <- T$ny; nx <- T$nx; S <- length(T$entrance); F <- length(T$approach)
@@ -517,7 +521,7 @@ transport_warnings <- function(T, land, home_tiles, fac = FAC, ven = VENUES, sto
     if (!length(T$approach[[k]])) add(p, sprintf("%s: no vehicle entrance touches a street, driveway or homes tile, so no car can get in", fac$name[k]), rc(fac$veh[[k]]))
     else if (length(homes) && !any(is.finite(fac_time(T, homes, k)$t))) add(p, sprintf("%s: no home can reach it by road", fac$name[k]), rc(fac$tiles[[k]]))
     if (!length(T$exits[[k]])) add(p, sprintf("%s: its pedestrian exits open onto nothing walkable", fac$name[k]), rc(fac$ped[[k]]))
-    else if (!any(T$fw_m[k, ] <= P$max_walk_km * 1000)) add(p, sprintf("%s: no store's door can be walked to from it within %s km", fac$name[k], json_number(P$max_walk_km)), rc(fac$tiles[[k]]))
+    else if (!any(T$fw_m[k, ] <= max_walk_km * 1000)) add(p, sprintf("%s: no store's door can be walked to from it within %s km", fac$name[k], json_number(max_walk_km)), rc(fac$tiles[[k]]))
   }
   # Parking tiles that belong to no facility.
   used <- unlist(fac$tiles)
@@ -529,10 +533,10 @@ transport_warnings <- function(T, land, home_tiles, fac = FAC, ven = VENUES, sto
     p <- item_path("stores", s)
     e <- T$entrance[s]
     if (!is.finite(T$walk$half_t[e])) { add(p, sprintf("%s: its door opens onto ground no one can walk on", store_names[s]), if (e <= T$nM) rc(e)); next }
-    by_car <- F > 0 && any(T$fw_m[, s] <= P$max_walk_km * 1000 & fac_reached)
-    on_foot <- length(homes) && any(T$wf$length[homes, s] <= P$max_walk_km * 1000)
-    if (!by_car && !on_foot) add(p, sprintf("%s: no household can reach it, by car (no reachable parking within %s km of its door) or on foot", store_names[s], json_number(P$max_walk_km)), if (e <= T$nM) rc(e))
-    else if (!by_car) add(p, sprintf("%s: no parking within %s km of its door that a car can reach: only walkers can come", store_names[s], json_number(P$max_walk_km)), if (e <= T$nM) rc(e))
+    by_car <- F > 0 && any(T$fw_m[, s] <= max_walk_km * 1000 & fac_reached)
+    on_foot <- length(homes) && any(T$wf$length[homes, s] <= max_walk_km * 1000)
+    if (!by_car && !on_foot) add(p, sprintf("%s: no household can reach it, by car (no reachable parking within %s km of its door) or on foot", store_names[s], json_number(max_walk_km)), if (e <= T$nM) rc(e))
+    else if (!by_car) add(p, sprintf("%s: no parking within %s km of its door that a car can reach: only walkers can come", store_names[s], json_number(max_walk_km)), if (e <= T$nM) rc(e))
   }
   # Roads that don't join the network most homes use.
   vopen <- T$veh$open
@@ -563,7 +567,7 @@ transport_warnings <- function(T, land, home_tiles, fac = FAC, ven = VENUES, sto
       }
     }
     for (k in ven$parking[[v]]) {
-      far <- st[!(T$fw_m[k, st] <= P$max_walk_km * 1000)]
+      far <- st[!(T$fw_m[k, st] <= max_walk_km * 1000)]
       if (length(far)) add(p, sprintf("%s: from %s, %s can't be walked to", ven$name[v], fac$name[k], paste(store_names[far], collapse = ", ")), rc(fac$tiles[[k]]))
     }
     if (ven$kind[v] == "mall") {

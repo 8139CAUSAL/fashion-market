@@ -1,7 +1,9 @@
 // Starting geographies: maps to begin a world's macro geography from.
 //
 // A geography is the map only: its size in tiles, its land tiles, its
-// districts painted as areas, and the sites its stores can stand on.
+// districts painted as areas, the sites its stores can stand on, and the
+// parking and shopping venues built on it (version 2; a version 1 file has
+// none: nothing is built for it).
 //
 //   Blank          open land and nothing else, the size the map is now
 //   Default city   the default world's map (worlds/default.world.json)
@@ -22,6 +24,9 @@
 //     its id (the default world's stores, on the default map), then the
 //     rest in order; stores more than there are sites come off the map
 //     and wait on the Stores layer
+//   - the map's parking and venues become the geography's (the old ones
+//     stood on the old tiles); a venue's members are the stores put on
+//     its sites, and a mall's storefronts follow them
 // The map editor asks before it does this, and keeps the old map in its
 // undo history.
 //
@@ -29,7 +34,9 @@
 //   { "kind": "fashion-geography", "version": 1, "id", "name", "about",
 //     "width", "height", "tiles": [rows], "area_tiles": [rows],
 //     "areas": [{ "key", "id", "name", "colour" }],
-//     "sites": [{ "u", "v" }] }
+//     "sites": [{ "u", "v", "id"? }],
+//     "parking": [facilities, as macro.parking],                (version 2)
+//     "venues": [{ ..., "sites": [site ids], "storefronts": {letter: site id} }] }
 // A site is a point in tiles east (u) and north (v) of the map's
 // south-west corner, the way the model measures the map (in metres):
 // the middle of the tile in row r, column c is u = c + 0.5,
@@ -69,7 +76,10 @@ export function geographyOfWorld(world, meta) {
   return {
     ...meta, width: m.width, height: m.height, tiles: m.tiles.slice(), area_tiles: m.area_tiles.slice(),
     areas: m.areas.map(({ key, id, name, colour }) => ({ key, id, name, colour })),
-    sites: world.stores.filter(placed).map((s) => ({ u: s.x / m.patch_m, v: s.y / m.patch_m, store: s.id })),
+    sites: world.stores.filter(placed).map((s) => ({ u: s.x / m.patch_m, v: s.y / m.patch_m, store: s.id, id: s.id })),
+    parking: clone(m.parking ?? []),
+    venues: (m.venues ?? []).map(({ stores, storefronts, ...v }) => ({ ...clone(v), sites: stores.slice(),
+      ...(storefronts ? { storefronts: { ...storefronts } } : {}) })),
   };
 }
 
@@ -85,7 +95,7 @@ export function geographyProblems(g) {
     if (!Array.isArray(g[what]) || g[what].length !== g.height || !g[what].every((r) => typeof r === "string" && r.length === g.width)) out.push(`${what} must be ${g.height} rows of ${g.width} characters`);
   }
   if (out.length) return out;
-  const land = new Set(".~ps=+123456789");
+  const land = new Set(".~ps=+123456789w#-fHxdPGm");
   if (!g.tiles.every((r) => [...r].every((ch) => land.has(ch)))) out.push("tiles holds a character that isn't a map tile");
   const keys = new Set(g.areas.map((a) => a.key));
   if (keys.size !== g.areas.length || new Set(g.areas.map((a) => a.id)).size !== g.areas.length) out.push("two districts share a key or an id");
@@ -144,7 +154,32 @@ export function applyGeography(d, g) {
     const site = sites.shift();
     if (site) { put(s, site); n++; } else unplace(s);
   }
-  return { placed: n, unplaced: d.stores.length - n, reused, added };
+  // The parking and venues built on the geography; the old ones stood on
+  // the old map.
+  m.parking = g.blank ? [] : clone(g.parking ?? []);
+  const onSite = new Map();
+  for (const s of d.stores) { delete s.venue; const site = (g.sites ?? []).find((x) => placed(s) && x.id && Math.abs(x.u * m.patch_m - s.x) < 1e-3 && Math.abs(x.v * m.patch_m - s.y) < 1e-3); if (site) onSite.set(site.id, s.id); }
+  m.venues = [];
+  for (const gv of (g.blank ? [] : g.venues ?? [])) {
+    const { sites: vs, storefronts, ...rest } = clone(gv);
+    const stores = vs.map((id) => onSite.get(id)).filter(Boolean);
+    if (!stores.length) continue;
+    const v = { id: rest.id, name: rest.name, kind: rest.kind, stores, parking: (rest.parking ?? []).filter((id) => m.parking.some((f) => f.id === id)) };
+    for (const k of ["tiles", "plan"]) if (rest[k] !== undefined) v[k] = rest[k];
+    if (storefronts) v.storefronts = Object.fromEntries(Object.entries(storefronts).filter(([, id]) => onSite.has(id)).map(([L, id]) => [L, onSite.get(id)]));
+    m.venues.push(v);
+    for (const id of stores) d.stores.find((s) => s.id === id).venue = v.id;
+  }
+  d.stores = d.stores.map(storeOrder);
+  return { placed: n, unplaced: d.stores.length - n, reused, added, parking: m.parking.length, venues: m.venues.length };
+}
+
+// A store's keys in the world file's order.
+function storeOrder(s) {
+  const out = {};
+  for (const k of ["id", "name", "short", "brand", "layout", "x", "y", "venue", "staff"]) if (s[k] !== undefined) out[k] = s[k];
+  for (const k of Object.keys(s)) if (!(k in out)) out[k] = s[k];
+  return out;
 }
 
 // What a draft's map still needs before Setup can start it, as far as the

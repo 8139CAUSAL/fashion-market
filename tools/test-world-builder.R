@@ -56,12 +56,14 @@ problem_text <- function(W) vapply(world_check(W), function(p) paste0(p$path, ":
 # The default world on a map of its own: `tiles` (and `area_tiles`) as
 # character matrices, row 1 the north edge; its 19 stores in the middle of
 # the tiles `sites` (rows and columns, 0-based), in turn.
-small_world <- function(tiles, area_tiles = blank(ncol(tiles), nrow(tiles)), areas = list(), sites, households = 3000, patch = 50) {
+small_world <- function(tiles, area_tiles = blank(ncol(tiles), nrow(tiles)), areas = list(), sites, households = 3000, patch = 50, parking = list()) {
   W <- base
   W$macro$width <- ncol(tiles); W$macro$height <- nrow(tiles); W$macro$patch_m <- patch
   W$macro$households <- households; W$macro$wom_m <- 500
   W$macro$tiles <- rows_of(tiles); W$macro$area_tiles <- rows_of(area_tiles); W$macro$areas <- areas
+  W$macro$parking <- parking; W$macro$venues <- list()                 # the default world's were built on its own map
   for (i in seq_along(W$stores)) {
+    W$stores[[i]]$venue <- NULL
     s <- sites[[1L + (i - 1L) %% length(sites)]]
     W$stores[[i]]$x <- (s[2] + 0.5) * patch; W$stores[[i]]$y <- (nrow(tiles) - s[1] - 0.5) * patch
   }
@@ -179,45 +181,56 @@ old_ok <- vapply(old, function(f) {
 check(all(old_ok), sprintf("every older world in tools/fixtures (%d files, versions 1 to 8) still upgrades and reads with no problems", length(old)))
 # The map editor's preview of a changed draft leaves the installed world alone.
 install(base)
-before <- list(world = world_text(WORLD), land = city_layer("land"), routes = city$fields$time, hh = mk$hh$tile, stores = STORES)
+before <- list(world = world_text(WORLD), land = city_layer("land"), routes = list(city$wf$time, city$vf$time), hh = mk$hh$tile, stores = STORES)
 draft <- base; draft$macro$tiles <- rows_of(block(chars_of(draft$macro$tiles), 0:30, 0:30, "~")); draft$stores[[1]]$x <- 100; draft$stores[[1]]$y <- 100
 pv <- macro_preview(draft)
 check(!length(pv$problems) && identical(world_text(WORLD), before$world) && identical(city_layer("land"), before$land) &&
-        identical(city$fields$time, before$routes) && identical(mk$hh$tile, before$hh) && identical(STORES, before$stores),
+        identical(list(city$wf$time, city$vf$time), before$routes) && identical(mk$hh$tile, before$hh) && identical(STORES, before$stores),
       "the map editor's preview of a draft (a lake painted, a store moved) leaves the installed world, its map, routes, households and stores exactly as they were")
 
 # ---- What drawn edits do ------------------------------------------------------------------------------
 
 cat("What drawn edits do\n")
-# A strip of open land: homes in the west, the stores' block in the east.
+# A strip of open land: homes in the west, the stores' block in the east,
+# and beside it a lot of three tiles, its entrance at its west end, its
+# pedestrian exit at its east end, by the shops. Open land carries no
+# cars, and the homes are 2.3 km and more from the shops: with no road,
+# no one can reach a store.
 strip <- blank(60, 20)
 strip <- block(strip, 8:11, 2:6, "5"); strip <- block(strip, 8:11, 53:57, "s")
+strip <- block(strip, 12, 50:52, "P")
 sites <- lapply(0:18, function(i) c(8 + i %/% 5, 53 + i %% 5))
+lot <- list(list(id = "lot", name = "Shops lot", kind = "lot", tiles = list(list(12, 50), list(12, 51), list(12, 52)), levels = 1, spaces = 150,
+                 vehicle_access = list(list(12, 50)), pedestrian_access = list(list(12, 52)), search_s = 60, level_s = 0, transfer_s = 20))
 
 # Roads.
-install(small_world(strip, sites = sites))
-slow <- list(t = mean(mk$drive_s[, 1]), km = mean(mk$km[, 1]))
-road <- block(strip, 12, 0:59, "=")
-install(small_world(road, sites = sites))
-fast <- list(t = mean(mk$drive_s[, 1]), km = mean(mk$km[, 1]))
-r1 <- grid_routes(city$fields, mk$hh$tile[1], 1L)
-on_road <- mean(city_layer("land")[r1$cells] == LAND[["road"]])
-check(fast$t < 0.6 * slow$t && fast$km >= slow$km - 1e-9 && on_road > 0.75,
-      sprintf("a road painted from the homes to the stores: the trip to a store falls from %.0f s to %.0f s on average (%.2f to %.2f km, a little further but at %s m/s, not %s), and a household's route runs %.0f%% of its tiles on the road",
-              slow$t, fast$t, slow$km, fast$km, json_number(MACRO$road_mps), json_number(MACRO$local_mps), 100 * on_road))
+pv0 <- macro_preview(small_world(strip, sites = sites, parking = lot))
+road <- block(strip, 12, 0:49, "=")
+Wr0 <- small_world(road, sites = sites, parking = lot)
+pv1 <- macro_preview(Wr0)
+install(Wr0)
+ft <- fac_time(city, mk$hh$tile, 1L)
+k1 <- which(city$vnode_fac == 1L)[1]
+r1 <- graph_route(city$vf, mk$hh$tile[1], k1)
+land <- city_layer("land")
+on_road <- mean(land[r1] == LAND[["road"]])
+check(pv0$stranded == 3000 && pv0$by_car == 0 && pv1$stranded == 0 && all(pv1$reach == 3000) && all(is.finite(ft$t)) && on_road > 0.75 &&
+        all(land[r1] %in% LAND[c("homes", "road")]) && r1[length(r1)] == 49L * 20L + 12L + 1L && all(mk$mode == MODE_DRIVE),
+      sprintf("with no road, none of the %s households can reach a store (open land carries no car, and it's too far to walk); a road painted from the homes to the lot's entrance: every household drives, on average %.0f s to the lot, a route on homes' streets and the road only (%.0f%% of its tiles road), ending at the tile beside the lot's entrance",
+              format(pv0$households, big.mark = ","), mean(ft$t), 100 * on_road))
 
 # Water and bridges.
 river <- block(road, 0:19, 30, "~")
-pv <- macro_preview(small_world(river, sites = sites))
+pv <- macro_preview(small_world(river, sites = sites, parking = lot))
 bridged <- block(river, 12, 30, "+")
-Wb <- small_world(bridged, sites = sites)
+Wb <- small_world(bridged, sites = sites, parking = lot)
 pv2 <- macro_preview(Wb)
 install(Wb)
-rb <- grid_routes(city$fields, mk$hh$tile[1], 1L)
+rb <- graph_route(city$vf, mk$hh$tile[1], which(city$vnode_fac == 1L)[1])
 land <- city_layer("land")
-crosses <- (30 * city$ny + 12 + 1) %in% rb$cells
+crosses <- (30 * city$ny + 12 + 1) %in% rb
 wet <- Wb; wet$stores[[2]]$x <- (30 + 0.5) * 50; wet$stores[[2]]$y <- (20 - 5 - 0.5) * 50
-check(pv$stranded == 3000 && all(pv$reach == 0) && pv2$stranded == 0 && all(pv2$reach == 3000) && crosses && !any(land[rb$cells] == LAND[["water"]]) &&
+check(pv$stranded == 3000 && all(pv$reach == 0) && pv2$stranded == 0 && all(pv2$reach == 3000) && crosses && !any(land[rb] == LAND[["water"]]) &&
         land[13, 31] == LAND[["bridge"]] && macro_speed(land, MACRO$road_mps, MACRO$local_mps)[13, 31] == MACRO$road_mps &&
         any(grepl("^stores\\[2\\]: stands on water$", problem_text(wet))),
       sprintf("a river painted across the road leaves all %s households with no store in reach; one bridge tile on the road reaches them all again, every route crossing at the bridge (at road speed) and none through water; a store put on the river is refused",

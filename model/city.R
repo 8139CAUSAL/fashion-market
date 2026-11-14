@@ -338,12 +338,17 @@ trip_tables <- function(city, hh) travel_costs(hh$tile, hh$segment, hh$car, city
 # ---- The map editor's preview ----------------------------------------------------------------
 
 # What a draft map would do, worked out the way Setup would: its households
-# (how many, and how many have no store within their segment's radius), how
-# many households have each store in reach, and, tile by tile, the
-# households living there and how many stores they can reach on average.
-# Routes are kept between calls while the map and the stores' tiles stay
-# the same, so painting areas or renaming a store is quick.
-preview_cache <- list(key = "", fields = NULL)
+# (how many, and how many can reach no store within their segment's radius
+# by any way they have), how many households have each store in reach, the
+# parking (each facility's spaces, the households that can drive to it, the
+# stores within walking distance of it and the minutes' walk), each store's
+# access (by car, through which facilities; on foot, how many households),
+# everything the networks fail at (transport_warnings, with their tiles),
+# and, tile by tile, the households living there and how many stores they
+# can reach on average. The networks are kept between calls while the map,
+# its parking and venues and where the stores stand stay the same, so
+# painting areas or renaming a store is quick.
+preview_cache <- list(key = "", T = NULL)
 
 macro_preview <- function(W) {
   pb <- problem_list()
@@ -353,35 +358,102 @@ macro_preview <- function(W) {
   placed <- vapply(all_stores, store_placed, TRUE)          # stores not on the map yet reach no one
   stores <- all_stores[placed]
   for (i in which(placed)) check_store_place(all_stores[[i]], item_path("stores", i), W$macro, pb)
+  if (!pb$n()) check_transport(W, pb)
   radius <- vapply(W$segments, function(s) if (is.numeric(s$radius_km)) as.numeric(s$radius_km) else NA_real_, 0)
   if (pb$n() || anyNA(radius)) return(list(problems = pb$get()))
   M <- W$macro
   g <- macro_grids(M)
+  ids <- vapply(stores, function(s) s$id, "")
   sx <- vapply(stores, function(s) as.numeric(s$x), 0); sy <- vapply(stores, function(s) as.numeric(s$y), 0)
-  tiles <- tile_of(sx, sy, M$patch_m, g$ny)
-  key <- world_text(list(M[c("patch_m", "tiles", "road_mps", "local_mps")], tiles))
+  tabs <- transport_tables(M, ids, g$ny, g$nx)
+  key <- world_text(list(M[c("patch_m", "tiles", "road_mps", "local_mps", "walk_mps", "parking", "venues")], ids, sx, sy))
   if (!identical(key, preview_cache$key)) {
-    speed <- macro_speed(g$land, M$road_mps, M$local_mps)
-    preview_cache <<- list(key = key, fields = if (length(tiles)) grid_fields(speed, M$patch_m, tiles) else NULL)
+    G <- transport_graphs(g$land, list(patch_m = M$patch_m, road_mps = M$road_mps, local_mps = M$local_mps, walk_mps = M$walk_mps),
+                          tabs$fac, tabs$ven, cbind(sx, sy), ids)
+    preview_cache <<- list(key = key, T = build_transport(G))
   }
+  T <- preview_cache$T
   mix <- c(M$areas, list(M$default_makeup))
   seg_mix <- matrix(vapply(mix, function(a) makeup_mix(a$segment_mix, seg_ids), numeric(length(seg_ids))), length(seg_ids))
   size_mix <- matrix(vapply(mix, function(a) makeup_mix(a$size_mix, SIZES), numeric(N_SIZES)), N_SIZES)
   n <- as.integer(M$households)
-  homes <- if (n > 0) with_seed(CITY_SEED + 1, draw_homes(g$land, g$density, g$area, g$ny, M$patch_m, n, seg_mix, size_mix)) else NULL
+  nb <- if (is.list(W$brands)) length(W$brands) else 0L
+  car_share <- vapply(W$segments, function(s) as.numeric(s$car_share %||% 1), 0)
+  kms <- vapply(W$segments, function(s) as.numeric(s$km), 0)
+  # Who lives where, and who has a car: the draws build_households() makes, in its order.
+  homes <- if (n > 0) with_seed(CITY_SEED + 1, {
+    h <- draw_homes(g$land, g$density, g$area, g$ny, M$patch_m, n, seg_mix, size_mix)
+    rlnorm(n); gumbel(n * nb)
+    h$car <- runif(n) < car_share[h$segment]
+    h
+  }) else NULL
+  w <- c(W$market[c("drive_w", "park_w", "walk_w", "max_walk_km", "grudge_w")])
+  warn <- transport_warnings(T, g$land, if (is.null(homes)) integer() else homes$tile, tabs$fac, tabs$ven,
+                             vapply(stores, function(s) text_of(s$name), ""), tabs$store_venue, w$max_walk_km)
+  for (k in seq_along(warn)) if (startsWith(warn[[k]]$path, "stores[")) {          # numbered among all the world's stores
+    j <- as.integer(sub("^stores\\[([0-9]+)\\].*", "\\1", warn[[k]]$path)); warn[[k]]$path <- item_path("stores", which(placed)[j])
+  }
   reach_all <- function(r) { out <- rep(NA_real_, length(all_stores)); out[placed] <- r; I(out) }
-  if (is.null(homes)) return(list(problems = list(), households = 0L, stranded = 0L, reach = reach_all(integer(length(stores))), tiles = NULL))
-  km <- if (length(tiles)) matrix(preview_cache$fields$length[homes$tile, , drop = FALSE] / 1000, n) else matrix(0, n, 0)
-  inr <- km <= radius[homes$segment]
-  count <- .rowSums(inr, n, length(tiles))
+  fac_out <- lapply(seq_len(nrow(tabs$fac)), function(k) list(id = tabs$fac$id[k], name = tabs$fac$name[k], kind = tabs$fac$kind[k],
+    spaces = tabs$fac$spaces[k], most = parking_max_spaces(tabs$fac$kind[k], length(tabs$fac$tiles[[k]]), tabs$fac$levels[k], M$patch_m),
+    entrances = length(T$approach[[k]]), exits = length(T$exits[[k]]),
+    stores = I(which(T$fw_m[k, ] <= w$max_walk_km * 1000)), walk_min = I(round(T$fw_t[k, ] / 60, 1)), households = 0L, demand = 0L))
+  if (is.null(homes)) return(list(problems = list(), warnings = warn, households = 0L, stranded = 0L, reach = reach_all(integer(length(stores))),
+                                  parking = fac_out, tiles = NULL))
+  tc <- travel_costs(homes$tile, homes$segment, homes$car, T, NULL, tabs$fac, w, kms[homes$segment])
+  inr <- tc$km <= radius[homes$segment]
+  count <- .rowSums(inr, n, length(stores))
+  for (k in seq_along(fac_out)) {
+    fac_out[[k]]$households <- sum(homes$car & is.finite(fac_time(T, homes$tile, k)$t))
+    fac_out[[k]]$demand <- sum(.rowSums(tc$fac == k & inr, n, length(stores)) > 0)       # households for whom it's the place to park, for some store
+  }
+  access <- lapply(seq_along(stores), function(s) list(by_car = sum(inr[, s] & tc$mode[, s] == MODE_DRIVE), on_foot = sum(inr[, s] & tc$mode[, s] == MODE_WALK),
+                                                       parking = I(which(T$fw_m[, s] <= w$max_walk_km * 1000)), venue = tabs$store_venue[s]))
   per_tile_n <- tabulate(homes$tile, g$nx * g$ny)
   per_tile_reach <- bin_sum(homes$tile, count, g$nx * g$ny)
   per_tile_stranded <- tabulate(homes$tile[count == 0], g$nx * g$ny)
   lived <- which(per_tile_n > 0)
   row <- (lived - 1L) %% g$ny; col <- (lived - 1L) %/% g$ny
-  list(problems = list(), households = n, stranded = sum(count == 0), reach = reach_all(.colSums(inr, n, length(tiles))),
+  list(problems = list(), warnings = warn, households = n, stranded = sum(count == 0), reach = reach_all(.colSums(inr, n, length(stores))),
+       parking = fac_out, access = access, by_car = sum(tc$mode == MODE_DRIVE & inr), on_foot = sum(tc$mode == MODE_WALK & inr),
        tiles = list(row = row, col = col, households = per_tile_n[lived], stranded = per_tile_stranded[lived],
                     stores = round(per_tile_reach[lived] / per_tile_n[lived], 2)))
+}
+
+# One trip on the draft map (the last one previewed), from a home tile (row
+# r, column c, 0-based) to store `s` (its number among the placed stores):
+# the way the model would take it, with the car and without, and the
+# routes, as the simulation would drive and walk them.
+trip_preview <- function(r, c, s, car = TRUE, W = NULL) {
+  T <- preview_cache$T
+  if (is.null(T) || s < 1 || s > length(T$entrance)) return(list(ok = FALSE, message = "no preview yet"))
+  tile <- c * T$ny + r + 1
+  w <- W$market %||% P
+  path_of <- function(fields, from, k, rev = FALSE) {
+    if (!is.finite(fields$time[from, k])) return(NULL)
+    nodes <- graph_route(fields, from, k); if (rev) nodes <- rev(nodes)
+    I(round(as.vector(t(T$node_xy[nodes, , drop = FALSE]))))
+  }
+  walk <- list(ok = is.finite(T$wf$time[tile, s]), min = T$wf$time[tile, s] / 60, km = T$wf$length[tile, s] / 1000,
+               within = T$wf$length[tile, s] <= w$max_walk_km * 1000, route = path_of(T$wf, tile, s))
+  fac <- tabs_fac_cost <- NULL
+  best <- NULL
+  F <- length(T$approach)
+  fac <- if (!is.null(W)) transport_tables(W$macro, vapply(Filter(store_placed, W$stores), function(x) x$id, ""), T$ny, T$nx)$fac else FAC
+  for (k in seq_len(F)) {
+    ft <- fac_time(T, tile, k)
+    if (!is.finite(ft$t) || !(T$fw_m[k, s] <= w$max_walk_km * 1000)) next
+    cost <- w$drive_w * ft$t / 60 + w$park_w * (fac$search_s[k] + fac$transfer_s[k]) / 60 + w$walk_w * T$fw_t[k, s] / 60
+    if (is.null(best) || cost < best$cost) {
+      cols <- which(T$vnode_fac == k); col <- cols[which.min(T$vf$time[tile, cols])]
+      best <- list(facility = fac$name[k], k = k, cost = cost, drive_min = ft$t / 60, drive_km = ft$m / 1000,
+                   park_min = (fac$search_s[k] + fac$transfer_s[k]) / 60, walk_min = T$fw_t[k, s] / 60, walk_km = T$fw_m[k, s] / 1000,
+                   drive_route = path_of(T$vf, tile, col), walk_route = path_of(T$wf, T$fw_node[k, s], s))
+    }
+  }
+  wcost <- if (walk$ok && walk$within) w$walk_w * T$wf$time[tile, s] / 60 else Inf
+  mode <- if (!is.null(best) && car && best$cost < wcost) "drive" else if (is.finite(wcost)) "walk" else "none"
+  list(ok = TRUE, mode = mode, walk = walk, drive = best, walk_cost = wcost)
 }
 
 # ---- The map, for the page --------------------------------------------------------------------

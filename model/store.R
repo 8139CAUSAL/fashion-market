@@ -37,7 +37,7 @@ new_queues <- function() {
   servers <- servers_of()
   free <- matrix(Inf, 3L * N_STORES, MAX_SERVERS)
   free[col(free) <= servers] <- 0
-  list(free = free, held = matrix(0, 3L * N_STORES, MAX_SERVERS),
+  list(free = free, held = matrix(0, 3L * N_STORES, MAX_SERVERS), last = numeric(3L * N_STORES),
        waiting = integer(), since = numeric(), until = numeric())
 }
 
@@ -69,10 +69,7 @@ resize_queue <- function(row, n, t) {
 # same size in the same store, or joining the same queue. take() and
 # join_queue() sort those by time; everything else is handled in the order
 # of the visits, which is as good and much cheaper.
-run_step <- function(s0, s1) {
-  floor_step(s0, s1)
-  outings_step(s1)                     # the journeys outside, after the floors (outings.R)
-}
+run_step <- function(s0, s1) floor_step(s0, s1)
 
 floor_step <- function(s0, s1) {
   if (s0 %% 3600 == 0) reshelve()
@@ -81,34 +78,52 @@ floor_step <- function(s0, s1) {
   if (s0 %% ONLINE_BATCH_S == 0 && d$on_next <= length(d$on_order)) online_step(s0)   # online visits (online.R)
   # Shoppers inside a store, and those arriving this step: only they can
   # have a decision due (arrivals come off a list sorted by time).
+  intake(s1)
+  a <- d$active
+  if (length(a)) {
+    ev <- d$ev_at[a]
+    gone <- ev == Inf
+    if (any(gone)) { a <- a[!gone]; ev <- ev[!gone]; d$active <<- a }
+    due <- a[ev < s1]
+    if (length(due)) {
+      d$late <<- d$late + sum(d$ev_at[due] < s0)
+      moving <- d$ev_kind[due] == EV_MOVE
+      queuing <- due[!moving]
+      if (any(moving)) {
+        sent <- on_move(due[moving])
+        queuing <- c(queuing, sent[d$ev_at[sent] < s1])
+      }
+      if (length(queuing)) on_join(queuing)
+    }
+  }
+  # Then the journeys outside (outings.R): shoppers back at a door decide
+  # where next, cars come and go. Those who reach a store's door within
+  # this step come in now (coming in decides nothing anyone competes for;
+  # their first rack is at least MIN_BROWSE_S away, though one returning
+  # items may reach the tills), and so on until no one else does.
+  repeat {
+    if (length(exits$v)) {
+      leave(exits$v, exits$t0, exits$outcome)
+      exits <<- list(v = integer(), t0 = numeric(), outcome = integer())
+    }
+    outings_step(s1)
+    fresh <- intake(s1)
+    if (!length(fresh)) break
+    sent <- on_move(fresh)
+    q <- sent[d$ev_at[sent] < s1]
+    if (length(q)) on_join(q)
+  }
+}
+
+# Visits reaching their store before s1 join those on the floors. Returns them.
+intake <- function(s1) {
   k <- d$next_in
   while (k <= length(d$by_arrival) && d$arrive[d$by_arrival[k]] < s1) k <- k + 1L
-  if (k > d$next_in) {
-    d$active <<- c(d$active, d$by_arrival[d$next_in:(k - 1L)])
-    d$next_in <<- k
-  }
-  a <- d$active
-  if (!length(a)) return(invisible())
-  ev <- d$ev_at[a]
-  gone <- ev == Inf
-  if (any(gone)) { a <- a[!gone]; ev <- ev[!gone]; d$active <<- a }
-  due <- a[ev < s1]
-  if (!length(due)) return(invisible())
-  # A shopper reaching a door during the last step's journeys is taken in
-  # now: coming in decides nothing anyone else competes for (their first
-  # rack is at least MIN_BROWSE_S away), so only later decisions count.
-  d$late <<- d$late + sum(d$ev_at[due] < s0 & !(d$ev_kind[due] == EV_MOVE & d$zi[due] == 0L & d$ev_at[due] >= s0 - STEP_S))
-  moving <- d$ev_kind[due] == EV_MOVE
-  queuing <- due[!moving]
-  if (any(moving)) {
-    sent <- on_move(due[moving])
-    queuing <- c(queuing, sent[d$ev_at[sent] < s1])
-  }
-  if (length(queuing)) on_join(queuing)
-  if (length(exits$v)) {
-    leave(exits$v, exits$t0, exits$outcome)
-    exits <<- list(v = integer(), t0 = numeric(), outcome = integer())
-  }
+  if (k == d$next_in) return(integer())
+  v <- d$by_arrival[d$next_in:(k - 1L)]
+  d$active <<- c(d$active, v)
+  d$next_in <<- k
+  v
 }
 
 # Shoppers finishing at a rack (or just coming in): what they pick, then
@@ -480,6 +495,16 @@ join_queue <- function(res, t, dur, max_ahead, patience) {
     queues$until <<- queues$until[keep]
   }
   rank <- rank_within(res, t)
+  # Shoppers joining a fitting-room or till queue out of time order (one
+  # joining earlier than another the queue has already taken): counted as
+  # late decisions. (An assistant's jobs are booked ahead: no such order.)
+  q <- res <= STAFF_ROW
+  if (any(q)) {
+    d$late <<- d$late + sum(t[q] < queues$last[res[q]] - 1e-9)
+    mx <- tapply(t[q], res[q], max)
+    rr <- as.integer(names(mx))
+    queues$last[rr] <<- pmax(queues$last[rr], as.numeric(mx))
+  }
   start <- numeric(n); server <- integer(n); status <- integer(n); ahead_all <- integer(n)
   rounds <- max(rank)
   for (r in seq_len(rounds)) {

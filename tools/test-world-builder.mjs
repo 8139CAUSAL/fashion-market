@@ -34,6 +34,8 @@ const geographies = await loadGeographies(file("worlds/"), getFile);
 const rest = (w) => {
   const x = clone(w);
   delete x.macro.tiles; delete x.macro.area_tiles; delete x.macro.width; delete x.macro.height;
+  delete x.macro.parking; delete x.macro.venues;                // built on the map: they go with it
+  for (const s of x.stores) delete s.venue;
   x.macro.areas = x.macro.areas.map(({ id, name, colour, budget, segment_mix, size_mix }) => ({ id, name, colour, budget, segment_mix, size_mix }));
   for (const s of x.stores) unplace(s);
   return x;
@@ -87,9 +89,9 @@ test("a store taken off the map and put back writes out as it was", () => {
   const s = w.stores[0]; const at = [s.x, s.y];
   unplace(s);
   assert.equal(placed(s), false);
-  assert.deepEqual(Object.keys(s), ["id", "name", "short", "brand", "layout", "staff"]);
+  assert.deepEqual(Object.keys(s), ["id", "name", "short", "brand", "layout", "venue", "staff"]);
   setPlace(s, at[0], at[1]);
-  assert.deepEqual(Object.keys(s), ["id", "name", "short", "brand", "layout", "x", "y", "staff"]);
+  assert.deepEqual(Object.keys(s), ["id", "name", "short", "brand", "layout", "x", "y", "venue", "staff"]);
   assert.equal(worldText(w), text);
   setPlace(s, 10, 20);                                      // a store on the map moves where it is
   assert.deepEqual([s.x, s.y, Object.keys(s).indexOf("x")], [10, 20, 5]);
@@ -126,12 +128,21 @@ test("starting from a geography changes the map and where the stores stand, noth
       const ch = g.area_tiles[r][c];
       assert.equal(w.macro.area_tiles[r][c], ch === "." ? "." : keyOf.get(ch));
     }
+    // The parking and venues are the geography's, built by hand on its map
+    // (tools/build-geographies.mjs); a venue's members are the stores put on its sites.
+    assert.deepEqual(w.macro.parking, g.parking, `${g.id}: its parking`);
+    assert.equal(w.macro.venues.length, g.venues.length);
+    w.macro.venues.forEach((v, k) => {
+      const sites = g.venues[k].sites.map((id) => g.sites.find((x) => x.id === id));
+      assert.deepEqual(v.stores, w.stores.filter((s) => sites.some((x) => x.u * w.macro.patch_m === s.x && x.v * w.macro.patch_m === s.y)).map((s) => s.id));
+      for (const id of v.stores) assert.equal(w.stores.find((s) => s.id === id).venue, v.id);
+    });
     // Every store on a site, each site used once, in the order the file gives them.
     assert.deepEqual([out.placed, out.unplaced, out.reused, out.added], [19, 0, 4, 0]);
     w.stores.forEach((s, i) => {
       const site = g.sites[i];
       assert.deepEqual([s.x, s.y], [site.u * w.macro.patch_m, site.v * w.macro.patch_m], `${g.id}: ${s.id}`);
-      assert.deepEqual(Object.keys(s), Object.keys(before.stores[i]), `${g.id}: ${s.id} keeps the file's key order`);
+      assert.deepEqual(Object.keys(s).filter((k) => k !== "venue"), Object.keys(before.stores[i]).filter((k) => k !== "venue"), `${g.id}: ${s.id} keeps the file's key order`);
     });
   }
 });
@@ -152,6 +163,8 @@ test("Blank keeps the map's size, clears it, keeps the areas' make-up, and takes
   assert.deepEqual(w.macro.areas, before.macro.areas);
   assert.deepEqual([out.placed, out.unplaced], [0, 19]);
   assert.deepEqual(geographyNeeds(w), { unplaced: 19, homes: false });
+  assert.deepEqual([w.macro.parking, w.macro.venues], [[], []]);   // nothing built on a blank map
+  assert.ok(w.stores.every((s) => !("venue" in s)));
   assert.deepEqual(rest(w), rest(before));
 });
 

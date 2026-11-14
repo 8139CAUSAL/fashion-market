@@ -1,6 +1,6 @@
 {
   "kind": "fashion-world",
-  "version": 10,
+  "version": 11,
   "name": "Four-district city",
   "seed": 1,
   "season_days": 91,
@@ -72,7 +72,7 @@
     "households": 24000,
     "road_mps": 10,
     "local_mps": 4,
-    "park_s": 240,
+    "walk_mps": 1.3,
     "wom_m": 500,
     "tiles": [
       "..........=.............=...............=.........=.........~~~~~.........=.........=.............=...........=.........",
@@ -119,7 +119,7 @@
       "..........=1111122223334=455666777888889=988888777=6655444pp~~~~~pp2333444=556666677=7766666555444=33222211111=1........",
       ".........1=1111122223334=55566777888sss9=999888877=665554pp~~~~~pp22333444=55666sss7=7776666555444=33222211111=1........",
       ".........1=1111122223334=55566777888sss9=999888877=665554pp~~~~~pp23333445=56666sss7=7777666655544=33322211111=1........",
-      ".........1=1111122223334=555667778889999=999988877=66555pp~~~~~pp223334445=566667777=7777666655544=33322221111=1........",
+      ".........1=1111122223334=55566777888PPP9=999988877=66555pp~~~~~pp223334445=56666PPP7=7777666655544=33322221111=1........",
       "==========================================================+++++=========================================================",
       ".........1=1111122223334=555667778889999=999988877=6655pp~~~~~pp2223334445=566667777=7777666655544=33322221111=1........",
       ".........1=1111122223334=555667778888999=999888877=6655pp~~~~~pp2223333445=566667777=7777666655544=33322211111=1........",
@@ -150,7 +150,7 @@
       "..........=.............=111111111111111=111111111=11pp~~~~~pp............=....11111=1112223334444=3332221111.=.........",
       "..........=.............=..1111111111111=111111111=111..~~~~~.............=.........=111222333sss4=3332221111.=.........",
       "..........=.............=....11111111111=111111111=1....~~~~~.............=.........=111222334sss4=4332221111.=.........",
-      "..........=.............=.......11111111=11111111.=......~~~~.............=.........=1112223334444=3332221111.=.........",
+      "..........=.............=.......11111111=11111111.=......~~~~.............=.........=111222333PPP4=3332221111.=.........",
       "=========================================================~~~~~==========================================================",
       "..........=.............=...............=.........=.......~~~~............=.........=1111222333343=332221111..=.........",
       "..........=.............=...............=.........=.......~~~~~...........=.........=1111222333333=332221111..=.........",
@@ -305,7 +305,165 @@
         "convenience": 0.2698
       },
       "size_mix": {"XS": 0.0921, "S": 0.2104, "M": 0.3021, "L": 0.2519, "XL": 0.1435}
-    }
+    },
+    "parking": [
+      {
+        "id": "old_town_shops_lot",
+        "name": "Old Town shops lot",
+        "kind": "lot",
+        "tiles": [
+          [44, 36],
+          [44, 37],
+          [44, 38]
+        ],
+        "levels": 1,
+        "spaces": 180,
+        "vehicle_access": [
+          [44, 36]
+        ],
+        "pedestrian_access": [
+          [44, 36],
+          [44, 37],
+          [44, 38]
+        ],
+        "search_s": 50,
+        "level_s": 0,
+        "transfer_s": 20
+      },
+      {
+        "id": "east_bank_shops_lot",
+        "name": "East Bank shops lot",
+        "kind": "lot",
+        "tiles": [
+          [44, 80],
+          [44, 81],
+          [44, 82]
+        ],
+        "levels": 1,
+        "spaces": 180,
+        "vehicle_access": [
+          [44, 80]
+        ],
+        "pedestrian_access": [
+          [44, 80],
+          [44, 81],
+          [44, 82]
+        ],
+        "search_s": 50,
+        "level_s": 0,
+        "transfer_s": 20
+      },
+      {
+        "id": "mill_village_shops_kerb",
+        "name": "Mill Village shops kerb spaces",
+        "kind": "kerb",
+        "tiles": [
+          [14, 20],
+          [14, 21],
+          [14, 22]
+        ],
+        "levels": 1,
+        "spaces": 30,
+        "vehicle_access": [
+          [14, 20],
+          [14, 21],
+          [14, 22]
+        ],
+        "pedestrian_access": [
+          [14, 20],
+          [14, 21],
+          [14, 22]
+        ],
+        "search_s": 90,
+        "level_s": 0,
+        "transfer_s": 0
+      },
+      {
+        "id": "southfields_shops_lot",
+        "name": "Southfields shops lot",
+        "kind": "lot",
+        "tiles": [
+          [75, 94],
+          [75, 95],
+          [75, 96]
+        ],
+        "levels": 1,
+        "spaces": 180,
+        "vehicle_access": [
+          [75, 94]
+        ],
+        "pedestrian_access": [
+          [75, 94],
+          [75, 95],
+          [75, 96]
+        ],
+        "search_s": 50,
+        "level_s": 0,
+        "transfer_s": 20
+      },
+      {
+        "id": "riverside_shops_kerb",
+        "name": "Riverside shops kerb spaces",
+        "kind": "kerb",
+        "tiles": [
+          [60, 76],
+          [60, 77],
+          [60, 78]
+        ],
+        "levels": 1,
+        "spaces": 30,
+        "vehicle_access": [
+          [60, 76],
+          [60, 77],
+          [60, 78]
+        ],
+        "pedestrian_access": [
+          [60, 76],
+          [60, 77],
+          [60, 78]
+        ],
+        "search_s": 90,
+        "level_s": 0,
+        "transfer_s": 0
+      }
+    ],
+    "venues": [
+      {
+        "id": "old_town_shops",
+        "name": "Old Town shops",
+        "kind": "district",
+        "stores": ["ours_ot", "ours_int_rs", "value_ef", "fast_mm"],
+        "parking": ["old_town_shops_lot"]
+      },
+      {
+        "id": "east_bank_shops",
+        "name": "East Bank shops",
+        "kind": "district",
+        "stores": ["ours_rs", "ours_int_mm", "prem_ot", "fast_ec"],
+        "parking": ["east_bank_shops_lot"]
+      },
+      {
+        "id": "mill_village_shops",
+        "name": "Mill Village shops",
+        "kind": "district",
+        "stores": ["ours_mm", "value_ot", "prem_rs", "fast_eh"],
+        "parking": ["mill_village_shops_kerb"]
+      },
+      {
+        "id": "southfields_shops",
+        "name": "Southfields shops",
+        "kind": "district",
+        "stores": ["ours_ef", "value_mm", "prem_mo", "prem_rq"],
+        "parking": ["southfields_shops_lot"]
+      },
+      {
+        "id": "riverside_shops",
+        "name": "Riverside shops",
+        "kind": "district",
+        "stores": ["ours_int_ot", "value_mr", "fast_ot"],
+        "parking": ["riverside_shops_kerb"]
+      }
+    ]
   },
   "layouts": [
     {"prefab": "flagship"},
@@ -322,6 +480,7 @@
       "layout": "flagship",
       "x": 1825,
       "y": 2375,
+      "venue": "old_town_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -341,6 +500,7 @@
       "layout": "standard",
       "x": 4025,
       "y": 2375,
+      "venue": "east_bank_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -360,6 +520,7 @@
       "layout": "standard",
       "x": 1025,
       "y": 3875,
+      "venue": "mill_village_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -379,6 +540,7 @@
       "layout": "small",
       "x": 4725,
       "y": 825,
+      "venue": "southfields_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -398,6 +560,7 @@
       "layout": "intimates",
       "x": 3825,
       "y": 1575,
+      "venue": "riverside_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -417,6 +580,7 @@
       "layout": "intimates",
       "x": 1875,
       "y": 2375,
+      "venue": "old_town_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -436,6 +600,7 @@
       "layout": "intimates",
       "x": 4075,
       "y": 2375,
+      "venue": "east_bank_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -455,6 +620,7 @@
       "layout": "small",
       "x": 1075,
       "y": 3875,
+      "venue": "mill_village_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 0,
@@ -474,6 +640,7 @@
       "layout": "standard",
       "x": 4775,
       "y": 825,
+      "venue": "southfields_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 0,
@@ -493,6 +660,7 @@
       "layout": "standard",
       "x": 3875,
       "y": 1575,
+      "venue": "riverside_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 0,
@@ -512,6 +680,7 @@
       "layout": "small",
       "x": 1925,
       "y": 2375,
+      "venue": "old_town_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 0,
@@ -531,6 +700,7 @@
       "layout": "intimates",
       "x": 4125,
       "y": 2375,
+      "venue": "east_bank_shops",
       "staff": {
         "cashiers": 2,
         "assistants": 2,
@@ -550,6 +720,7 @@
       "layout": "intimates",
       "x": 1125,
       "y": 3875,
+      "venue": "mill_village_shops",
       "staff": {
         "cashiers": 2,
         "assistants": 2,
@@ -569,6 +740,7 @@
       "layout": "intimates",
       "x": 4825,
       "y": 825,
+      "venue": "southfields_shops",
       "staff": {
         "cashiers": 2,
         "assistants": 2,
@@ -588,6 +760,7 @@
       "layout": "standard",
       "x": 3925,
       "y": 1575,
+      "venue": "riverside_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -607,6 +780,7 @@
       "layout": "standard",
       "x": 1825,
       "y": 2325,
+      "venue": "old_town_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -626,6 +800,7 @@
       "layout": "small",
       "x": 4025,
       "y": 2325,
+      "venue": "east_bank_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -645,6 +820,7 @@
       "layout": "standard",
       "x": 1025,
       "y": 3825,
+      "venue": "mill_village_shops",
       "staff": {
         "cashiers": 1,
         "assistants": 1,
@@ -664,6 +840,7 @@
       "layout": "intimates",
       "x": 4725,
       "y": 775,
+      "venue": "southfields_shops",
       "staff": {
         "cashiers": 2,
         "assistants": 2,
@@ -2382,7 +2559,8 @@
       },
       "offer_response": {"shop": 0.9, "appeal": 0.9},
       "online": -1.4,
-      "returns": 1
+      "returns": 1,
+      "car_share": 1
     },
     {
       "id": "trend_followers",
@@ -2413,7 +2591,8 @@
       },
       "offer_response": {"shop": 0.3, "appeal": 0.4},
       "online": -0.2,
-      "returns": 1
+      "returns": 1,
+      "car_share": 1
     },
     {
       "id": "quality_loyalists",
@@ -2444,7 +2623,8 @@
       },
       "offer_response": {"shop": 0.05, "appeal": 0.1},
       "online": -0.8,
-      "returns": 1
+      "returns": 1,
+      "car_share": 1
     },
     {
       "id": "convenience",
@@ -2475,13 +2655,18 @@
       },
       "offer_response": {"shop": 0.35, "appeal": 0.4},
       "online": 0.2,
-      "returns": 1
+      "returns": 1,
+      "car_share": 1
     }
   ],
   "market": {
     "taste_w": 1.2,
     "price_w": 1.5,
-    "km_w": 0.22,
+    "drive_w": 0.132,
+    "park_w": 0.198,
+    "walk_w": 0.264,
+    "cluster_w": 0.3,
+    "max_walk_km": 2,
     "memory": 0.97,
     "grudge_w": 0.8,
     "wom": 0.35,
