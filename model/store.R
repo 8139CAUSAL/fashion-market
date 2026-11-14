@@ -70,6 +70,11 @@ resize_queue <- function(row, n, t) {
 # join_queue() sort those by time; everything else is handled in the order
 # of the visits, which is as good and much cheaper.
 run_step <- function(s0, s1) {
+  floor_step(s0, s1)
+  outings_step(s1)                     # the journeys outside, after the floors (outings.R)
+}
+
+floor_step <- function(s0, s1) {
   if (s0 %% 3600 == 0) reshelve()
   if (s0 %% 7200 == 0 && s0 > 0) refill_floor()   # staff bring stock out from the stockroom every two hours
   if (s0 %% 300 == 0) sample_queues(s0)
@@ -89,7 +94,10 @@ run_step <- function(s0, s1) {
   if (any(gone)) { a <- a[!gone]; ev <- ev[!gone]; d$active <<- a }
   due <- a[ev < s1]
   if (!length(due)) return(invisible())
-  d$late <<- d$late + sum(d$ev_at[due] < s0)
+  # A shopper reaching a door during the last step's journeys is taken in
+  # now: coming in decides nothing anyone else competes for (their first
+  # rack is at least MIN_BROWSE_S away), so only later decisions count.
+  d$late <<- d$late + sum(d$ev_at[due] < s0 & !(d$ev_kind[due] == EV_MOVE & d$zi[due] == 0L & d$ev_at[due] >= s0 - STEP_S))
   moving <- d$ev_kind[due] == EV_MOVE
   queuing <- due[!moving]
   if (any(moving)) {
@@ -331,6 +339,7 @@ leave <- function(v, t0, outcome) {
   d$gone[v] <<- t0 + walk
   d$ev_at[v] <<- Inf
   vlog_add(v, t0 + walk, EV_LEFT, outcome)
+  outing_left(v)                                       # back at the door: the outing goes on (outings.R)
   back <- v[outcome != 1L]
   if (length(back)) {
     held <- d$basket[back, , drop = FALSE]
@@ -433,6 +442,8 @@ pay <- function(v, end) {
   sold <- held > 0
   add_units("sold", rep(d$store[v], MAX_ITEMS)[sold], held[sold], 1)
   saved <- settle_sale(v, KIND_UNTRIED, day, tried = d$tried[v])
+  cp <- v[d$coupon_from[v] > 0L]
+  if (length(cp)) coupon_spent(d$hh[cp], d$coupon_from[cp])     # spent now: no later visit today can use it (offers.R)
   vlog_add(v, end, EV_PAID, d$units[v], d$sales[v], .rowSums(saved$md, n, MAX_ITEMS), .rowSums(saved$promo, n, MAX_ITEMS), d$coupon_saved[v])
   leave_later(v, end, 1L)
 }

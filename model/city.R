@@ -3,17 +3,28 @@
 # painted on a layer of their own, the households who live on the home
 # tiles, and the fastest route from every tile to every store.
 #
-# Tiles, one character each, row 1 the north edge:
-#   .  open land     ~  water       p  park       s  shops
-#   =  road          +  bridge (a road over water)
+# Tiles, one character each, row 1 the north edge. Each says what the
+# ground is, and so who can cross it (transport.R has the table: cars and
+# people move on separate networks read from these tiles):
+#   .  open land (walkable)       ~  water (no one)        p  park (walkable)
+#   w  woodland (no one)          #  building or barrier (no one)
 #   1 to 9  homes, by density: households are placed on home tiles in
-#           proportion to it
+#           proportion to it; their local streets carry cars and people
+#   =  street (cars, and people on its sidewalks)   +  road bridge (both)
+#   H  highway (cars only)        x  highway crossing (cars, and people across)
+#   d  driveway or service road (cars at local speed, and people)
+#   -  footpath or trail (people only)   f  footbridge (people only)
+#   s  pedestrian street or plaza (people only)
+#   P  surface parking lot, G  parking garage: parking only where the end
+#      user has made the tiles a facility (macro.parking), entered by its
+#      own vehicle entrances and left by its own pedestrian exits
+#   m  enclosed mall building: crossed only through its venue's plan
 # The area layer has an area's key (one character) on each of its tiles,
 # "." elsewhere. Households take their segment, size and budget from the
 # area they live in, or the map's default make-up outside every area.
 #
-# A trip follows the fastest route across the map (grid.R): roads and
-# bridges at road speed, other land at local speed, water impassable.
+# A driving trip follows the fastest route on the vehicle network, a walk
+# the fastest on the pedestrian network (transport.R).
 #
 # What NetLogoR does here:
 #   - The map is one NetLogoR world, a patch per tile. Its patches carry
@@ -38,8 +49,11 @@
 # The routes themselves (grid.R) are worked out on plain matrices, read
 # from the map world.
 
-MAP_CHARS <- c("." = 0L, "~" = 1L, p = 2L, s = 4L, "=" = 5L, "+" = 6L, setNames(rep(3L, 9), 1:9))
-LAND <- c(open = 0L, water = 1L, park = 2L, homes = 3L, shops = 4L, road = 5L, bridge = 6L)
+MAP_CHARS <- c("." = 0L, "~" = 1L, p = 2L, s = 4L, "=" = 5L, "+" = 6L, setNames(rep(3L, 9), 1:9),
+               w = 7L, "#" = 8L, "-" = 9L, f = 10L, H = 11L, x = 12L, d = 13L, P = 14L, G = 15L, m = 16L)
+LAND <- c(open = 0L, water = 1L, park = 2L, homes = 3L, shops = 4L, road = 5L, bridge = 6L,
+          woodland = 7L, building = 8L, footpath = 9L, footbridge = 10L, highway = 11L, crossing = 12L,
+          driveway = 13L, lot = 14L, garage = 15L, mall = 16L)
 CITY_SEED <- 20260925              # the households are drawn from this, whatever the season's seed
 MAX_MAP_TILES <- 60000
 MAX_AREAS <- 40
@@ -64,13 +78,10 @@ macro_grids <- function(M) {
   list(land = land, density = density, area = area, ny = nrow(ch), nx = ncol(ch))
 }
 
-# How fast a trip crosses each tile (m/s; 0: it can't).
-macro_speed <- function(land, road_mps, local_mps) {
-  sp <- matrix(local_mps, nrow(land), ncol(land))
-  sp[land == LAND[["road"]] | land == LAND[["bridge"]]] <- road_mps
-  sp[land == LAND[["water"]]] <- 0
-  sp
-}
+# How fast a car crosses each tile (m/s; 0: it can't): streets, bridges,
+# highways and their crossings at road speed, homes' local streets and
+# driveways at local speed, nothing else (transport.R).
+macro_speed <- function(land, road_mps, local_mps) drive_speed(land, road_mps, local_mps)
 
 # The tile a point (metres from the south-west corner) stands on, as a
 # linear index into the map's matrices.
@@ -84,8 +95,8 @@ makeup_mix <- function(mk, ids) as.numeric(unlist(mk[ids]))
 
 check_macro <- function(M, seg_ids, pb) {
   path <- "macro"
-  if (!isTRUE(pb$keys(M, path, c("patch_m", "width", "height", "households", "road_mps", "local_mps", "park_s", "wom_m",
-                                   "tiles", "areas", "area_tiles", "default_makeup")))) return(invisible())
+  if (!isTRUE(pb$keys(M, path, c("patch_m", "width", "height", "households", "road_mps", "local_mps", "walk_mps", "wom_m",
+                                   "tiles", "areas", "area_tiles", "default_makeup", "parking", "venues")))) return(invisible())
   for (k in names(FIELDS$macro)) {
     f <- FIELDS$macro[[k]]
     if (identical(f$kind, "int")) pb$int(M[[k]], join_path(path, k), f$min, f$max) else pb$num(M[[k]], join_path(path, k), f$min, f$max)
@@ -187,7 +198,7 @@ macro_install <- function(M) {
   g <- macro_grids(M)
   MACRO <<- list(patch_m = as.numeric(M$patch_m), nx = g$nx, ny = g$ny, width_m = g$nx * M$patch_m, height_m = g$ny * M$patch_m,
                  households = as.integer(M$households), road_mps = as.numeric(M$road_mps), local_mps = as.numeric(M$local_mps),
-                 park_s = as.numeric(M$park_s), wom_m = as.numeric(M$wom_m),
+                 walk_mps = as.numeric(M$walk_mps), wom_m = as.numeric(M$wom_m),
                  world = city_world(g))
   ar <- M$areas
   AREAS <<- data.frame(key = vapply(ar, `[[`, "", "key"), id = vapply(ar, `[[`, "", "id"), name = vapply(ar, `[[`, "", "name"),
@@ -230,14 +241,14 @@ area_names <- function() c(AREAS$name, "Outside every area")
 
 # ---- Building the city ------------------------------------------------------------------
 
-# Every store's routes: time and distance from every tile, and the next
-# tile on the way, at the speeds of the land read from the city world.
+# The world's two networks (transport.R), from the land read off the
+# city world: the fields toward every store entrance on foot and every
+# parking facility by car. `store_tile` is the tile each store's pin is on.
 build_city <- function() {
   m <- MACRO
-  speed <- macro_speed(city_layer("land"), m$road_mps, m$local_mps)
-  store_tile <- tile_of(STORES$x, STORES$y, m$patch_m, m$ny)
-  fields <- grid_fields(speed, m$patch_m, store_tile)
-  list(nx = m$nx, ny = m$ny, store_tile = store_tile, fields = fields)
+  T <- build_transport(transport_graphs(city_layer("land")))
+  T$store_tile <- tile_of(STORES$x, STORES$y, m$patch_m, m$ny)
+  T
 }
 
 # Where households live and who they are: placed on home tiles in
@@ -290,11 +301,12 @@ build_households <- function() {
     segment <- as.integer(of(agents = agents, var = "segment"))
     budget <- AREA_BUDGET[bin] * SEGMENTS$budget[segment] * rlnorm(n, -0.08, 0.4)
     taste <- matrix(gumbel(n * N_BRANDS), n) + BRAND_FIT[segment, , drop = FALSE]
+    car <- runif(n) < SEGMENTS$car_share[segment]          # drawn last, so the draws before it are as they were
     list(
       n = n, agents = agents, x = (xy[, "xcor"] + 0.5) * p, y = (xy[, "ycor"] + 0.5) * p,
       tile = as.integer(here[, "pxcor"] * ny + ny - here[, "pycor"]),     # the patch, numbered as the routing numbers tiles (grid.R)
       area = area, bin = bin, segment = segment, size = as.integer(of(agents = agents, var = "size")),
-      budget = budget, taste = taste, tier0 = initial_tiers(taste)
+      budget = budget, taste = taste, tier0 = initial_tiers(taste), car = car
     )
   })
 }
@@ -318,12 +330,10 @@ wom_world <- function() {
 # corner): pxcor and pycor, a row for each point (as patchHere() gives).
 wom_patch <- function(world, x, y) patch(world = world, x = x / MACRO$wom_m - 0.5, y = y / MACRO$wom_m - 0.5, duplicate = TRUE, out = TRUE)
 
-# Every household's trip to every store: route length (km) and driving
-# time (s), from the store's routes.
-trip_tables <- function(city, hh) {
-  list(km = matrix(city$fields$length[hh$tile, , drop = FALSE] / 1000, hh$n),
-       drive_s = matrix(city$fields$time[hh$tile, , drop = FALSE], hh$n))
-}
+# Every household's trip to every store by its cheapest way there
+# (transport.R, travel_costs): the generalized cost in utility, the mode,
+# the facility it would park at, and the route's km.
+trip_tables <- function(city, hh) travel_costs(hh$tile, hh$segment, hh$car, city)
 
 # ---- The map editor's preview ----------------------------------------------------------------
 
@@ -374,46 +384,6 @@ macro_preview <- function(W) {
                     stores = round(per_tile_reach[lived] / per_tile_n[lived], 2)))
 }
 
-# ---- Trips on the map, for the page ---------------------------------------------------------
-
-# The day's trips (every visit to a store, to shop or to return items;
-# online visits make none), each as the tiles along its route with the
-# driving time from home to each, worked out the first time the map is
-# drawn that day. route_of(v, s) then gives where visit v is after s
-# seconds of driving.
-trips <- NULL
-
-build_trips <- function() {
-  if (!is.null(trips) && identical(trips$day, day) && identical(trips$v, d$v)) return(invisible())
-  hh <- mk$hh
-  drive <- which(d$store > 0L)
-  if (!length(drive)) { trips <<- list(day = day, v = d$v); return(invisible()) }
-  from <- hh$tile[d$hh[drive]]; k <- d$store[drive]
-  r <- grid_routes(city$fields, from, k)
-  total <- city$fields$time[cbind(from, k)]
-  t_at <- total[r$owner] - city$fields$time[cbind(r$cells, k[r$owner])]       # seconds from home
-  ny <- city$ny; p <- MACRO$patch_m
-  x <- ((r$cells - 1L) %/% ny + 0.5) * p; y <- (ny - (r$cells - 1L) %% ny - 0.5) * p
-  # The route starts at the home itself and ends at the store's door.
-  x[r$first] <- hh$x[d$hh[drive]]; y[r$first] <- hh$y[d$hh[drive]]
-  last <- r$first + r$n - 1L
-  x[last] <- STORES$x[k]; y[last] <- STORES$y[k]
-  key <- drive[r$owner] * 1e5 + t_at
-  # By visit: where each route starts and ends among the cells, and its time.
-  at <- function(x) { out <- integer(d$v); out[drive] <- x; out }
-  trips <<- list(day = day, v = d$v, key = key, x = x, y = y, first = at(r$first), last = at(last), total = { tt <- numeric(d$v); tt[drive] <- total; tt })
-}
-
-# Where visits `v` are after `s` seconds of driving from home.
-route_of <- function(v, s) {
-  s <- pmin(pmax(s, 0), trips$total[v])
-  i <- pmax(findInterval(v * 1e5 + s, trips$key), trips$first[v])
-  j <- pmin(i + 1L, trips$last[v])
-  t0 <- trips$key[i] - v * 1e5; t1 <- trips$key[j] - v * 1e5
-  f <- pmin(1, pmax(0, (s - t0) / pmax(t1 - t0, 1e-9)))
-  cbind(trips$x[i] + (trips$x[j] - trips$x[i]) * f, trips$y[i] + (trips$y[j] - trips$y[i]) * f)
-}
-
 # ---- The map, for the page --------------------------------------------------------------------
 
 # Sent once per world: the tiles (each patch's land, density and area, read
@@ -439,7 +409,7 @@ city_geometry <- function(city, hh) {
                                                         x = lab[[k]]$x, y = lab[[k]]$y, households = sum(hh$area == k))),
     stores = lapply(seq_len(N_STORES), function(s) list(
       id = s, key = STORES$id[s], name = STORES$name[s], short = STORES$short[s], brand = STORES$brand[s],
-      area = STORES$area[s], format = FORMATS[STORES$format[s]], space = STORE_SIZE[s],
+      area = STORES$area[s], format = FORMATS[STORES$format[s]], space = STORE_SIZE[s], venue = STORE_VENUE[s],
       x = STORES$x[s], y = STORES$y[s])),
     brands = lapply(seq_len(N_BRANDS), function(b) list(id = BRANDS$id[b], name = BRANDS$name[b], colour = BRANDS$colour[b],
                                                          family = BRANDS$family[b], ours = OURS_B[b], sells = I(which(CARRIES[b, ])))),
@@ -447,6 +417,14 @@ city_geometry <- function(city, hh) {
                                                           colour = CATEGORY_COLOURS[k], try_on = TRY_ON[k])),
     families = lapply(seq_len(nrow(FAMILIES)), function(f) list(id = FAMILIES$id[f], name = FAMILIES$name[f], ours = FAMILIES$ours[f])),
     segments = lapply(seq_len(N_SEGMENTS), function(g) list(id = SEGMENTS$id[g], name = SEGMENTS$name[g], colour = SEGMENTS$colour[g])),
-    homes = list(n = hh$n)
+    homes = list(n = hh$n),
+    parking = lapply(seq_len(N_FAC), function(k) list(id = FAC$id[k], name = FAC$name[k], kind = FAC$kind[k], levels = FAC$levels[k],
+                                                      spaces = FAC$spaces[k], tiles = I(FAC$tiles[[k]] - 1L), vehicle_access = I(FAC$veh[[k]] - 1L),
+                                                      pedestrian_access = I(FAC$ped[[k]] - 1L))),   # tiles 0-based, column-major (col * ny + row)
+    venues = lapply(seq_len(N_VENUES), function(v) list(id = VENUES$id[v], name = VENUES$name[v], kind = VENUES$kind[v],
+                                                        stores = I(VENUES$stores[[v]]), parking = I(VENUES$parking[[v]]),
+                                                        tiles = I(VENUES$tiles[[v]] - 1L),
+                                                        plan = if (is.null(VENUES$plan[[v]])) NULL else list(cell_m = VENUES$plan[[v]]$cell_m,
+                                                                     rows = I(apply(VENUES$plan[[v]]$chars, 1, paste, collapse = "")))))
   )
 }

@@ -46,6 +46,14 @@ init_tally <- function() {
     ever = matrix(0, D, N_BRANDS + 1),                               # households that have bought from each brand; from competitors only
     share = matrix(0, D, 3),                                         # in-market households: bought ours (our family), another, nothing
     late = numeric(D),
+    dest_visits = matrix(0, D, N_STORES), next_visits = matrix(0, D, N_STORES),   # store visits: destination of the outing, or a stop made from the door of another
+    drawn = matrix(0, D, N_STORES),                                  # outings that chose the store as their destination
+    outings = matrix(0, D, length(OUTING_ENDS)),                     # shopping and return outings home, by how they ended
+    outing_mode = matrix(0, D, 2),                                   # ... by car, on foot
+    stops = matrix(0, D, MAX_SEASON_STOPS),                          # shopping outings home by how many stores they visited (0, 1, 2, ...)
+    shoppers = numeric(D), purchases = numeric(D),                   # households with a store visit; paid store visits
+    parked = matrix(0, D, max(1L, N_FAC)), no_space = matrix(0, D, max(1L, N_FAC)),   # cars that parked, and that found it full, by facility
+    peak = matrix(0, D, max(1L, N_FAC)),                             # most cars in each facility at once
     at = c(day = 0, clock = 0)                                       # when today's row was last written
   )
 }
@@ -94,9 +102,12 @@ tally_day <- function(t = Inf) {
   for (f in c("refunds", "ret_units", "ret_back_cost", "ret_lost_cost", "ret_lost_units", "taken_back", "orders", "fulfilment",
               "shipping", "delivery", "post_parcels", "post_cost")) tally[[f]][i, ] <<- today[[f]]
   tally$trips[i, ] <<- tabulate(d$store[trip & d$outcome > 0L], N_STORES)
-  # In the market: those who stayed home, and those whose visit has ended
-  # (all of them, at closing).
-  tally$in_market[i, ] <<- today$stayed_home + tabulate(d$bin[ended], A)
+  # In the market: those who stayed home, and the households (not visits:
+  # a household may visit several stores) with a visit that has ended (all
+  # of them, at closing), or an outing that ended without one (no
+  # parking, too late).
+  shoppers <- unique(c(d$hh[ended], if (!is.null(og) && og$n) og$hh[og$kind == OG_SHOP & !is.na(og$t_home) & og$t_home <= t & og$n_visits == 0L]))
+  tally$in_market[i, ] <<- today$stayed_home + tabulate(mk$hh$bin[shoppers], A)
   tally$stayed_home[i, ] <<- today$stayed_home
 
   staff_n <- S$cashiers * WAGE[["cashier"]] + S$assistants * WAGE[["assistant"]]
@@ -163,10 +174,48 @@ tally_day <- function(t = Inf) {
   ours_any <- .rowSums(cust[, OURS_B, drop = FALSE], n, sum(OURS_B)) > 0
   rivals_any <- .rowSums(cust[, !OURS_B, drop = FALSE], n, sum(!OURS_B)) > 0
   tally$ever[i, ] <<- c(.colSums(cust, n, N_BRANDS), sum(!ours_any & rivals_any))
-  ours <- sum(paid & OURS_B[d$brand]); other <- sum(paid) - ours                  # households (one shopping visit a day each)
+  # Households, not visits: one that bought ours anywhere counts as ours,
+  # one that bought only elsewhere as another.
+  ours_h <- unique(d$hh[paid & OURS_B[d$brand]])
+  other_h <- setdiff(unique(d$hh[paid]), ours_h)
+  ours <- length(ours_h); other <- length(other_h)
   tally$share[i, ] <<- c(ours, other, sum(tally$in_market[i, ]) - ours - other)
+  # Outings, and the visits they made: destinations (the store that drew the
+  # outing), follow-on visits (made by a shopper already out), the outings
+  # and their ends, unique shoppers, purchases (paid visits) and parking.
+  tally_outings(i, t)
   tally$late[i] <<- d$late
   tally$at <<- c(day = day, clock = if (is.finite(t)) t else Inf)
+}
+
+MAX_SEASON_STOPS <- 8L                 # outings with this many stops or more are counted together
+
+tally_outings <- function(i, t) {
+  floor_v <- !d$online & !d$ret & d$arrive <= t
+  tally$dest_visits[i, ] <<- tabulate(d$store[floor_v & d$stop == 1L], N_STORES)
+  tally$next_visits[i, ] <<- tabulate(d$store[floor_v & d$stop > 1L], N_STORES)
+  tally$drawn[i, ] <<- today$dest %||% numeric(N_STORES)
+  tally$shoppers[i] <<- length(unique(d$hh[floor_v]))
+  tally$purchases[i] <<- sum(floor_v & d$outcome == 1L)
+  if (is.null(og) || !og$n) return(invisible())
+  home <- !is.na(og$t_home) & og$t_home <= t
+  tally$outings[i, ] <<- tabulate(og$ended[home], length(OUTING_ENDS))
+  went <- home & !is.na(og$t_depart) & og$t_depart < og$t_home
+  tally$outing_mode[i, ] <<- tabulate(og$mode[went], 2L)
+  sh <- home & og$kind == OG_SHOP
+  tally$stops[i, ] <<- tabulate(pmin(og$n_visits[sh], MAX_SEASON_STOPS - 1L) + 1L, MAX_SEASON_STOPS)
+  if (N_FAC) {
+    m <- pk$m[seq_len(pk$n), , drop = FALSE]
+    tally$parked[i, seq_len(N_FAC)] <<- tabulate(m[m[, "t_in"] <= t, "fac"], N_FAC)
+    tally$no_space[i, seq_len(N_FAC)] <<- tabulate(og$fails, N_FAC)
+    tally$peak[i, seq_len(N_FAC)] <<- vapply(seq_len(N_FAC), function(f) {
+      x <- m[m[, "fac"] == f & m[, "t_in"] <= t, , drop = FALSE]
+      if (!nrow(x)) return(0)
+      ev <- c(x[, "t_in"], x[, "t_out"]); dl <- c(rep(1, nrow(x)), rep(-1, nrow(x)))
+      o <- order(ev, dl)                                  # a car leaving at the moment another arrives frees its space first
+      max(cumsum(dl[o]))
+    }, 0)
+  }
 }
 
 # ---- Sums over the season ----------------------------------------------------------

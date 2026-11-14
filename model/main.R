@@ -54,12 +54,13 @@ setup <- function(seed = P$seed) {
   if (is.null(city)) { city <<- build_city(); hh_cache <<- NULL }
   if (is.null(hh_cache)) {
     hh_cache <<- build_households()
-    km_cache <<- trip_tables(city, hh_cache)
     world_version <<- world_version + 1L
   }
+  # Every household's cheapest way to every store, at today's weights.
+  km_cache <<- trip_tables(city, hh_cache)
   n <- hh_cache$n
-  # Each household's nearest store of each brand by route (0: the brand has
-  # none), and how far, km.
+  # Each household's nearest store of each brand by its way there (0: the
+  # brand has none it can reach), and how far, km.
   near_store <- matrix(0L, n, N_BRANDS); near <- matrix(Inf, n, N_BRANDS)
   for (b in seq_len(N_BRANDS)) {
     s <- which(STORES$brand == b)
@@ -71,13 +72,14 @@ setup <- function(seed = P$seed) {
   # lives on (pxcor and pycor, and NetLogoR's number for it).
   wom <- wom_world()
   wom_at <- wom_patch(wom, hh_cache$x, hh_cache$y)
-  mk <<- list(hh = hh_cache, km = km_cache$km, drive_s = km_cache$drive_s, near_km = near, near_store = near_store,
+  mk <<- list(hh = hh_cache, km = km_cache$km, tcost = km_cache$cost, mode = km_cache$mode, fac = km_cache$fac,
+              park_fail = matrix(0, n, max(1L, N_FAC)), near_km = near, near_store = near_store,
               grudge = matrix(0, n, N_BRANDS), last_brand = integer(n), budget_left = hh_cache$budget, customer = matrix(FALSE, n, N_BRANDS),
               wom = wom, wom_at = wom_at, wom_cell = cellFromPxcorPycor(wom, wom_at[, "pxcor"], wom_at[, "pycor"]),
               tier = hh_cache$tier0, tier0 = hh_cache$tier0, spend = matrix(0, n, N_BRANDS), spend_max = matrix(0, n, N_BRANDS), spend_day = 0L)
   prev <<- NULL
   season_log <<- list(n = 0L, m = matrix(0L, 3500L * SEASON_DAYS, 5), sales = numeric(3500L * SEASON_DAYS))
-  day <<- 0L; season_over <<- FALSE; trips <<- NULL
+  day <<- 0L; season_over <<- FALSE
   selected <<- list(household = NA_integer_, visit = NA_integer_, visit_day = NA_integer_, inspect = NULL)
   init_catalogue()
   init_tally()
@@ -210,8 +212,8 @@ set_pricing <- function(name, brand, value) {
   P_PRICE[b, name] <<- value
   if (name == "promos_on_markdowns" && !is.null(cal)) {
     prices_today()
-    promos <- promo_rows(d$brand, d$reached)
-    d$promo_row <<- promos$row; d$promo_off <<- promos$off
+    promos <- promo_rows(d$brand, d$reached[seq_len(d$v), , drop = FALSE])
+    d$promo_row <<- promos$row; d$promo_off <<- promos$off; d$n_promo <<- dim(promos$off)[1L]
   }
   invisible(value)
 }

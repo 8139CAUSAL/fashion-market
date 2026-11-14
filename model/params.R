@@ -125,7 +125,11 @@ FIELDS <- list(
     taste_w = setting("Weight of personal taste", 0, 3, 0.1, "num1"),
     price_w = setting("Weight of price", 0, 3, 0.1, "num1"),
     range_w = setting("Weight of the range", 0, 3, 0.1, "num1"),
-    km_w = setting("Dislike of travel (per km)", 0, 0.8, 0.02, "num2"),
+    drive_w = setting("Dislike of driving (per minute)", 0, 0.5, 0.005, "num2"),
+    park_w = setting("Dislike of parking: search, ramps, lifts (per minute)", 0, 1, 0.005, "num2"),
+    walk_w = setting("Dislike of walking (per minute)", 0, 1, 0.005, "num2"),
+    cluster_w = setting("Pull of other stores within walking distance", 0, 2, 0.05, "num2"),
+    max_walk_km = setting("Longest walk a shopper will make (km)", 0.1, 10, 0.1, "num1"),
     memory = setting("Memory of bad visits (kept per day)", 0.8, 0.995, 0.005, "pct1"),
     grudge_w = setting("Weight of a bad visit", 0, 3, 0.1, "num1"),
     wom = setting("Word of mouth", 0, 1.5, 0.05, "num2"),
@@ -208,15 +212,26 @@ FIELDS <- list(
     max_ahead = setting("Longest queue joined", 1, 20, 1, "int"),
     budget = setting("Budget (times the area's)", 0.2, 4, 0.05, "num2"),
     online = setting("Taste for shopping online", -3, 3, 0.1, "num1"),
-    returns = setting("Tendency to return", 0, 3, 0.05, "num2")),
+    returns = setting("Tendency to return", 0, 3, 0.05, "num2"),
+    car_share = setting("Households with a car", 0, 1, 0.01, "pct")),
   taste = setting("Taste", 0, 5, 0.5, "num1"),
   macro = list(
     patch_m = setting("Metres per tile", 5, 5000, 5, "int"),
     households = setting("Households", 0, 60000, 500, "int"),
     road_mps = setting("Road speed (m/s)", 1, 40, 0.5, "num1"),
-    local_mps = setting("Speed off roads (m/s)", 0.5, 20, 0.5, "num1"),
-    park_s = setting("Parking, each trip (s)", 0, 1800, 10, "int"),
+    local_mps = setting("Driving speed on homes' local streets and driveways (m/s)", 0.5, 20, 0.5, "num1"),
+    walk_mps = setting("Walking speed outdoors and in malls (m/s)", 0.5, 2.5, 0.05, "num2"),
     wom_m = setting("Word of mouth reaches (m)", 50, 50000, 50, "int")),
+  # A parking facility the end user has built (transport.R): its spaces, and
+  # the time it takes to find one, climb a level, and get from the space to
+  # its pedestrian exit.
+  parking = list(
+    levels = setting("Levels", 1, 12, 1, "int"),
+    spaces = setting("Spaces", 1, 20000, 1, "int"),
+    search_s = setting("Finding a space (s)", 0, 1800, 5, "int"),
+    level_s = setting("Driving up or down a level (s)", 0, 600, 5, "int"),
+    transfer_s = setting("From the space to the pedestrian exit (s)", 0, 1800, 5, "int")),
+  venue_plan = list(cell_m = setting("Metres per plan cell", 1, 25, 1, "int")),
   area = list(budget = setting("Season budget ($, average)", 50, 5000, 10, "int")),
   response = list(shop = setting("Lift in shopping", -0.9, 3, 0.05, "num2"), appeal = setting("Pull", -2, 3, 0.05, "num2")),
   layout = list(draw = setting("Draw", 0, 2, 0.05, "num2"))

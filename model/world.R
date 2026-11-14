@@ -36,11 +36,13 @@
 # brand and a promotion length for the market, for the Market tab's
 # promotion buttons, and no online stores or returns; version 7 had every
 # segment return what it bought at the same rates; version 8 had no demand
-# events; version 9 had every brand write off the same share of its returns.
+# events; version 9 had every brand write off the same share of its returns;
+# version 10 had one travel network for every trip, a fixed parking time,
+# and no parking, venues or walking (transport.R).
 
 WORLD_KIND <- "fashion-world"
 LAYOUT_KIND <- "fashion-layout"
-WORLD_VERSION <- 10L
+WORLD_VERSION <- 11L
 LAYOUT_VERSION <- 2L                 # a layout file's own version (its format hasn't changed since the world's version 2)
 NO_DAY <- 1e6                        # the landing day of a product slot a brand's range doesn't fill
 
@@ -169,7 +171,8 @@ world_upgrade <- function(W) {
   if (identical(version, 6L)) { W <- upgrade_v6(W); version <- 7L }
   if (identical(version, 7L)) { W <- upgrade_v7(W); version <- 8L }
   if (identical(version, 8L)) { W <- upgrade_v8(W); version <- 9L }
-  if (identical(version, 9L)) W <- upgrade_v9(W)
+  if (identical(version, 9L)) { W <- upgrade_v9(W); version <- 10L }
+  if (identical(version, 10L)) W <- upgrade_v10(W)
   W
 }
 
@@ -447,6 +450,52 @@ upgrade_v9 <- function(W) {
   W
 }
 
+# A version 10 world, as version 11.
+#   travel   every trip drove one network (roads fast, any other land but
+#            water at local speed) and spent park_s parking, anywhere. Now
+#            cars and people move on separate networks read from the tiles
+#            (transport.R), and a car can park only in a facility the
+#            end user has built. The world keeps its tiles, which now mean
+#            what transport.R says, and gets no parking and no venues:
+#            nothing is built for it. Until parking is built, its
+#            households can only walk; the world check lists every store
+#            that can't be reached. park_s goes (a facility has its own
+#            times); walking outdoors is 1.3 m/s.
+#   choice   the dislike of travel was km_w per km of route; it becomes a
+#            generalized cost in minutes: driving at drive_w a minute, the
+#            same dislike for a trip driven at the world's road speed
+#            (km_w x road_mps x 60 / 1000), parking at 1.5 times that and
+#            walking at twice it (assumed: time walking and searching
+#            weighs more than time at the wheel), walks no longer than
+#            2 km, and other stores within walking distance pull at 0.3.
+#   cars     every segment's households all have a car (car_share 1).
+V10_WALK_MPS <- 1.3
+
+upgrade_v10 <- function(W) {
+  W$version <- 11L
+  if (is.list(W$macro) && !is.null(names(W$macro))) {
+    M <- W$macro
+    M$park_s <- NULL
+    if (is.null(M$walk_mps)) M <- append(M, list(walk_mps = V10_WALK_MPS), after = match("local_mps", names(M), nomatch = length(M)))
+    if (is.null(M$parking)) M$parking <- list()
+    if (is.null(M$venues)) M$venues <- list()
+    W$macro <- M
+  }
+  if (is.list(W$market) && !is.null(names(W$market)) && !is.null(W$market$km_w)) {
+    mk <- W$market
+    road <- if (is.list(W$macro) && is.numeric(W$macro$road_mps)) W$macro$road_mps else 10
+    dw <- signif(as.numeric(mk$km_w) * road * 60 / 1000, 6)
+    at <- match("km_w", names(mk))
+    mk <- append(mk[-at], list(drive_w = dw, park_w = signif(1.5 * dw, 6), walk_w = signif(2 * dw, 6), cluster_w = 0.3, max_walk_km = 2), after = at - 1L)
+    W$market <- mk
+  }
+  if (is.list(W$segments)) W$segments <- lapply(W$segments, function(s) {
+    if (is.list(s) && !is.null(names(s)) && is.null(s$car_share)) s$car_share <- 1
+    s
+  })
+  W
+}
+
 # ---- Checking --------------------------------------------------------------------------
 
 # Every problem with a world, as list(path, message, tiles), where `tiles`
@@ -475,6 +524,7 @@ world_check <- function(W) {
   layouts <- check_layouts(W$layouts, cats, pb)
   check_macro(W$macro, seg_ids, pb)
   check_stores(W$stores, brands, layouts, W, pb)
+  check_transport(W, pb)
   pb$get()
 }
 
@@ -1066,7 +1116,7 @@ check_stores <- function(stores, brands, layouts, W, pb) {
   for (i in seq_along(stores)) {
     s <- stores[[i]]; p <- item_path("stores", i)
     if (!is.list(s)) { pb$add(p, "must be an object"); next }
-    pb$keys(s, p, c("id", "name", "short", "brand", "layout", "x", "y", "staff"), c("id", "name", "short", "brand", "layout", "staff"))
+    pb$keys(s, p, c("id", "name", "short", "brand", "layout", "x", "y", "venue", "staff"), c("id", "name", "short", "brand", "layout", "staff"))
     pb$str(s$name, join_path(p, "name")); pb$str(s$short, join_path(p, "short"), 16)
     b <- if (is.character(s$brand)) match(s$brand, brands$ids) else NA
     if (!is.null(s$brand) && is.na(b)) pb$add(join_path(p, "brand"), sprintf("no brand called %s", json_value(s$brand, "")))
@@ -1200,6 +1250,7 @@ world_install <- function(W) {
                         x = num(st, "x"), y = num(st, "y"), stringsAsFactors = FALSE)
   N_STORES <<- nrow(STORES)
   STORES$area <<- store_area(STORES$x, STORES$y)
+  transport_install(W)
   # Where a sale is made: a store, or a brand's online store (outlet
   # N_STORES + b). The tallies keep sales, refunds and visits by outlet.
   N_OUTLETS <<- N_STORES + N_BRANDS
@@ -1212,8 +1263,8 @@ world_install <- function(W) {
   # What was worked out for the last world, dropped where it no longer fits.
   keys <- list(
     layouts = world_text(list(W$layouts, lapply(cats, `[`, c("key", "name")))),
-    routes = world_text(list(W$macro[c("patch_m", "tiles", "road_mps", "local_mps")], lapply(st, `[`, c("x", "y")))),
-    households = world_text(list(W$macro, lapply(segs, `[`, c("id", "budget")),
+    routes = world_text(list(W$macro[c("patch_m", "tiles", "road_mps", "local_mps", "walk_mps", "parking", "venues")], lapply(st, `[`, c("x", "y")))),
+    households = world_text(list(W$macro, lapply(segs, `[`, c("id", "budget", "car_share")),
                                  lapply(br, function(b) list(b$id, b$fit, lapply(b$loyalty$tiers, `[`, c("id", "share")))))))
   if (!identical(keys$layouts, world_key$layouts)) fl <<- NULL
   if (!identical(keys$routes, world_key$routes)) city <<- NULL

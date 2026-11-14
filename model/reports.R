@@ -70,8 +70,7 @@ report_header <- function() {
        share = if (sum(net)) sum(net[OURS_B]) / sum(net) else NA, sales = sum(net[OURS_B]),      # net of refunds
        conversion = if (entered) paid / entered else NA,                                           # shopping visits, in our stores and online
        in_stores = sum(d$arrive <= clock & d$gone > clock),
-       on_road = if (P$pace == "watch") sum((d$arrive > clock & d$arrive - d$travel <= clock) |
-                                             (is.finite(d$gone) & d$gone <= clock & d$gone + d$travel > clock)) else 0)
+       on_road = if (P$pace == "watch") outside_count(clock) else 0)
 }
 
 # ---- Setup ----------------------------------------------------------------------------
@@ -170,7 +169,7 @@ appeal_parts <- function(h) {
       returns = pull * cover[b])
   }
   price <- price_position()[b] * (1 - pr$off[1, b]) * (1 - mk$at$coupon[h, b])
-  parts <- parts_of(b, price, -P$km_w * SEGMENTS$km[seg] * mk$km[h, s], FORMAT_APPEAL[STORES$format], RETURN_PULL[["store"]])
+  parts <- parts_of(b, price, -mk$tcost[h, s], FORMAT_APPEAL[STORES$format], RETURN_PULL[["store"]])
   reach <- mk$km[h, s] <= SEGMENTS$radius_km[seg] * TIER_RADIUS[cbind(b, mk$tier[h, b])]
   bo <- which(ONLINE$on)
   online <- NULL
@@ -449,7 +448,10 @@ funnel_returns <- function(outlets, bins, days) {
 live_stages <- function(stores, bins) {
   t <- clock
   sel <- d$store %in% stores & d$bin %in% bins & !d$ret
-  on_way <- sum(sel & d$arrive > t & d$arrive - d$travel <= t)
+  # On the way: outings out (driving, parking or walking) whose next store
+  # is one of these, from households in these areas.
+  on_way <- if (is.null(og) || !og$n) 0 else sum(og$dest %in% stores & mk$hh$bin[og$hh] %in% bins & og$kind == OG_SHOP &
+                                                  og$t_depart <= t & og$cur_v == 0L & og$n_visits == 0L & is.finite(og$ev_at) & og$ended == 0L)
   m <- legs$m[seq_len(legs$n), , drop = FALSE]
   m <- m[m[, "t0"] <= t & m[, "t1"] > t, , drop = FALSE]
   m <- m[sel[m[, "visit"]], , drop = FALSE]

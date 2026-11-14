@@ -88,6 +88,40 @@ offer_effects <- function() {
   out
 }
 
+# A coupon used at a till (or on an online order) is spent there and then:
+# the household's coupons are worked out again at once, so a later visit
+# the same day can't use it again (its next deepest, if it holds another,
+# applies instead).
+coupon_spent <- function(h, k) {
+  if (!length(h)) return(invisible())
+  for (kk in unique(k)) {
+    slot <- ofr$slot[[kk]]
+    if (is.null(slot)) next
+    hs <- h[k == kk]
+    ofr$used[[kk]][slot[hs]] <<- day
+  }
+  h <- unique(h)
+  n <- length(h); B <- N_BRANDS
+  out <- list(shop = rep(1, n), util = matrix(0, n, B), coupon = matrix(0, n, B), coupon_from = matrix(0L, n, B))
+  for (k in offers_live()) {
+    slot <- ofr$slot[[k]][h]
+    j <- which(slot > 0L)
+    if (!length(j)) next
+    j <- j[ofr$sent[[k]][slot[j]] & ofr$used[[k]][slot[j]] == 0L]
+    if (!length(j)) next
+    p <- slot[j]
+    out$shop[j] <- out$shop[j] + ofr$shop[[k]][p]
+    for (a in which(OFFER_GOOD[k, ])) {
+      out$util[j, a] <- out$util[j, a] + ofr$util[[k]][p]
+      deeper <- j[OFFERS$depth[k] > out$coupon[j, a]]
+      out$coupon[deeper, a] <- OFFERS$depth[k]; out$coupon_from[deeper, a] <- k
+    }
+  }
+  mk$at$shop[h] <<- out$shop; mk$at$util[h, ] <<- out$util
+  mk$at$coupon[h, ] <<- out$coupon; mk$at$coupon_from[h, ] <<- out$coupon_from
+  invisible()
+}
+
 # Morning: fatigue fades, today's offers draw their audiences and send
 # their coupons (charged today), and an offer that ended yesterday stops
 # watching for its households' purchases.
@@ -190,9 +224,11 @@ diff_ci <- function(x, a, b) {
   list(diff = ma - mb, lo = ma - mb - 1.96 * se, hi = ma - mb + 1.96 * se, treated = ma, control = mb)
 }
 
-# The returns so far of every purchase, by household and day (a household
-# makes one shopping visit a day): the refunds, and the margin they took
-# back (the refund, less the cost of the units back in stock).
+# The returns so far of every purchase, by household, day and brand (a
+# household may buy at several stores in a day; the offer log's rows are
+# summed the same way before these come off them): the refunds, and the
+# margin they took back (the refund, less the cost of the units back in
+# stock).
 returns_by_purchase <- function() {
   if (!ledger$n) return(NULL)
   I <- ledger$i[seq_len(ledger$n), , drop = FALSE]
@@ -200,10 +236,10 @@ returns_by_purchase <- function() {
   if (!length(r)) return(NULL)
   paid <- ledger$m[r, "paid"]
   cost <- PROD_COST[cbind(I[r, "brand"], product_of(I[r, "sku"]))] * (I[r, "fate"] == FATE_RESTOCK)
-  agg <- rowsum(cbind(paid, paid - cost), purchase_key(I[r, "hh"], I[r, "day"]))
-  list(key = as.integer(rownames(agg)), refund = agg[, 1], margin = agg[, 2])
+  agg <- rowsum(cbind(paid, paid - cost), purchase_key(I[r, "hh"], I[r, "day"], I[r, "brand"]))
+  list(key = as.numeric(rownames(agg)), refund = agg[, 1], margin = agg[, 2])
 }
-purchase_key <- function(h, t) (as.integer(h) - 1L) * (MAX_SEASON_DAYS + 1L) + as.integer(t)
+purchase_key <- function(h, t, b) ((as.numeric(h) - 1) * (MAX_SEASON_DAYS + 1) + as.numeric(t)) * (MAX_BRANDS + 1) + as.numeric(b)
 
 # Offer k, as measured so far: its state, audience, coupons used, and what
 # the households sent it did against those held out, per household over
@@ -227,10 +263,19 @@ offer_results <- function(k, rd = report_day(), detail = FALSE, back = returns_b
   if (state == "planned") return(base)
   sent <- ofr$sent[[k]]; held <- !sent; m <- length(sent)
   L <- offer_purchases(k, rd)
+  # One row per household, day and brand (several stores of a brand the
+  # same day are one purchase here, as their returns are summed).
+  if (dim(L)[1L]) {
+    key <- purchase_key(L[, "member"], L[, "day"], L[, "brand"])
+    first <- !duplicated(key)
+    sums <- rowsum(L[, c("sales", "margin", "coupon"), drop = FALSE], match(key, key[first]), reorder = FALSE)
+    L <- L[first, , drop = FALSE]
+    L[, c("sales", "margin", "coupon")] <- sums
+  }
   # Net of returns: each purchase less what has come back of it.
   refunded <- numeric(dim(L)[1L])
   if (!is.null(back) && dim(L)[1L]) {
-    j <- match(purchase_key(ofr$members[[k]][L[, "member"]], L[, "day"]), back$key)
+    j <- match(purchase_key(ofr$members[[k]][L[, "member"]], L[, "day"], L[, "brand"]), back$key)
     hit <- !is.na(j)
     refunded[hit] <- back$refund[j[hit]]
     L[hit, "sales"] <- L[hit, "sales"] - back$refund[j[hit]]

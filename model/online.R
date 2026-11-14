@@ -120,6 +120,8 @@ online_close <- function(v) {
   if (!length(o)) return(invisible())
   b <- d$brand[o]
   settle_sale(o, KIND_ONLINE, day + as.integer(ONLINE$delivery_days[b]))
+  cp <- o[d$coupon_from[o] > 0L]
+  if (length(cp)) coupon_spent(d$hh[cp], d$coupon_from[cp])
   d$delivery[o] <<- ONLINE$delivery_charge[b]
   d$outcome[o] <<- 1L
   today$orders <<- today$orders + tabulate(b, N_BRANDS)
@@ -156,7 +158,7 @@ settle_sale <- function(v, kind, in_hand, tried = NULL) {
   row <- k %/% MAX_ITEMS + 1L
   at <- (k %% MAX_ITEMS) * n + row                   # each item's place in the visits x items tables
   dv <- v[row]
-  big <- (k %% MAX_ITEMS) * d$v + dv                 # ... and in the day's
+  big <- (k %% MAX_ITEMS) * dim(d$full_for)[1L] + dv                 # ... and in the day's
   if (!is.null(tried)) kind <- ifelse_int(tried[row] & TRY_ON[sku_category(held[at], d$brand[dv])], KIND_TRIED, KIND_UNTRIED)
   ledger_add(d$hh[dv], d$brand[dv], d$store[dv], held[at], d$full_for[big], d$md_for[big], d$off_for[big], d$paid_for[big],
              ifelse_int(d$coupon[dv] > 0, d$coupon_from[dv], 0L), kind, rep_len(in_hand, n)[row])

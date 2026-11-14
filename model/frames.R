@@ -71,7 +71,8 @@ floor_agents <- function(s, t) {
 
 # One tick's moving parts for the page, packed as one vector of doubles:
 #   header   version, homes version, store clock (s), day
-#   map      n, then x, y (metres), brand, going home (0/1) for each traveller
+#   map      n, then x, y (metres), brand, going home (0/1), and kind (1 a car
+#            on the move, 2 someone walking, 3 a parked car) for each
 #   floor    n, then x, y (cells), look, visit id for each shopper
 #   staff    n, then x, y, role (1 cashier, 2 assistant), number, busy
 #   rooms    n, then busy, open for each fitting cubicle
@@ -81,7 +82,7 @@ frame_pack <- function(map = TRUE, store = 0L) {
   out <- c(1, homes_version, t, day)
   if (map && P$pace == "watch" && !season_over) {
     tr <- travellers_at(t)
-    out <- c(out, length(tr$x), round(tr$x), round(tr$y), tr$brand, as.numeric(tr$back))
+    out <- c(out, length(tr$x), round(tr$x), round(tr$y), tr$brand, as.numeric(tr$back), tr$kind)
   } else out <- c(out, 0)
   if (store > 0) {
     fa <- floor_agents(store, t)

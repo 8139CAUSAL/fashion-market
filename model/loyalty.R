@@ -66,8 +66,10 @@ season_spend <- function(rd = report_day()) {
   if (rd$day > mk$spend_day) {
     paid <- which(rd$d$outcome == 1L)
     if (length(paid)) {
-      hb <- cbind(rd$d$hh[paid], rd$d$brand[paid])
-      sp[hb] <- sp[hb] + rd$d$sales[paid]
+      add <- rowsum(rd$d$sales[paid], (rd$d$brand[paid] - 1L) * mk$hh$n + rd$d$hh[paid])
+      k <- as.integer(rownames(add))
+      hb <- cbind((k - 1L) %% mk$hh$n + 1L, (k - 1L) %/% mk$hh$n + 1L)
+      sp[hb] <- sp[hb] + add[, 1]
     }
     rf <- refunds_today(rd$today$returned)
     if (length(rf$hh)) sp[cbind(rf$hh, rf$brand)] <- sp[cbind(rf$hh, rf$brand)] - rf$refund
@@ -85,8 +87,12 @@ tiers_evening <- function(rf = refunds_today()) {
   mk$spend_day <<- day
   if (length(rf$hh)) mk$spend[cbind(rf$hh, rf$brand)] <<- mk$spend[cbind(rf$hh, rf$brand)] - rf$refund
   if (!length(paid)) return(invisible())
-  hb <- cbind(d$hh[paid], d$brand[paid])                 # a household makes one shopping visit a day
-  mk$spend[hb] <<- mk$spend[hb] + d$sales[paid]
+  # A household may have paid at several stores of a brand today: its
+  # spend with the brand goes up by all of it.
+  add <- rowsum(d$sales[paid], (d$brand[paid] - 1L) * mk$hh$n + d$hh[paid])
+  k <- as.integer(rownames(add))
+  hb <- cbind((k - 1L) %% mk$hh$n + 1L, (k - 1L) %/% mk$hh$n + 1L)
+  mk$spend[hb] <<- mk$spend[hb] + add[, 1]
   mk$spend_max[hb] <<- pmax(mk$spend_max[hb], mk$spend[hb])
   for (b in unique(hb[, 2])) {
     h <- hb[hb[, 2] == b, 1]
