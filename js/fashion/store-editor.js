@@ -7,7 +7,7 @@
 // its staffing and service are live.
 
 import { el, card, select, textField, settingLever } from "./ui.js";
-import { newId, newName } from "./world-store.js";
+import { newId, newName, placed, tileAt } from "./world-store.js";
 import { layoutCapacity } from "./layout-editor.js";
 
 export class StoreEditor {
@@ -122,12 +122,12 @@ export class StoreEditor {
   }
 }
 
-export const placed = (s) => Number.isFinite(s.x) && Number.isFinite(s.y);
+export { placed };
 
 // The area a placed store stands in, from the map's area layer.
 function areaOf(d, st) {
   const m = d.macro;
-  const r = m.height - 1 - Math.floor(st.y / m.patch_m); const c = Math.floor(st.x / m.patch_m);
+  const { r, c } = tileAt(m, st.x, st.y);
   const key = m.area_tiles?.[r]?.[c];
   return m.areas.find((a) => a.key === key) ?? null;
 }

@@ -138,6 +138,8 @@ export class LayoutEditor {
     this.editor = new GridEditor(wrap, {
       layers: [{ id: "floor", erase: ".", colour: (ch) => floorColour(ch, this.editor?.wrap ?? document.documentElement, this.categories) }],
       cellPx: 10,
+      names: { material: (ch) => this.#tileName(ch), stamp: () => STAMPS.find((x) => x.id === this.stampId)?.name },
+      cellM: () => 0.5,
       tools: [{ ...QUEUE_TOOL, paint: (cells) => this.#queueCells(cells) }, STAMP_TOOL],
       onStroke: () => this.#stroked(),
       onPick: () => { this.editor.setTool("pencil"); this.#renderPalette(); },
@@ -151,7 +153,10 @@ export class LayoutEditor {
     this.editor.setPaint("#");
     this.hoverText = el("div", { class: "editor-hover" });
     this.centre = card("Plan", { sub: "one tile is half a metre" });
-    this.centre.body.append(el("div", { class: "editor-bar" }, toolbar(this.editor)), wrap, el("div", { class: "editor-foot" }, this.hoverText));
+    this.tools = toolbar(this.editor, { place: {
+      label: "Place", title: "Place a fixture, put down whole: a walled fitting room or a till unit ([ and ] turn it)",
+      onClick: () => this.#pickStamp(this.stampId ?? this.lastStamp ?? STAMPS[0].id), active: () => this.editor.tool === "stamp" } });
+    this.centre.body.append(el("div", { class: "editor-bar" }, this.tools), wrap, el("div", { class: "editor-foot" }, this.hoverText));
 
     this.palette = el("div", { class: "palette grouped" });
     this.props = el("div");
@@ -232,7 +237,7 @@ export class LayoutEditor {
   }
 
   #pickStamp(id) {
-    this.stampId = id;
+    this.stampId = id; this.lastStamp = id;
     this.editor.setStamp(STAMPS.find((x) => x.id === id).rows.slice());
     this.editor.setTool("stamp");
   }

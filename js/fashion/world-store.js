@@ -68,6 +68,18 @@ export function newName(items, base) {
   for (let k = 2; ; k++) if (!taken.has(`${base} ${k}`)) return `${base} ${k}`;
 }
 
+// ---- Where things stand on the map ---------------------------------------------------
+
+// The map's tiles are rows from the north edge, row 0 first. A point on the
+// map is metres east (x) and north (y) of its south-west corner, which is
+// how the model takes it (model/city.R): the tile in row r, column c is the
+// NetLogoR patch pxcor = c, pycor = height - 1 - r, and a store stands on
+// the patch its point falls in.
+export const placed = (s) => Number.isFinite(s.x) && Number.isFinite(s.y);
+export function tileAt(m, x, y) { return { r: m.height - 1 - Math.floor(y / m.patch_m), c: Math.floor(x / m.patch_m) }; }
+export function tileCentre(m, r, c) { return { x: (c + 0.5) * m.patch_m, y: (m.height - r - 0.5) * m.patch_m }; }
+export function patchOf(m, r, c) { return { pxcor: c, pycor: m.height - 1 - r }; }
+
 // ---- Live settings, and what waits for Setup ----------------------------------------
 
 export const LIVE_STOCK = ["allocation", "lead_days", "opening_weeks", "delivery_fee", "unit_fee", "salvage"];

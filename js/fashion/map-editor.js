@@ -52,21 +52,26 @@ export class MapEditor {
         { id: "areas", erase: ".", colour: (ch) => this.#areaColour(ch), alpha: 0.35 },
       ],
       cellPx: 5,
+      names: { material: (ch, layer) => this.#materialName(ch, layer), layer: (i) => (i === 1 ? "Areas" : "Land") },
+      cellM: () => this.world.draft?.macro.patch_m,
       onStroke: () => this.#stroked(),
       onPick: (ch) => this.#picked(ch),
       onHover: (cell) => this.#hover(cell),
+      onToolChange: (tool) => this.#toolChanged(tool),
       onDrop: (mv) => this.#dropped(mv),
       drawOver: (ctx, ed) => this.#drawOver(ctx, ed),
       snapshot: () => this.#undoState(),
       restore: (u) => this.#restoreUndo(u),
-      pointer: { down: (ev, cell) => this.#storeDown(ev, cell), move: (ev, cell) => this.#storeMove(ev, cell), up: () => this.#storeUp() },
+      pointer: { down: (ev, cell) => this.#storeDown(ev, cell), move: (ev, cell) => this.#storeMove(ev, cell), up: () => this.#storeUp(), cancel: () => this.#storeCancel() },
     });
     this.editor.transform = (ch, old) => {
       if (this.layer !== "land") return ch;
       if (ch === "=" && (old === "~" || old === "+")) return "+";       // a road over water is a bridge
       return ch;
     };
-    this.tools = toolbar(this.editor);
+    this.tools = toolbar(this.editor, { place: {
+      label: "Place store", title: "Place store: put the world's stores on the map, and drag one to move it (the Stores layer)",
+      onClick: () => this.#setLayer("stores"), active: () => this.layer === "stores", describe: () => this.#storeHint() } });
     this.layerSeg = segmented({ label: "Layer", value: "land", options: [
       { value: "land", label: "Land" }, { value: "areas", label: "Areas" }, { value: "stores", label: "Stores" }],
     onChange: (v) => this.#setLayer(v) });
@@ -142,11 +147,24 @@ export class MapEditor {
     const areas = this.editor.layers[1];
     areas.alpha = layer === "areas" ? 0.7 : 0.3; areas.image = null;
     this.editor.setActive(layer === "areas" ? 1 : 0);
-    this.tools.hidden = layer === "stores";
+    if (layer !== "stores") this.paintLayer = layer;
     if (layer === "stores") this.editor.setTool("pan");
     else if (["pan"].includes(this.editor.tool)) this.editor.setTool("pencil");
     this.#renderPalette();
+    this.tools.sync();
     this.editor.draw();
+  }
+
+  // A painting tool picked while the stores are being placed: back to the
+  // layer that was being painted.
+  #toolChanged(tool) {
+    if (this.layer === "stores" && tool !== "pan") this.#setLayer(this.paintLayer ?? "land");
+  }
+
+  // A tile's name, as the palette says it.
+  #materialName(ch, layer) {
+    if (layer === 1) return ch === "." ? "No area" : this.world.draft?.macro.areas.find((a) => a.key === ch)?.name ?? ch;
+    return LAND.find((t) => t.ch === ch)?.label ?? (ch === "+" ? "Bridge" : ch);
   }
 
   #renderPalette() {
@@ -171,11 +189,14 @@ export class MapEditor {
   #picked() { this.editor.setTool("pencil"); this.#renderPalette(); }
 
   // The Stores layer's own tools: what a click does.
+  #storeHint() {
+    const st = this.world.draft?.stores.find((s) => s.id === this.selected);
+    return st && !placed(st) ? `Place store · click the map where ${st.name} goes (not on water)`
+      : "Place store · select a store on the map or in the list and drag it to move it; one not on the map yet goes where you click once it's selected";
+  }
+
   #storeTools() {
-    const st = this.world.draft.stores.find((s) => s.id === this.selected);
-    const text = st && !placed(st) ? `Click the map where ${st.name} goes (not on water).`
-      : "Select a store on the map or in the list; drag it to move it. A store not on the map yet goes where you click once it's selected.";
-    return el("div", { class: "store-tools" }, el("span", { class: "note", text }));
+    return el("div", { class: "store-tools" }, el("span", { class: "note", text: this.#storeHint().replace(/^Place store · /, "").replace(/^./, (x) => x.toUpperCase()) }));
   }
 
   // A store from the list (or the micro world): selected, on the Stores layer.
@@ -409,6 +430,17 @@ export class MapEditor {
       this.#renderSide(); this.#schedulePreview();
     }
     return true;
+  }
+
+  // The drag was taken away before it was let go: the store goes back to
+  // where it was picked up.
+  #storeCancel() {
+    if (!this.moving) return;
+    const mv = this.moving; this.moving = null;
+    const st = this.world.draft.stores.find((s) => s.id === mv.id);
+    const at = mv.snap.at[mv.id];
+    if (st && at) { st.x = at[0]; st.y = at[1]; }
+    this.editor.draw();
   }
 
   // ---- Beside the map ---------------------------------------------------------------------------

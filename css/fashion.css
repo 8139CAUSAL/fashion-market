@@ -484,12 +484,32 @@ table.tier-matrix td.down { background: color-mix(in srgb, var(--tier-down) 12%,
 
 /* The editors. */
 .editor-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; }
-.tool { width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent; background: none; color: var(--ink-2); display: inline-grid; place-items: center; cursor: pointer; }
+/* The tools: a first row with their names (draw, the brush's size, fill,
+   erase, place, undo and redo, the view), a second of the rest, and a line
+   saying what a press would do. */
+.toolbar { display: grid; gap: 4px; flex: 1 1 100%; min-width: 0; }
+.tool-row { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.tool-row.secondary { color: var(--muted); }
+.tool { width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent; background: none; color: var(--ink-2); display: inline-grid; place-items: center; cursor: pointer; flex: none; }
 .tool:hover { background: var(--surface-3); }
-.tool[aria-pressed="true"] { background: var(--surface); border-color: var(--hairline); color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
-.tool.text { width: auto; min-width: 30px; padding: 0 6px; font-size: 13px; }
-.tool-gap { width: 10px; }
+.tool:focus-visible, .view-seg button:focus-visible, .swatch:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tool[aria-pressed="true"], .tool[aria-checked="true"] { background: var(--surface); border-color: var(--hairline); color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.tool[disabled] { opacity: 0.4; cursor: default; }
+.tool[disabled]:hover { background: none; }
+.tool.text { width: auto; min-width: 30px; padding: 0 6px; font-size: 15px; }
+.tool.labelled { width: auto; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px 0 7px; font-size: 12.5px; height: 32px; }
+.tool-row.primary .tool.labelled { font-weight: 600; color: var(--ink); border-color: var(--hairline); background: var(--surface-2); }
+.tool-row.primary .tool.labelled:hover { background: var(--surface-3); }
+.tool-row.primary .tool.labelled[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: none; }
+.tool-row.secondary .tool.labelled { height: 26px; font-size: 12px; padding: 0 7px 0 5px; }
+.tool-gap { width: 8px; flex: none; }
+.tool-caption { font-size: 11.5px; color: var(--muted); padding: 0 2px 0 4px; white-space: nowrap; }
+.brush-sizes { display: inline-flex; align-items: center; gap: 2px; padding: 0 3px; height: 32px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface-2); }
+.tool.brush { width: auto; height: 26px; display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; font-size: 11.5px; font-weight: 650; }
+/* A brush's square: as many (small) cells a side as the brush paints. */
+.brush-dot { display: block; width: calc(3px + var(--n) * 2px); height: calc(3px + var(--n) * 2px); background: currentColor; border-radius: 1px; }
+.view-seg button { height: 30px; padding: 0 10px; font-size: 12.5px; }
+.tool-info { font-size: 12px; color: var(--ink-2); min-height: 17px; font-variant-numeric: tabular-nums; }
 .editor-canvas { position: relative; height: min(70vh, 640px); min-height: 360px; border-radius: var(--radius-sm); border: 1px solid var(--hairline); background: var(--surface-2); overflow: hidden; }
 .editor-canvas canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
 .editor-canvas canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
