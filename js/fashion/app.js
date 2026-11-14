@@ -58,7 +58,7 @@ function parseFrame(buffer) {
   let i = 4;
   const take = (n) => { const a = f.subarray(i, i + n); i += n; return a; };
   const nt = f[i++];
-  const travellers = { n: nt, x: take(nt), y: take(nt), brand: take(nt), back: take(nt) };
+  const travellers = { n: nt, x: take(nt), y: take(nt), brand: take(nt), back: take(nt), kind: take(nt) };   // kind: 1 a car moving, 2 a walker, 3 a parked car
   const n = f[i++];
   const floor = { n, x: take(n), y: take(n), look: take(n), visit: take(n) };
   const ns = f[i++];

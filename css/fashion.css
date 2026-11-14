@@ -45,6 +45,8 @@
   --map-land: #ecebe4; --map-water: #b9d5ea; --map-park: #cfe3c2; --map-shops: #e6d3bd;
   --map-road: #ffffff; --map-road-edge: #d6d4ca; --map-street: rgba(255, 255, 255, 0.7);
   --map-label: #3a3935; --map-homes: #b98f5e; --map-road-paint: #8f8c82;
+  --map-wood: #9cbf8a; --map-building: #b7b2a6; --map-path: #c9a46b; --map-lot: #c9c9cf; --map-garage: #8b8f9e; --map-mall: #d8b4c8;
+  --map-highway: #e6a23c; --map-plaza: #e9dcc8; --map-car: #2d3a5c; --map-walker: #2f7d4f;
   --floor-bg: #f7f5ef; --floor-wall: #3a3935; --floor-line: #d9d6cc;
 
   --radius: 10px;
@@ -68,7 +70,11 @@
     --look-1: #c3c2b7; --look-2: #3987e5; --look-3: #c98500; --look-4: #d55181; --look-5: #0ca30c; --look-6: #e66767; --look-7: #199e70; --look-8: #a37ef0;
     --stage-1: #184f95; --stage-2: #1c5cab; --stage-3: #256abf; --stage-4: #2a78d6; --stage-5: #3987e5; --stage-6: #5598e7;
     --map-land: #1f1f1d; --map-water: #1b3246; --map-park: #1f3321; --map-shops: #3a2f24;
-    --map-road: #3a3a37; --map-road-edge: #2a2a28; --map-street: rgba(255, 255, 255, 0.07); --map-label: #e8e6dc; --map-homes: #7a6243; --map-road-paint: #77756d; --map-homes: #7a6243; --map-road-paint: #77756d;
+    --map-road: #3a3a37; --map-road-edge: #2a2a28; --map-street: rgba(255, 255, 255, 0.07); --map-label: #e8e6dc; --map-homes: #7a6243; --map-road-paint: #77756d;
+  --map-wood: #2c4a26; --map-building: #4a4741; --map-path: #7a6338; --map-lot: #44444b; --map-garage: #5b5f6e; --map-mall: #5a3d4e;
+  --map-highway: #9c6a22; --map-plaza: #3d342a; --map-car: #c9d4f0; --map-walker: #8fd3a8; --map-homes: #7a6243; --map-road-paint: #77756d;
+  --map-wood: #2c4a26; --map-building: #4a4741; --map-path: #7a6338; --map-lot: #44444b; --map-garage: #5b5f6e; --map-mall: #5a3d4e;
+  --map-highway: #9c6a22; --map-plaza: #3d342a; --map-car: #c9d4f0; --map-walker: #8fd3a8;
     --floor-bg: #232321; --floor-wall: #cfcdc3; --floor-line: #34342f;
     --shadow: none;
   }
@@ -87,6 +93,8 @@
   --stage-1: #184f95; --stage-2: #1c5cab; --stage-3: #256abf; --stage-4: #2a78d6; --stage-5: #3987e5; --stage-6: #5598e7;
   --map-land: #1f1f1d; --map-water: #1b3246; --map-park: #1f3321; --map-shops: #3a2f24;
   --map-road: #3a3a37; --map-road-edge: #2a2a28; --map-street: rgba(255, 255, 255, 0.07); --map-label: #e8e6dc; --map-homes: #7a6243; --map-road-paint: #77756d;
+  --map-wood: #2c4a26; --map-building: #4a4741; --map-path: #7a6338; --map-lot: #44444b; --map-garage: #5b5f6e; --map-mall: #5a3d4e;
+  --map-highway: #9c6a22; --map-plaza: #3d342a; --map-car: #c9d4f0; --map-walker: #8fd3a8;
   --floor-bg: #232321; --floor-wall: #cfcdc3; --floor-line: #34342f;
   --shadow: none;
 }

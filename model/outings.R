@@ -130,6 +130,17 @@ pk_add <- function(fac, o, t_in, level) {
   n + 1L
 }
 
+# Many cars taking spaces at once (facilities f, outings o, at times t, on levels).
+pk_add_many <- function(f, o, t, level) {
+  k <- length(o); n <- pk$n; cap <- dim(pk$m)[1L]
+  if (n + k > cap) pk$m <<- rbind(pk$m, matrix(0, max(k, cap), length(PK_FIELDS)))
+  rows <- n + seq_len(k)
+  pk$m[rows, ] <<- cbind(f, o, og$hh[o], t, Inf, level)
+  pk$n <<- n + k
+  for (ff in unique(f)) pk$rows[[ff]] <<- c(pk$rows[[ff]], rows[f == ff])
+  rows
+}
+
 # Cars in facility f at time t.
 occupancy <- function(f, t) {
   r <- pk$rows[[f]]
@@ -203,7 +214,47 @@ og_depart <- function(o) {
 og_at_fac <- function(o) {
   T <- city
   door_o <- integer(); door_s <- integer(); door_t <- numeric()
-  for (j in seq_along(o)) {
+  L <- list(o = integer(), kind = integer(), t0 = numeric(), t1 = numeric(), graph = integer(), field = integer(), from = integer(), rev = integer(), fac = integer(), store = integer())
+  leg <- function(i, kind, t0, t1, graph = 0L, field = 0L, from = 0L, rev = 0L, fac = 0L, store = 0L) {
+    n <- length(i); r <- function(x) rep_len(x, n)
+    L$o <<- c(L$o, i); L$kind <<- c(L$kind, r(kind)); L$t0 <<- c(L$t0, r(t0)); L$t1 <<- c(L$t1, r(t1)); L$graph <<- c(L$graph, r(graph))
+    L$field <<- c(L$field, r(field)); L$from <<- c(L$from, r(from)); L$rev <<- c(L$rev, r(rev)); L$fac <<- c(L$fac, r(fac)); L$store <<- c(L$store, r(store))
+  }
+  # Where a facility has room for every car reaching it in this run, they
+  # all park at once (each on the level its arrival finds: the cars in at
+  # that moment, and those of the run ahead of it); the cars of a facility
+  # that may fill are taken one at a time, in the order they arrive.
+  fac_o <- og$fac[o]
+  easy <- logical(length(o))
+  for (f in unique(fac_o)) {
+    j <- which(fac_o == f); t <- og$ev_at[o[j]]
+    r <- pk$rows[[f]]
+    base <- if (length(r)) .colSums(outer(pk$m[r, "t_in"], t, "<=") & outer(pk$m[r, "t_out"], t, ">"), length(r), length(j)) else numeric(length(j))
+    occ <- base + seq_along(j) - 1L
+    if (all(occ < FAC$spaces[f])) easy[j] <- TRUE
+  }
+  if (any(easy)) {
+    e <- o[easy]; t <- og$ev_at[e]; f <- og$fac[e]; s <- og$dest[e]
+    occ <- integer(length(e))
+    for (ff in unique(f)) {
+      j <- which(f == ff); r <- pk$rows[[ff]]
+      base <- if (length(r)) .colSums(outer(pk$m[r, "t_in"], t[j], "<=") & outer(pk$m[r, "t_out"], t[j], ">"), length(r), length(j)) else numeric(length(j))
+      occ[j] <- base + seq_along(j) - 1L
+    }
+    per <- ceiling(FAC$spaces[f] / FAC$levels[f])
+    level <- ifelse(FAC$kind[f] == "garage", pmin(FAC$levels[f], occ %/% per + 1), 1)
+    og$park_row[e] <<- pk_add_many(f, e, t, level)
+    t1 <- t + FAC$search_s[f] + (level - 1) * FAC$level_s[f]; t2 <- t1 + FAC$transfer_s[f]
+    ex <- T$fw_node[cbind(f, s)]; wt <- T$fw_t[cbind(f, s)]
+    k <- length(e)
+    leg(e, rep(OL_PARK, k), t, t1, 0L, 0L, 0L, 0L, f, 0L)
+    leg(e, rep(OL_PARKED, k), t1, rep(Inf, k), 0L, 0L, 0L, 0L, f, 0L)
+    leg(e, rep(OL_TRANSFER, k), t1, t2, rep(2L, k), s, ex, 0L, f, 0L)
+    leg(e, rep(OL_WALK, k), t2, t2 + wt, rep(2L, k), s, ex, 0L, f, s)
+    og$ev_at[e] <<- Inf
+    door_o <- c(door_o, e); door_s <- c(door_s, s); door_t <- c(door_t, t2 + wt)
+  }
+  for (j in which(!easy)) {
     i <- o[j]; t <- og$ev_at[i]; f <- og$fac[i]; s <- og$dest[i]
     occ <- occupancy(f, t)
     if (occ < FAC$spaces[f]) {
@@ -213,10 +264,10 @@ og_at_fac <- function(o) {
       park <- FAC$search_s[f] + (level - 1) * FAC$level_s[f]
       t1 <- t + park; t2 <- t1 + FAC$transfer_s[f]
       ex <- T$fw_node[f, s]; wt <- T$fw_t[f, s]
-      ol_add(i, OL_PARK, t, t1, fac = f)
-      og$parked_leg[i] <<- ol_add(i, OL_PARKED, t1, Inf, fac = f)
-      ol_add(i, OL_TRANSFER, t1, t2, 2L, s, ex, 0L, f)
-      ol_add(i, OL_WALK, t2, t2 + wt, 2L, s, ex, 0L, f, s)
+      leg(i, OL_PARK, t, t1, fac = f)
+      leg(i, OL_PARKED, t1, Inf, fac = f)
+      leg(i, OL_TRANSFER, t1, t2, 2L, s, ex, 0L, f)
+      leg(i, OL_WALK, t2, t2 + wt, 2L, s, ex, 0L, f, s)
       og$ev_at[i] <<- Inf
       door_o <- c(door_o, i); door_s <- c(door_s, s); door_t <- c(door_t, t2 + wt)
       next
@@ -242,19 +293,25 @@ og_at_fac <- function(o) {
     }
     if (best > 0L && og$margin[i] - best_extra > 0) {
       og$margin[i] <<- og$margin[i] - best_extra
-      ol_add(i, OL_DRIVE, t, t + best_dt, 1L, best_field, node, 0L, best)
+      leg(i, OL_DRIVE, t, t + best_dt, 1L, best_field, node, 0L, best)
       og$fac[i] <<- best; og$vnode[i] <<- best_node
       og$ev_at[i] <<- t + best_dt
       next
     }
     # Nowhere to park: home (a return trip posts its items back instead).
     if (og$kind[i] == OG_RETURN) post_returns(i)
-    dt <- T$vf$time[mk$hh$tile[h], which(T$vnodes == node & T$vnode_fac == f)[1]]
-    ol_add(i, OL_DRIVE, t, t + dt, 1L, which(T$vnodes == node & T$vnode_fac == f)[1], mk$hh$tile[h], 1L, f)
+    field <- which(T$vnodes == node & T$vnode_fac == f)[1]
+    dt <- T$vf$time[mk$hh$tile[h], field]
+    leg(i, OL_DRIVE, t, t + dt, 1L, field, mk$hh$tile[h], 1L, f)
     og$ended[i] <<- END_NO_PARK
     og$ev_at[i] <<- t + dt; og$ev_kind[i] <<- OE_HOME
   }
-  if (length(door_o)) at_door(door_o, door_s, door_t)
+  if (length(L$o)) {
+    rows <- ol_add(L$o, L$kind, L$t0, L$t1, L$graph, L$field, L$from, L$rev, L$fac, L$store)
+    pr <- rows[L$kind == OL_PARKED]
+    og$parked_leg[L$o[L$kind == OL_PARKED]] <<- pr
+  }
+  if (length(door_o)) { k <- order(match(door_o, o)); at_door(door_o[k], door_s[k], door_t[k]) }   # in the order they arrived
 }
 
 # A return trip that couldn't park: the household posts the items back.
@@ -485,10 +542,12 @@ add_store_visits <- function(o, s, arrive) {
     CT <- og$ct[o[shop], , drop = FALSE]
     ok <- CARRIES[b[shop], , drop = FALSE] & CATEGORY_TASTE[seg[shop], , drop = FALSE] > 0 & !og$got[o[shop], , drop = FALSE]
     CT[!ok] <- -Inf
-    for (j in seq_len(MAX_ITEMS + 1L)) {
-      zone[shop, j] <- row_max(CT)$k
-      CT[cbind(seq_along(shop), zone[shop, j])] <- -Inf
-    }
+    # Each shopper's categories by the day's taste, highest first (ties to
+    # the first): one sort for them all.
+    ns <- length(shop)
+    idx <- order(rep(seq_len(ns), times = N_CATS), -as.vector(CT), rep(seq_len(N_CATS), each = ns))
+    ranked <- matrix((idx - 1L) %/% ns + 1L, nrow = N_CATS)
+    zone[shop, seq_len(min(N_CATS, MAX_ITEMS + 1L))] <- t(ranked)[, seq_len(min(N_CATS, MAX_ITEMS + 1L)), drop = FALSE]
     left <- og$n_want[o[shop]] - .rowSums(og$got[o[shop], , drop = FALSE], length(shop), N_CATS)
     n_zones[shop] <- pmax(1L, pmin(MAX_ITEMS + 1L, left, .rowSums(ok, length(shop), N_CATS)))
   }

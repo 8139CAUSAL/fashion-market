@@ -7,6 +7,11 @@
 //   Areas    optional named regions, painted on their own layer, each with
 //            the make-up of the households who live there (shown beside
 //            the map for the area being painted, and named on the map)
+//   Parking & venues  the parking the user builds (lots and garages made
+//            from painted P and G tiles, kerb spaces clicked onto streets),
+//            shopping venues (malls with a plan of corridors, strip malls,
+//            districts), what the model can't reach, and a trip as the
+//            model would make it (transport-editor.js)
 //   Stores   where each store stands, as a pin in its brand's colour (the
 //            map's shops tiles are ground, not stores): select one (on the
 //            map or in the list), click the map to put it there, drag one
@@ -35,20 +40,29 @@ import { GridEditor, toolbar } from "./grid-editor.js";
 import { mix } from "./city-view.js";
 import { clone, newId, newName, placed, tileAt, tileCentre, setPlace, unplace } from "./world-store.js";
 import { loadGeographies, applyGeography, geographyNeeds, AREA_KEYS } from "./geography.js";
+import { TransportTools } from "./transport-editor.js";
 
 const mps = (v) => `${fmt.num1(v)} m/s`;
 
-// Each tile's name, and what it does in the model (city.R): roads and
-// bridges are fast, water can't be crossed, homes share the map's
-// households by density; parks and shops look different and cross like
-// open land.
+// Each tile's name, its group on the palette, and what it does in the model
+// (transport.R): who can cross it, cars or people or both or neither.
 const LAND = [
-  { ch: ".", label: "Open land", does: (m) => `Trips cross it at ${mps(m.local_mps)}. Nobody lives on it.` },
-  { ch: "=", label: "Road", does: (m) => `Trips run along roads at ${mps(m.road_mps)}. Painted over water, a road becomes a bridge.` },
-  { ch: "~", label: "Water", does: () => "No trip crosses water, and no store stands on it. Paint a road over it for a bridge." },
-  { ch: "p", label: "Park", looks: true, does: (m) => `Looks only: trips cross a park like open land, at ${mps(m.local_mps)}.` },
-  { ch: "s", label: "Shops", looks: true, does: (m) => `Looks only: the ground of a shopping street, crossed like open land at ${mps(m.local_mps)}. The stores shoppers go to are the pins put down with Place store.` },
-  ...Array.from({ length: 9 }, (_, i) => ({ ch: String(i + 1), label: `Homes, density ${i + 1}`, short: String(i + 1), density: i + 1 })),
+  { ch: ".", group: "ground", label: "Open land", does: () => "People can walk across it; cars can't. Nobody lives on it." },
+  { ch: "p", group: "ground", label: "Park", does: () => "People walk its paths; cars can't enter it." },
+  { ch: "w", group: "ground", label: "Woodland", does: () => "No one gets through: paint a footpath across it for a trail." },
+  { ch: "~", group: "ground", label: "Water", does: () => "No one crosses it, and no store stands on it. A street painted over it becomes a bridge, a footpath a footbridge." },
+  { ch: "#", group: "ground", label: "Building or barrier", does: () => "Solid: no car and no one on foot gets through. Walls, fences, blocks." },
+  { ch: "=", group: "cars", label: "Street", does: (m) => `Cars drive it at ${mps(m.road_mps)}; people walk its sidewalks. A street gives no parking: mark kerb spaces on it (Parking & venues).` },
+  { ch: "H", group: "cars", label: "Highway", does: (m) => `Cars only, at ${mps(m.road_mps)}: no sidewalks, and people can't cross it except at a crossing.` },
+  { ch: "x", group: "cars", label: "Crossing", does: (m) => `On a highway: cars drive through at ${mps(m.road_mps)}, and people can cross there.` },
+  { ch: "d", group: "cars", label: "Driveway", does: (m) => `A driveway or service road: cars at ${mps(m.local_mps)}, and people. It joins a lot's entrance to a street.` },
+  { ch: "-", group: "people", label: "Footpath", does: (m) => `People only, at ${mps(m.walk_mps ?? 1.3)}: a path, or a trail through woodland. Over water it becomes a footbridge.` },
+  { ch: "s", group: "people", label: "Pedestrian street", does: () => "A plaza, a pedestrian street or a strip mall's walkway: people only. Shops' doors open onto it." },
+  { ch: "P", group: "parking", label: "Parking lot", does: () => "A surface lot's ground: people walk across it; cars park on it only once it's made a facility (Parking & venues), in by its entrances." },
+  { ch: "G", group: "parking", label: "Parking garage", does: () => "A garage's building: once made a facility, cars go in at its entrances and people leave by its exits; no one passes through." },
+  { ch: "m", group: "parking", label: "Mall building", does: () => "An enclosed mall's building: crossed only along its plan's corridors (Parking & venues)." },
+  ...Array.from({ length: 9 }, (_, i) => ({ ch: String(i + 1), label: `Homes, density ${i + 1}`, short: String(i + 1), density: i + 1,
+    does: (m) => `Households live here; its local streets carry cars at ${mps(m.local_mps)} and people.` })),
 ];
 const ANCHORS = ["nw", "n", "ne", "w", "c", "e", "sw", "s", "se"];
 
@@ -84,14 +98,17 @@ export class MapEditor {
     this.editor.transform = (ch, old) => {
       if (this.layer !== "land") return ch;
       if (ch === "=" && (old === "~" || old === "+")) return "+";       // a road over water is a bridge
+      if (ch === "-" && (old === "~" || old === "f")) return "f";       // a footpath over water is a footbridge
       return ch;
     };
+    this.transport = new TransportTools(this);
     this.tools = toolbar(this.editor, { place: {
       label: "Place store", title: "Place store: put the world's stores on the map, and drag one to move it (the Stores layer)",
       onClick: () => this.#setLayer("stores"), active: () => this.layer === "stores", describe: () => this.#storeHint() } });
     this.layerSeg = segmented({ label: "Layer", value: "land", options: [
       { value: "land", label: "Land", title: "Paint the ground: roads, water, parks, shops and homes" },
       { value: "areas", label: "Areas", title: "Paint named areas: who lives where" },
+      { value: "transport", label: "Parking & venues", title: "Build parking, tie stores into venues, draw a mall's plan, and see what can't be reached" },
       { value: "stores", label: "Stores", title: "Put the stores on the map" }],
     onChange: (v) => this.#setLayer(v) });
     this.palette = el("div", { class: "palette inline", role: "radiogroup", "aria-label": "Paint" });
@@ -150,9 +167,19 @@ export class MapEditor {
       case ".": return cssVar("--map-land", r);
       case "~": return cssVar("--map-water", r);
       case "p": return cssVar("--map-park", r);
-      case "s": return cssVar("--map-shops", r);
+      case "s": return cssVar("--map-plaza", r);
       case "=": return cssVar("--map-road-paint", r);
       case "+": return mix(cssVar("--map-road-paint", r), cssVar("--map-water", r), 0.45);
+      case "w": return cssVar("--map-wood", r);
+      case "#": return cssVar("--map-building", r);
+      case "-": return cssVar("--map-path", r);
+      case "f": return mix(cssVar("--map-path", r), cssVar("--map-water", r), 0.45);
+      case "H": return cssVar("--map-highway", r);
+      case "x": return mix(cssVar("--map-highway", r), "#ffffff", 0.45);
+      case "d": return mix(cssVar("--map-road-paint", r), cssVar("--map-land", r), 0.45);
+      case "P": return cssVar("--map-lot", r);
+      case "G": return cssVar("--map-garage", r);
+      case "m": return cssVar("--map-mall", r);
       default: {
         const k = Number(ch);
         if (k >= 1 && k <= 9) return mix(cssVar("--map-land", r), cssVar("--map-homes", r), 0.25 + 0.75 * (k / 9));
@@ -175,8 +202,8 @@ export class MapEditor {
     const areas = this.editor.layers[1];
     areas.alpha = layer === "areas" ? 0.7 : 0.3; areas.image = null;
     this.editor.setActive(layer === "areas" ? 1 : 0);
-    if (layer !== "stores") this.paintLayer = layer;
-    if (layer === "stores") this.editor.setTool("pan");
+    if (layer !== "stores" && layer !== "transport") this.paintLayer = layer;
+    if (layer === "stores" || layer === "transport") this.editor.setTool("pan");
     else if (["pan"].includes(this.editor.tool)) this.editor.setTool("pencil");
     this.#renderPalette();
     this.#orderSide();
@@ -187,13 +214,13 @@ export class MapEditor {
   // A painting tool picked while the stores are being placed: back to the
   // layer that was being painted.
   #toolChanged(tool) {
-    if (this.layer === "stores" && tool !== "pan") this.#setLayer(this.paintLayer ?? "land");
+    if ((this.layer === "stores" || this.layer === "transport") && tool !== "pan") this.#setLayer(this.paintLayer ?? "land");
   }
 
   // A tile's name, as the palette says it.
   #materialName(ch, layer) {
     if (layer === 1) return ch === "." ? "No area" : this.world.draft?.macro.areas.find((a) => a.key === ch)?.name ?? ch;
-    return LAND.find((t) => t.ch === ch)?.label ?? (ch === "+" ? "Bridge" : ch);
+    return LAND.find((t) => t.ch === ch)?.label ?? ({ "+": "Bridge", f: "Footbridge" }[ch] ?? ch);
   }
 
   // Households a home tile of density k is expected to hold: the map's
@@ -222,17 +249,24 @@ export class MapEditor {
     if (this.layer === "land") {
       if (!LAND.some((t) => t.ch === this.editor.paint)) this.editor.setPaint("=");
       const cur = LAND.find((t) => t.ch === this.editor.paint);
-      const ground = LAND.filter((t) => !t.density).map((t) => swatch({ ...t, colour: this.#landColour(t.ch), title: `${t.label}: ${t.does(m)}` }));
-      // A bridge isn't painted on its own: it's what a road over water becomes.
-      const bridge = el("button", { type: "button", class: "swatch named hint", title: "Bridge: what a road painted over water becomes. Trips cross it at the road's speed. Click to paint roads.", "aria-label": "Bridge: paint a road over water",
-        vars: { "--c": this.#landColour("+") }, onclick: () => { pick("="); this.#renderPalette(); } }, el("i", { class: "swatch-chip" }), el("em", { text: "Bridge" }));
+      const of = (g) => LAND.filter((t) => t.group === g).map((t) => swatch({ ...t, colour: this.#landColour(t.ch), title: `${t.label}: ${t.does(m)}` }));
+      // A bridge or a footbridge isn't painted on its own: it's what a street or a footpath over water becomes.
+      const hint = (ch, label, title, paint) => el("button", { type: "button", class: "swatch named hint", title, "aria-label": title,
+        vars: { "--c": this.#landColour(ch) }, onclick: () => { pick(paint); this.#renderPalette(); } }, el("i", { class: "swatch-chip" }), el("em", { text: label }));
       const homes = LAND.filter((t) => t.density).map((t) => swatch({ ...t, colour: this.#landColour(t.ch),
-        title: `${t.label} of 9: households live here, about ${fmt.num1(this.#perTile(t.density))} a tile on this map` }));
-      this.palette.replaceChildren(group("Ground", ...ground, bridge),
+        title: `${t.label} of 9: households live here, about ${fmt.num1(this.#perTile(t.density))} a tile on this map; cars and people use its local streets` }));
+      this.palette.replaceChildren(group("Ground", ...of("ground")),
+        group("For cars", ...of("cars"), hint("+", "Bridge", "Bridge: what a street painted over water becomes, for cars and people. Click to paint streets.", "=")),
+        group("For people", ...of("people"), hint("f", "Footbridge", "Footbridge: what a footpath painted over water becomes, for people only. Click to paint footpaths.", "-")),
+        group("Parking and malls (then build them on Parking & venues)", ...of("parking")),
         group("Homes: where households live", el("span", { class: "ramp-end", text: "sparse" }), ...homes, el("span", { class: "ramp-end", text: "dense" })));
       this.paletteNote.textContent = cur.density
         ? `${cur.label} of 9. Households live on home tiles, more of them the denser the tile: about ${fmt.num1(this.#perTile(cur.density))} a tile at this density (the map's ${fmt.int(m.households)} households, shared by density).`
         : `${cur.label}. ${cur.does(m)}`;
+    } else if (this.layer === "transport") {
+      const t = this.transport.palette();
+      this.palette.replaceChildren(...t.nodes);
+      this.paletteNote.textContent = t.note;
     } else if (this.layer === "areas") {
       const items = [{ ch: ".", label: "No area", colour: "transparent" }, ...m.areas.map((a) => ({ ch: a.key, label: a.name, colour: a.colour, id: a.id }))];
       if (!items.some((t) => t.ch === this.editor.paint)) this.editor.setPaint(items[1]?.ch ?? ".");
@@ -254,6 +288,15 @@ export class MapEditor {
         : "Every store is on the map: a pin in its brand's colour. Point at one for its name.";
     }
     this.tools.sync();
+  }
+
+  renderPalette() { this.#renderPalette(); }
+
+  // A change on the Parking & venues layer: everything that shows it, and
+  // the model's preview of it.
+  afterTransportEdit({ plan = true } = {}) {
+    if (plan) this.transport.render(); else { this.transport.render(); }
+    this.#renderPalette(); this.#renderStores(); this.editor.draw(); this.#schedulePreview();
   }
 
   // The eyedropper took a tile: paint with it (an area becomes the one
@@ -288,7 +331,8 @@ export class MapEditor {
   // on the map), and the areas.
   #undoState() {
     const d = this.world.draft;
-    return { at: Object.fromEntries(d.stores.map((s) => [s.id, placed(s) ? [s.x, s.y] : null])), areas: clone(d.macro.areas) };
+    return { at: Object.fromEntries(d.stores.map((s) => [s.id, placed(s) ? [s.x, s.y] : null])), areas: clone(d.macro.areas),
+      parking: clone(d.macro.parking ?? []), venues: clone(d.macro.venues ?? []), venue: Object.fromEntries(d.stores.map((s) => [s.id, s.venue ?? null])) };
   }
 
   // Back to a kept state: stores stand where they stood (a store made since
@@ -303,8 +347,10 @@ export class MapEditor {
       }
       const now = new Map(d.macro.areas.map((a) => [a.id, a]));
       d.macro.areas = u.areas.map((a) => now.get(a.id) ?? clone(a));
+      if (u.parking) { d.macro.parking = clone(u.parking); d.macro.venues = clone(u.venues); }
+      if (u.venue) for (const s of d.stores) if (s.id in u.venue) { if (u.venue[s.id]) s.venue = u.venue[s.id]; else delete s.venue; }
     });
-    this.#renderPalette();
+    this.#renderPalette(); this.transport.render(); this.#schedulePreview();
   }
 
   // ---- Strokes, and the preview ---------------------------------------------------------------------
@@ -377,6 +423,7 @@ export class MapEditor {
     this.#renderReadout();
     this.#renderStores();
     this.#renderAreas();
+    this.transport.render();
     this.editor.draw();
   }
 
@@ -418,9 +465,13 @@ export class MapEditor {
         d.macro.areas.length && outside !== null ? el("div", { class: "stat-sub", text: `${fmt.int(p.households - outside)} in areas, ${fmt.int(outside)} outside` }) : null),
       el("div", { class: `stat${stranded ? " warn" : ""}` }, el("div", { class: "stat-label", text: "No store in reach" }),
         el("div", { class: "stat-value", text: fmt.int(stranded) }), el("div", { class: "stat-sub", text: stranded ? "their homes are outlined in red" : "every household can shop" })),
+      el("div", { class: `stat${p.warnings?.length ? " warn" : ""}` }, el("div", { class: "stat-label", text: "Getting there" }),
+        el("div", { class: "stat-value", text: p.warnings?.length ? `${p.warnings.length} warning${p.warnings.length === 1 ? "" : "s"}` : "all reachable" }),
+        el("div", { class: "stat-sub" }, `${fmt.compact(p.by_car ?? 0)} trips by car, ${fmt.compact(p.on_foot ?? 0)} on foot in reach · `,
+          el("button", { type: "button", class: "linkish", text: "Parking & venues", onclick: () => this.#setLayer("transport") }))),
       el("div", { class: `stat${needs.unplaced ? " warn" : ""}` }, el("div", { class: "stat-label", text: "Stores on the map" }), el("div", { class: "stat-value", text: `${d.stores.length - needs.unplaced} of ${d.stores.length}` })),
       waiting,
-      el("p", { class: "note", text: "Worked out as Setup would: households placed on home tiles by density, each store's reach by the fastest route and each segment's radius (before loyalty stretches it)." }));
+      el("p", { class: "note", text: "Worked out as Setup would: households placed on home tiles by density, each store's reach by each household's cheapest way there (driving the roads to parking you've built and walking on, or walking all the way) and its segment's radius (before loyalty stretches it)." }));
   }
 
   #hover(cell) {
@@ -468,6 +519,7 @@ export class MapEditor {
         if (p.stranded[i]) { ctx.strokeStyle = "#e03131"; ctx.lineWidth = Math.max(1, Math.min(2.5, z / 3)); ctx.strokeRect(s.x + 0.5, s.y + 0.5, Math.max(1, z - 1), Math.max(1, z - 1)); }
       }
     }
+    this.transport.draw(ctx, ed);                // the parking and malls, on every layer
     const font = cssVar("--font", ed.wrap) || "system-ui"; const ink = cssVar("--ink", ed.wrap); const surface = cssVar("--surface", ed.wrap);
     const text = (s, x, y) => { ctx.lineWidth = 3; ctx.strokeStyle = surface; ctx.strokeText(s, x, y); ctx.fillStyle = ink; ctx.fillText(s, x, y); };
     // Stores: a pin in the brand's colour, its point where the store
@@ -542,6 +594,7 @@ export class MapEditor {
   }
 
   #storeDown(ev, cell) {
+    if (this.layer === "transport" && ev.button === 0) return this.transport.down(ev, cell);
     if (this.layer !== "stores" || ev.button !== 0) return false;
     const d = this.world.draft; const m = d.macro;
     // The selected store isn't on the map yet: it goes where the click is,
@@ -613,33 +666,34 @@ export class MapEditor {
     this.#renderStore();
     this.#renderAreas();
     this.#renderSettings();
+    this.transport.render();
     if (!this.side.children.length) this.#orderSide();
   }
 
   // What the layer edits comes first beside the map.
   #orderSide() {
-    const first = { land: [this.legendCard, this.startCard], areas: [this.areasCard], stores: [this.storeCard, this.storesCard] }[this.layer];
-    const all = [this.startCard, this.legendCard, this.storeCard, this.storesCard, this.areasCard, this.settingsCard];
+    const tc = this.transport;
+    const first = { land: [this.legendCard, this.startCard], areas: [this.areasCard], stores: [this.storeCard, this.storesCard],
+      transport: [tc.accessCard, tc.parkingCard, tc.venuesCard, tc.planCard] }[this.layer];
+    const all = [this.startCard, this.legendCard, tc.accessCard, tc.parkingCard, tc.venuesCard, tc.planCard, this.storeCard, this.storesCard, this.areasCard, this.settingsCard];
     const order = [...first, ...all.filter((c) => !first.includes(c))].map((c) => c.root);
     if (order.some((n, i) => this.side.children[i] !== n)) this.side.replaceChildren(...order);
   }
 
   // What each kind of tile does in the model, and which are looks only.
   #renderLegend() {
-    const m = this.world.draft.macro; const r = this.editor.wrap;
+    const m = this.world.draft.macro;
     const row = (colour, name, text) => el("div", { class: "legend-row" }, el("i", { class: "legend-swatch square", vars: { "--c": colour } }), el("b", { text: name }), el("span", { text }));
-    const homes = mix(cssVar("--map-land", r), cssVar("--map-homes", r), 0.75);
+    const who = (t) => row(this.#landColour(t.ch), t.label, t.does(m));
     this.legendCard.body.replaceChildren(
-      el("h3", { class: "setup-heading", text: "Shapes the simulation" }),
-      row(homes, "Homes", `where the ${fmt.int(m.households)} households live, more of them on denser tiles`),
-      row(this.#landColour("="), "Roads, bridges", `trips run along them at ${mps(m.road_mps)}`),
-      row(this.#landColour("~"), "Water", "no trip crosses it, no store stands on it"),
-      row(this.#landColour("."), "Open land", `trips cross it at ${mps(m.local_mps)}`),
-      row("linear-gradient(135deg, #e8c9a8, #b9d5ea)", "Areas", "their own layer: the segments, sizes and budget of the households living there"),
-      el("div", { class: "legend-row" }, pinIcon(), el("b", { text: "Stores" }), el("span", { text: "pins: where shoppers go, by the fastest route, if within their segment's radius" })),
-      el("h3", { class: "setup-heading", text: "Looks only" }),
-      row(this.#landColour("p"), "Parks", "crossed like open land"),
-      row(this.#landColour("s"), "Shops", "ground, crossed like open land; not stores"));
+      el("p", { class: "note", text: "Cars and people move on separate networks read from these tiles: every tile says who can cross it. Areas never change that." }),
+      el("h3", { class: "setup-heading", text: "Ground" }), ...LAND.filter((t) => t.group === "ground").map(who),
+      el("h3", { class: "setup-heading", text: "For cars" }), ...LAND.filter((t) => t.group === "cars").map(who),
+      el("h3", { class: "setup-heading", text: "For people" }), ...LAND.filter((t) => t.group === "people").map(who),
+      el("h3", { class: "setup-heading", text: "Parking and malls" }), ...LAND.filter((t) => t.group === "parking").map(who),
+      el("h3", { class: "setup-heading", text: "Homes" }), who(LAND.find((t) => t.density === 5)),
+      row("linear-gradient(135deg, #e8c9a8, #b9d5ea)", "Areas", "their own layer: who lives there (segments, sizes, budget). Painting an area over water or woodland changes nothing about crossing it."),
+      el("div", { class: "legend-row" }, pinIcon(), el("b", { text: "Stores" }), el("span", { text: "pins: each store's door. Shoppers drive to parking and walk to it, or walk from home, within their segment's radius" })));
   }
 
   // Stores, by brand, with how many households have each in reach.
@@ -846,7 +900,7 @@ export class MapEditor {
     this.settingsCard.body.replaceChildren(
       el("div", { class: "resize" }, w.root, h.root, el("div", { class: "field" }, el("span", { text: "Keep at" }), anchors), apply),
       el("p", { class: "note", text: `${fmt.int(m.width)} × ${fmt.int(m.height)} tiles of ${fmt.int(m.patch_m)} m: ${fmt.num1(m.width * m.patch_m / 1000)} × ${fmt.num1(m.height * m.patch_m / 1000)} km. At most ${fmt.int(limit)} tiles. Zooming the view changes neither.` }),
-      el("div", { class: "settings-grid" }, ...["patch_m", "households", "road_mps", "local_mps", "park_s", "wom_m"].map((k) => settingLever(f[k], { value: m[k], onChange: setM(k) }).root)));
+      el("div", { class: "settings-grid" }, ...["patch_m", "households", "road_mps", "local_mps", "walk_mps", "wom_m"].map((k) => settingLever(f[k], { value: m[k], onChange: setM(k) }).root)));
   }
 
   // After the canvas grew or was cropped: the map's rows, and the stores on

@@ -138,8 +138,30 @@ report_market <- function() {
       here <- mk$hh$area == k
       list(name = AREAS$name[k], households = sum(here), customers = tabulate(mk$last_brand[here] + 1L, N_BRANDS + 1L))
     }),
-    shopper = shopper_panel(selected$household)
+    shopper = shopper_panel(selected$household),
+    travel = travel_report(rd)
   )
+}
+
+# The day's journeys (tally.R, tally_outings): outings and how they ended,
+# by car and on foot, the store visits they made (each outing's destination,
+# and follow-on visits from the door of another store), the households
+# that shopped and the purchases, and each parking facility: its spaces,
+# cars in it now, the most at once today, cars parked and turned away.
+travel_report <- function(rd = report_day()) {
+  i <- rd$day
+  if (i < 1 || i > SEASON_DAYS) return(NULL)
+  ends <- tally$outings[i, ]
+  list(day_label = rd$label, outings = sum(ends), by_car = tally$outing_mode[i, 1], on_foot = tally$outing_mode[i, 2],
+       ends = lapply(seq_along(OUTING_ENDS), function(k) list(reason = OUTING_ENDS[k], n = ends[k])),
+       stops = I(tally$stops[i, ]), shoppers = tally$shoppers[i], destination_visits = sum(tally$dest_visits[i, ]),
+       follow_on = sum(tally$next_visits[i, ]), purchases = tally$purchases[i],
+       parking = lapply(seq_len(N_FAC), function(f) list(id = FAC$id[f], name = FAC$name[f], kind = FAC$kind[f], spaces = FAC$spaces[f],
+                                                         now = if (rd$live && !is.null(pk)) occupancy(f, clock) else NA, peak = tally$peak[i, f],
+                                                         parked = tally$parked[i, f], turned_away = tally$no_space[i, f])),
+       venues = lapply(seq_len(N_VENUES), function(v) list(name = VENUES$name[v], kind = VENUES$kind[v],
+                                                          visits = sum(tally$dest_visits[i, VENUES$stores[[v]]] + tally$next_visits[i, VENUES$stores[[v]]]),
+                                                          follow_on = sum(tally$next_visits[i, VENUES$stores[[v]]]))))
 }
 
 # The parts of a household's appeal for each store today (without the day's

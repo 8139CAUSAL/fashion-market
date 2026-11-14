@@ -416,6 +416,16 @@ const handlers = {
     });
   },
 
+  // One trip on a draft world, as the model would make it: from a home tile
+  // (r, c) to a store (its id), with or without the household's car: the
+  // way, the times, the facility, and the routes driven and walked.
+  async PREVIEW_TRIP({ text, r, c, store, car = true }) {
+    return between(async () => {
+      await webR.FS.writeFile(`${WORLD_DIR}/trip.json`, encode(`{"world": ${text}, "r": ${Number(r)}, "c": ${Number(c)}, "store": ${JSON.stringify(store)}, "car": ${car ? "true" : "false"}}`));
+      return JSON.parse(await rJson(`trip_preview_file(${rString(`${WORLD_DIR}/trip.json`)})`));
+    });
+  },
+
   // The layout editor's problems and summary for a picture, read by the
   // categories of the world being edited ([{ key, name }]).
   async CHECK_LAYOUT({ rows, categories }) {

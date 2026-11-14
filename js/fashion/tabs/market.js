@@ -73,7 +73,11 @@ export class MarketTab {
     const wk = card("Weekly revenue", { sub: "net of refunds" });
     this.weekChart = new LineChart(wk.body, { height: 170, format: fmt.money, legend: true, xFormat: (x) => `wk ${x}`, tipTitle: (x) => `Week ${x}`, emptyText: "Run the season to see sales" });
     bottom.append(pie.root, dyn2.root, rev.root, wk.root);
-    root.append(top, this.ledgerCard.root, bottom);
+    // Getting about: the day's outings, their store visits, and the parking.
+    this.travelCard = card("Getting about", { sub: "outings, store visits and parking, today" });
+    this.travelBox = el("div", { class: "travel" });
+    this.travelCard.body.append(this.travelBox);
+    root.append(top, this.ledgerCard.root, bottom, this.travelCard.root);
   }
 
   #modeChanged() {
@@ -91,8 +95,10 @@ export class MarketTab {
       area: [["Outside every area", "var(--brand-0)"], ...g.areas.map((a) => [a.name, a.colour])],
     }[this.mode];
     const storeKey = el("span", {}, el("i", { class: "legend-swatch square", vars: { "--c": "var(--ink-2)" } }), "store (size: layout; halo: today's visits; % : promotion on)");
-    const road = el("span", {}, el("i", { class: "legend-swatch", vars: { "--c": "var(--ink-2)" } }), "shopper on the road");
-    this.legendBox.replaceChildren(...items.map(([n, c]) => el("span", {}, el("i", { class: "legend-swatch", vars: { "--c": c } }), n)), storeKey, road);
+    const road = el("span", {}, el("i", { class: "legend-swatch", vars: { "--c": "var(--ink-2)" } }), "car on the road (ringed), walker (small)");
+    const parked = el("span", {}, el("i", { class: "legend-swatch square", vars: { "--c": "var(--map-car)" } }), "parked car");
+    const lots = el("span", {}, el("i", { class: "legend-swatch square", vars: { "--c": "#3b6bb5" } }), "P lot, G garage");
+    this.legendBox.replaceChildren(...items.map(([n, c]) => el("span", {}, el("i", { class: "legend-swatch", vars: { "--c": c } }), n)), storeKey, road, parked, lots);
   }
 
   viewState() { return { homesMode: this.mode, homesBrand: this.offerBrand }; }
@@ -115,7 +121,8 @@ export class MarketTab {
   update(r) {
     const order = this.app.brandOrder;
     this.map.setStores(r.stores);
-    this.map.setCaption(this.app.header?.pace === "watch" ? `${fmt.int(this.app.header?.on_road)} shoppers on the road` : `${r.day_label}'s visits shown by each store's halo`);
+    this.map.setCaption(this.app.header?.pace === "watch" ? `${fmt.int(this.app.header?.on_road)} shoppers out of doors` : `${r.day_label}'s visits shown by each store's halo`);
+    this.#travel(r.travel);
     this.#promotions(r.brands);
 
     const ours = r.customers.slice(1).reduce((a, v, i) => a + (this.app.brands[i]?.ours ? v : 0), 0);
@@ -136,6 +143,29 @@ export class MarketTab {
     this.revNote.textContent = g ? `Every brand: ${fmt.money(g)} sold, less ${fmt.money(rf)} refunded (${fmt.pct(rf / g, 1)}), is ${fmt.money(g - rf)}. A refund comes off on the day of the return.` : "";
     this.weekChart.update(r.weekly.length ? { x: r.weekly.map((_, i) => i + 1), series: series(r.weekly) } : null);
     this.#shopper(r.shopper);
+  }
+
+  // The day's journeys, and the parking, from the simulation's tallies.
+  #travel(t) {
+    if (!t) { this.travelBox.replaceChildren(el("p", { class: "empty", text: "Run the season to see the day's outings." })); return; }
+    this.travelCard.setSub(`${t.day_label} · outings, store visits and parking`);
+    const stat = (label, value, sub) => el("div", { class: "stat" }, el("div", { class: "stat-label", text: label }), el("div", { class: "stat-value", text: value }), sub ? el("div", { class: "stat-sub", text: sub }) : null);
+    const visits = t.destination_visits + t.follow_on;
+    const stops = t.stops.map((n, k) => (n ? `${n} with ${k}${k === t.stops.length - 1 ? "+" : ""}` : null)).filter(Boolean).join(", ");
+    const table = t.parking.length ? el("table", { class: "table compact" },
+      el("thead", {}, el("tr", {}, ...["Parking", "Spaces", "Now", "Most at once", "Parked", "Found it full"].map((h) => el("th", { text: h })))),
+      el("tbody", {}, ...t.parking.map((f) => el("tr", {}, el("td", { text: `${f.name}` }), el("td", { text: fmt.int(f.spaces) }), el("td", { text: f.now === null || f.now === undefined ? "–" : fmt.int(f.now) }),
+        el("td", { class: f.peak >= f.spaces ? "bad" : "", text: fmt.int(f.peak) }), el("td", { text: fmt.int(f.parked) }), el("td", { class: f.turned_away ? "bad" : "", text: fmt.int(f.turned_away) })))))
+      : el("p", { class: "note bad", text: "No parking has been built in this world: no one can drive, so every outing is on foot." });
+    this.travelBox.replaceChildren(
+      el("div", { class: "stats" },
+        stat("Outings home", fmt.int(t.outings), `${fmt.int(t.by_car)} by car, ${fmt.int(t.on_foot)} on foot`),
+        stat("Households in stores", fmt.int(t.shoppers), "each counted once, however many stores"),
+        stat("Store visits", fmt.int(visits), `${fmt.int(t.destination_visits)} the outing's destination, ${fmt.int(t.follow_on)} walked on to from another store`),
+        stat("Purchases", fmt.int(t.purchases), "visits that paid")),
+      el("p", { class: "note", text: `Shopping outings by how many stores they visited: ${stops || "none yet"}. How outings ended: ${t.ends.filter((e) => e.n).map((e) => `${e.reason} ${fmt.int(e.n)}`).join(", ") || "none home yet"}.` }),
+      t.venues.length ? el("p", { class: "note", text: `Venues: ${t.venues.map((v) => `${v.name} ${fmt.int(v.visits)} visits (${fmt.int(v.follow_on)} walked on to)`).join("; ")}.` }) : null,
+      table);
   }
 
   // Today's promotions, brand by brand (our family first), and the brands

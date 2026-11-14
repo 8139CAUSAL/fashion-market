@@ -1,14 +1,19 @@
 // The market map: the painted tiles from R's world (drawn smoothed, roads
 // as lines along their tiles), the areas' names, every household as a dot
 // in the colour of the brand it last bought from (or its segment, its
-// area, or the offer it holds), every store, and — at watch pace — every
-// shopper on the road, driving the fastest route on the store clock.
+// area, or the offer it holds), every store, the parking facilities and
+// the malls' corridors, and — at watch pace — everyone outdoors on the
+// store clock: cars driving the road network, people walking the
+// pedestrian network (and along the malls' corridors), cars parked.
 
 import { cssVar, fmt, el } from "./ui.js";
 import { tooltip } from "./charts.js";
 
-// Land codes (model/city.R): 0 open, 1 water, 2 park, 3 homes, 4 shops, 5 road, 6 bridge.
-const LAND_VARS = ["--map-land", "--map-water", "--map-park", null, "--map-shops", "--map-land", "--map-water"];
+// Land codes (model/city.R): 0 open, 1 water, 2 park, 3 homes, 4 pedestrian street, 5 road, 6 bridge,
+// 7 woodland, 8 building, 9 footpath, 10 footbridge, 11 highway, 12 crossing, 13 driveway, 14 lot, 15 garage, 16 mall.
+const LAND_VARS = ["--map-land", "--map-water", "--map-park", null, "--map-plaza", "--map-land", "--map-water",
+  "--map-wood", "--map-building", "--map-land", "--map-water", "--map-land", "--map-land", "--map-land", "--map-lot", "--map-garage", "--map-mall"];
+const ROADS = new Set([5, 6, 11, 12, 13]); const PATHS = new Set([9, 10]);
 const storeSize = (space) => 7 * Math.max(0.3, space ?? 1) ** 0.45;
 
 export class CityView {
@@ -91,8 +96,8 @@ export class CityView {
     // tiles touching only at a corner are joined where a trip can cross
     // that corner: the router never cuts one past water (grid.R).
     const k = this.scale; const p = g.patch;
-    const isRoad = (r, c) => r >= 0 && c >= 0 && r < g.ny && c < g.nx && (g.land[r * g.nx + c] === 5 || g.land[r * g.nx + c] === 6);
-    const passable = (r, c) => g.land[r * g.nx + c] !== 1;
+    const isRoad = (r, c) => r >= 0 && c >= 0 && r < g.ny && c < g.nx && ROADS.has(g.land[r * g.nx + c]);
+    const passable = (r, c) => ![1, 7, 8, 14, 15, 16].includes(g.land[r * g.nx + c]);
     const diagonal = (r, c, r2, c2) => isRoad(r2, c2) && !isRoad(r, c2) && !isRoad(r2, c) && passable(r, c2) && passable(r2, c);
     const cx = (c) => (c + 0.5) * p * k; const cy = (r) => (r + 0.5) * p * k;
     const roads = new Path2D();
@@ -112,6 +117,40 @@ export class CityView {
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     ctx.strokeStyle = cssVar("--map-road-edge", root); ctx.lineWidth = rw + Math.max(1, 2 * dpr); ctx.stroke(roads);
     ctx.strokeStyle = cssVar("--map-road", root); ctx.lineWidth = rw; ctx.stroke(roads);
+    // Highways over them, in their own colour; footpaths and footbridges as dashes.
+    const line = (test) => {
+      const path = new Path2D(); const on = (r, c) => r >= 0 && c >= 0 && r < g.ny && c < g.nx && test(g.land[r * g.nx + c]);
+      for (let r = 0; r < g.ny; r++) for (let c = 0; c < g.nx; c++) {
+        if (!on(r, c)) continue;
+        path.moveTo(cx(c), cy(r));
+        if (on(r, c + 1)) path.lineTo(cx(c + 1), cy(r)); else if (on(r + 1, c)) {} else path.lineTo(cx(c) + 0.1, cy(r));
+        if (on(r + 1, c)) { path.moveTo(cx(c), cy(r)); path.lineTo(cx(c), cy(r + 1)); }
+      }
+      return path;
+    };
+    ctx.strokeStyle = cssVar("--map-highway", root); ctx.lineWidth = rw * 0.6; ctx.stroke(line((v) => v === 11));
+    ctx.setLineDash([Math.max(2, rw * 0.5), Math.max(2, rw * 0.4)]);
+    ctx.strokeStyle = cssVar("--map-path", root); ctx.lineWidth = Math.max(1.2, rw * 0.35); ctx.stroke(line((v) => PATHS.has(v)));
+    ctx.setLineDash([]);
+    // Each mall's corridors, from its plan, over its building.
+    for (const v of g.venues ?? []) {
+      if (!v.plan) continue;
+      const tiles = v.tiles.map((t) => ({ r: t % g.ny, c: Math.floor(t / g.ny) }));
+      const r0 = Math.min(...tiles.map((t) => t.r)); const c0 = Math.min(...tiles.map((t) => t.c));
+      const cell = v.plan.cell_m * k;
+      ctx.fillStyle = cssVar("--map-plaza", root);
+      v.plan.rows.forEach((row, pr) => { for (let pc = 0; pc < row.length; pc++) if (row[pc] !== "#") ctx.fillRect(c0 * p * k + pc * cell, r0 * p * k + pr * cell, cell + 0.5, cell + 0.5); });
+    }
+    // Parking: a P on each facility (G for a garage), with its spaces.
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const f of g.parking ?? []) {
+      const rs = f.tiles.map((t) => t % g.ny); const cs = f.tiles.map((t) => Math.floor(t / g.ny));
+      const x = (cs.reduce((a, b) => a + b, 0) / cs.length + 0.5) * p * k; const y = (rs.reduce((a, b) => a + b, 0) / rs.length + 0.5) * p * k;
+      const sz = Math.max(9, Math.min(16, p * k * 0.7));
+      ctx.fillStyle = f.kind === "garage" ? cssVar("--map-garage", root) : "#3b6bb5"; ctx.globalAlpha = 0.9;
+      roundRect(ctx, x - sz / 2, y - sz / 2, sz, sz, 2); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff"; ctx.font = `700 ${Math.round(sz * 0.7)}px system-ui`; ctx.fillText(f.kind === "garage" ? "G" : "P", x, y + 0.5);
+    }
     // Area names.
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const a of g.areas) {
@@ -165,13 +204,26 @@ export class CityView {
     const r = this.wrap; const surface = cssVar("--surface", r);
     const colours = this.geo.brands.map((b) => b.colour);
 
-    // Shoppers on the road.
+    // Everyone outdoors: cars parked (small grey squares), people walking
+    // (small dots in the brand's colour), cars on the move (dots ringed).
     const t = this.travellers;
     if (t && t.n) {
       const rad = Math.max(3, 3.4 * dpr);
+      const kind = t.kind ?? new Float64Array(t.n).fill(1);
+      const parked = new Path2D(); const sq = Math.max(2, 2.2 * dpr);
+      for (let i = 0; i < t.n; i++) if (kind[i] === 3) { const [px, py] = this.toPx(t.x[i], t.y[i]); parked.rect(px - sq / 2, py - sq / 2, sq, sq); }
+      ctx.fillStyle = cssVar("--map-car", r); ctx.globalAlpha = 0.75; ctx.fill(parked); ctx.globalAlpha = 1;
+      const walkers = colours.map(() => new Path2D()); const wr = Math.max(1.6, 1.8 * dpr);
+      for (let i = 0; i < t.n; i++) {
+        if (kind[i] !== 2) continue;
+        const p = walkers[t.brand[i] - 1]; if (!p) continue;
+        const [px, py] = this.toPx(t.x[i], t.y[i]); p.moveTo(px + wr, py); p.arc(px, py, wr, 0, Math.PI * 2);
+      }
+      walkers.forEach((p, b) => { ctx.fillStyle = colours[b]; ctx.fill(p); ctx.lineWidth = Math.max(0.8, dpr); ctx.strokeStyle = cssVar("--map-walker", r); ctx.stroke(p); });
       for (let pass = 0; pass < 2; pass++) {
         const paths = colours.map(() => new Path2D());
         for (let i = 0; i < t.n; i++) {
+          if (kind[i] !== 1) continue;
           if ((t.back[i] === 1) !== (pass === 0)) continue;
           const p = paths[t.brand[i] - 1]; if (!p) continue;
           const [px, py] = this.toPx(t.x[i], t.y[i]);

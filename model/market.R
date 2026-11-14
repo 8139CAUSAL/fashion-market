@@ -70,7 +70,17 @@ range_value <- function(seg, b) {
 
 # Households h x brands: the buzz about each brand on the word-of-mouth
 # patch each household lives on, read from that world with of() (city.R).
-buzz_of <- function(h) matrix(of(world = mk$wom, agents = mk$wom_at[h, , drop = FALSE], var = BRANDS$id), length(h))
+# Each morning the buzz on every patch is read from that world once, with
+# of() over its patches (in NetLogoR's cell order, as each household's
+# wom_cell numbers its own); a household reads the row of its patch, and
+# keeps reading it all day (the buzz moves in the evening).
+buzz_of <- function(h) {
+  if (is.null(today$buzz) || !identical(today$buzz_day, day)) {
+    today$buzz <<- matrix(of(world = mk$wom, agents = patches(mk$wom), var = BRANDS$id), ncol = N_BRANDS)
+    today$buzz_day <<- day
+  }
+  today$buzz[mk$wom_cell[h], , drop = FALSE]
+}
 
 # Households x brands: each household's radius for each brand's stores, km.
 radius_km <- function(h) {

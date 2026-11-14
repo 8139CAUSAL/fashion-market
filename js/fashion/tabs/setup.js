@@ -55,7 +55,7 @@ const STAGES = [
     about: "Set the season, let the model check the world, then Setup installs it and Go runs it: the shoppers live in the world you drew." },
 ];
 const stageOf = (section) => STAGES.find((st) => st.sections.includes(section));
-const MARKET_SHOWN = ["taste_w", "range_w", "km_w", "memory", "wom"];
+const MARKET_SHOWN = ["taste_w", "range_w", "drive_w", "park_w", "walk_w", "cluster_w", "max_walk_km", "memory", "wom"];
 const LIVE = el("span", { class: "tag live", text: "live" });
 const WAITS = el("span", { class: "tag", text: "at Setup" });
 const tag = (live) => (live ? LIVE : WAITS).cloneNode(true);

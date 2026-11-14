@@ -132,12 +132,14 @@ export function countChanges(draft, installed) {
   if (d.seed !== i.seed) n++;
   if (d.season_days !== i.season_days) n++;
   const md = d.macro ?? {}; const mi = i.macro ?? {};
-  const settings = (m) => JSON.stringify(["patch_m", "width", "height", "households", "road_mps", "local_mps", "park_s", "wom_m"].map((k) => m[k]));
+  const settings = (m) => JSON.stringify(["patch_m", "width", "height", "households", "road_mps", "local_mps", "walk_mps", "wom_m"].map((k) => m[k]));
   if (settings(md) !== settings(mi)) n++;
   if (JSON.stringify(md.tiles) !== JSON.stringify(mi.tiles)) n++;
   if (JSON.stringify(md.area_tiles) !== JSON.stringify(mi.area_tiles)) n++;
   if (JSON.stringify(md.default_makeup) !== JSON.stringify(mi.default_makeup)) n++;
   n += listChanges(md.areas, mi.areas);
+  n += listChanges(md.parking, mi.parking);
+  n += listChanges(md.venues, mi.venues);
   for (const k of ["categories", "layouts", "stores", "families", "brands", "segments"]) n += listChanges(d[k], i[k]);
   n += listChanges(d.demand_events, i.demand_events);
   const catOrder = (w) => JSON.stringify((w.categories ?? []).map((c) => c.id));
