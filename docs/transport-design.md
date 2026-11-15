@@ -213,7 +213,7 @@ units (ledger lines); cars parked, cars turned away and the most at once, by fac
   but a shopper never moves the car to park again nearer another store; they walk, within `max_walk_km`.
 - No sensitivity sweep over β values was run; the tests check directions, not elasticities.
 - A shopper who finds every facility for a store full goes home; they don't choose a different store instead.
-- Return trips are made on the household's cheapest way to the brand's nearest store; one that can't park posts
-  its items back that day.
+- Return trips are made on the household's cheapest way to the brand's nearest store; one that can't be made
+  that day (too late to set out, or nowhere to park) is due again the next day while the window is open.
 - Performance: a market day of the default world takes about 2.2 s in native R (1.1 s before) and about 5 s in
   webR (1.5–1.9 s before), measured on the same machine (section in README).

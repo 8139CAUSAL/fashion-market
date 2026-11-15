@@ -210,7 +210,7 @@ og_depart <- function(o) {
   pre[!drv] <- T$wf$time[cbind(tile[!drv], og$dest[o[!drv]])]
   late <- t + pre >= LAST_ENTRY_S
   if (any(late)) {
-    for (i in o[late & og$kind[o] == OG_RETURN]) post_returns(i)     # a return trip too late to make: the items go by post
+    for (i in o[late & og$kind[o] == OG_RETURN]) retry_returns(og$ret_lines[[i]])     # a return trip too late to make: tomorrow
     og_end(o[late], t[late], END_LATE, travelled = FALSE)
   }
   go <- !late
@@ -322,8 +322,8 @@ og_at_fac <- function(o) {
       og$ev_at[i] <<- t + best_dt
       next
     }
-    # Nowhere to park: home (a return trip posts its items back instead).
-    if (og$kind[i] == OG_RETURN) post_returns(i)
+    # Nowhere to park: home (a return trip tries again tomorrow).
+    if (og$kind[i] == OG_RETURN) retry_returns(og$ret_lines[[i]])
     field <- which(T$vnodes == node & T$vnode_fac == f)[1]
     dt <- T$vf$time[mk$hh$tile[h], field]
     leg(i, OL_DRIVE, t, t + dt, 1L, field, mk$hh$tile[h], 1L, f)
@@ -338,8 +338,17 @@ og_at_fac <- function(o) {
   if (length(door_o)) queue_door(door_o, door_s, door_t)
 }
 
-# A return trip that couldn't park: the household posts the items back.
-post_returns <- function(i) post_returns_lines(og$ret_lines[[i]])
+# A return trip that couldn't be made today (too late to set out, or
+# nowhere to park): its items are due again tomorrow, while the brand's
+# return window is still open; after that the household keeps them.
+retry_returns <- function(lines) {
+  if (!length(lines)) return(invisible())
+  nxt <- day + 1L
+  ok <- lines[nxt <= SEASON_DAYS & nxt <= ledger$i[lines, "in_hand"] + RETURNS$window_days[ledger$i[lines, "brand"]]]
+  gone <- setdiff(lines, ok)
+  if (length(gone)) { ledger$i[gone, "due"] <<- 0L; ledger$i[gone, "reason"] <<- 0L; ledger$i[gone, "fate"] <<- 0L }
+  if (length(ok)) { ledger$i[ok, "due"] <<- nxt; ledger$due[[nxt]] <<- c(ledger$due[[nxt]], ok) }
+}
 
 # Shoppers reaching store doors at `arrive`: a visit each (store.R takes
 # it from there), or, past last entry, the door is shut to them.

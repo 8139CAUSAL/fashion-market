@@ -431,11 +431,12 @@ check(same, "30. the same world and seed run the same days again: every outing's
 install_world(Wm, root, seed = 11)
 h1 <- 1L; s1 <- 1L
 tc1 <- travel_costs(mk$hh$tile[h1], mk$hh$segment[h1], mk$hh$car[h1], city)
-L1 <- ledger_add(h1, STORES$brand[s1], s1, 1L, 10, 0, 0, 10, 0L, KIND_UNTRIED, 1L)     # one item to bring back
+L1 <- ledger_add(h1, STORES$brand[s1], s1, 1L, 10, 0, 0, 10, 0L, KIND_UNTRIED, 1L)     # one item to bring back (bought today: its window is open)
 new_outings(h1, s1, LAST_ENTRY_S, matrix(0, 1, N_CATS), 1L, 1, tc1, r = h1, rs = s1, r_door = LAST_ENTRY_S + 1, lines = list(L1), r_tc = tc1)
 ended <- tryCatch({ advance(Inf); TRUE }, error = function(e) FALSE)
-check(ended && all(!is.na(og$t_home)) && all(og$ended == END_LATE) && sum(og$waiting) == 0L && ledger$i[L1, "ret_day"] == day && ledger$i[L1, "ret_store"] == 0L,
-      "30b. a household's return trip and shopping outing due at once, the first too late to set out: the second, waiting behind it, is let go (too late as well, its item goes back by post), and the day ends")
+check(ended && all(!is.na(og$t_home)) && all(og$ended == END_LATE) && sum(og$waiting) == 0L && ledger$i[L1, "ret_day"] == 0L &&
+        ledger$i[L1, "due"] == day + 1L && L1 %in% ledger$due[[day + 1L]],
+      "30b. a household's return trip and shopping outing due at once, the first too late to set out: the second, waiting behind it, is let go (too late as well: its item is due again tomorrow, its window still open), and the day ends")
 
 # Sensitivity of the assumed weights (none is calibrated): the direction of
 # each one's effect on what the simulation does, on the mall town with homes

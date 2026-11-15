@@ -731,8 +731,10 @@ the brand due that day, to the brand's store nearest by its way there, if
 one is within its reach for the brand, whichever channel sold it. It goes
 there as a shopper would (driving and parking, or walking), joins the till queue whatever its length, and a cashier takes the
 items back: a minute, and half a minute an item, recorded in the staff log
-and in the tills' utilisation. It doesn't shop on that trip. If the brand
-has no store in its reach (or none at all), or it can't park, it posts them to the brand's DC
+and in the tills' utilisation. It doesn't shop on that trip. A trip it can't make
+that day (too late to set out, or nowhere to park) is made the next day, while
+the window is open; after that it keeps the items. If the brand
+has no store in its reach (or none at all), it posts them to the brand's DC
 that morning, one parcel a household, and the brand pays the return
 postage. A returned unit goes back into that store's stock (or the DC's),
 except the brand's return write-off rate of them (10% in the default world),
