@@ -39,12 +39,6 @@ what they did.
 *The same market in 3D: the world drawn on the Setup tab, with every store,
 household, car and walker where the simulation has them.*
 
-Fashion Market is a simulation. Its results follow from the world you
-configure and the model's assumptions about how people shop; they show what
-those assumptions imply, and on their own they don't establish real-world
-causal effects. [What's real and what's illustrative](#whats-real-and-whats-illustrative)
-lists the assumptions.
-
 The model is R, running in the page through
 [webR](https://docs.r-wasm.org/webr/) and
 [NetLogoR](https://cran.r-project.org/package=NetLogoR). The **R code**
@@ -966,30 +960,33 @@ cashier added at 14:00, acts from that moment on.
 
 </details>
 
-### What's real and what's illustrative
+### Default parameters and model limitations
 
-Everything in the default world is illustrative: the city, its four areas,
-the brands (named by position: Ours, Ours Intimates, Value, Premium, Fast),
-their ranges, the shoppers, the offers and every number. Each behaviour is
-either a setting in the world or a named constant with a comment in
-`model/params.R`. There's no external or licensed data. The logistics fees
-($150 a store delivery, $0.40 a unit shipped) and the salvage value of stock
-left at the season's end (20% of cost) are assumptions, not sourced figures.
-So are the online stores (four brands of five run one, delivering in 2 to 4
-days for $0 to $3.95, at $2.50 to $4.50 picking and packing and $4.50 to
-$7.50 shipping an order), the return windows (14 to 60 days), the return
-postage ($6 a parcel), the chance an item comes back (at a tendency to
-return of 1: up to 30% bought online, 9% bought in a store untried, 4%
-tried on, before the window), the share written off (10%), the cashier's
-time on a return, and how far word of mouth spreads each evening (a fifth
-of each patch's buzz, to its neighbours). Rent and overheads are left out
-of contribution. So are the default world's demand events (demand ×1.3
-on days 3 and 23, and a slump into day 90 at -2, ramped over 7 days from
--1.4). The forecast's settings (three weeks before it starts, the 0.64
-seasonal strength and the KPSS test at 5%) are `auto.arima`'s conventions,
-not tuned to this model; ARIMA carries the days run forward, so it can't
-see a change those days don't show (in the default world, sales fall over
-the season's last weeks).
+The default world uses no external or licensed data: its values are
+assumptions, not estimates. Each behaviour is either a setting in the world,
+changed on the Setup tab, or a named constant with a comment in
+`model/params.R`, so results show what these values imply.
+
+| | Parameter | Default | Set in |
+|---|---|---|---|
+| Costs | Logistics | $150 a store delivery, $0.40 a unit shipped | Brands, Stock |
+| | Salvage of stock left at the season's end | 20% of cost | Brands, Stock |
+| | Online stores | run by four brands of five: 2 to 4 days' delivery, a $0 to $3.95 delivery charge, $2.50 to $4.50 picking and packing and $4.50 to $7.50 shipping an order | Brands, Online store and returns |
+| Returns | Return window | 14 to 60 days | Brands, Online store and returns |
+| | Return postage | $6 a parcel | Brands, Online store and returns |
+| | Chance an item is wanted back, at a tendency to return of 1, before the window | 30% bought online, 9% bought in a store untried, 4% tried on | `RETURN_P` in `model/params.R`, times each segment's tendency (Shoppers) |
+| | Returned items written off | 10% | Brands, Online store and returns |
+| | A cashier's time on a return | a minute, and half a minute an item | `REFUND_BASE_S`, `REFUND_ITEM_S` in `model/params.R` |
+| Demand | Demand events | ×1.3 on days 3 and 23; a slump into day 90 at -2, ramped over 7 days from -1.4 | Season |
+| | Word of mouth | each evening, a fifth of each patch's buzz to its neighbours | `WOM_SPREAD` in `model/params.R` |
+
+**Contribution** leaves out rent and overheads.
+
+**The forecast's settings** (three weeks before it starts, the 0.64 seasonal
+strength and the KPSS test at 5%) are `auto.arima`'s conventions, not tuned
+to this model. ARIMA carries the days run forward, so it can't see a change
+those days don't show: in the default world, sales fall over the season's
+last weeks.
 
 ### Performance
 
