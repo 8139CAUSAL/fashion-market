@@ -29,8 +29,8 @@
 // itself ends it as an error.
 
 import { sceneToFloor } from "./spatial.js";
-import { floorModel, floorAgentsOf, checkoutGeometry, locateOnFloor, floorFrameProblems, union } from "./scene-adapter.js";
-import { View3D, CameraTargetError, placeMatrix, personGeometry, staffGeometry, groundPlane, overlayMaterial, rgb, unavailable, defect } from "./view-3d.js";
+import { floorModel, floorAgentsOf, checkoutGeometry, locateOnFloor, floorFrameProblems, fixtureHeights, union } from "./scene-adapter.js";
+import { View3D, CameraTargetError, clearOfFixtures, placeMatrix, personGeometry, staffGeometry, groundPlane, overlayMaterial, rgb, unavailable, defect } from "./view-3d.js";
 import { LOOK_NAMES } from "./floor-view.js";
 import { cssVar } from "./ui.js";
 import { tooltip } from "./charts.js";
@@ -42,6 +42,7 @@ const STOCK_M = 1.9;
 const CUBICLE_M = 2.0;
 const SHOPPER_M = 1.7;
 const STAFF_M = 1.75;
+const TILL_TOP_M = 1.13;     // a till on its cashier's place: 0.85 up, 0.28 high
 const AGENT_LOOK_Y = 0.85;   // a camera on someone looks at their middle
 const SHOPPER_DISTANCE = 5.5;
 const SHOPPER_POLAR = 1.15;  // 0.42 rad (24°) above the floor: low, inside the store
@@ -70,6 +71,8 @@ export class Store3DView extends View3D {
     this.plan = plan; this.rows = rows; this.keys = keys;
     this.model = plan ? floorModel(plan, rows, keys) : null;
     this.checkout = this.model ? checkoutGeometry(plan, this.model) : null;
+    // What a following camera mustn't stand inside: the blocks drawn below, at their heights.
+    this.fixtures = this.model ? fixtureHeights(this.model, { wall: WALL_M, rack: RACK_M, counter: COUNTER_M, stock: STOCK_M, cubicle: CUBICLE_M, cashier: TILL_TOP_M }) : null;
     if (this.checkout?.problem) console.error(`[fashion] the Checkout camera can't read this floor: ${this.checkout.problem}`);
     this.agents = null; this.heat = null;
     this.staticDirty = true;
@@ -376,6 +379,11 @@ export class Store3DView extends View3D {
     }
     if (!r.ok) { this.stopTracking("Shopper no longer visible in this store."); return; }
     this.updateTracking({ X: r.at.X, Y: AGENT_LOOK_Y, Z: r.at.Z });
+  }
+
+  // Chase and Front: kept out of the floor's solid fixtures (nothing else).
+  clearPose(pose) {
+    return this.fixtures ? clearOfFixtures(pose, this.fixtures.heightAt) : { pose, cleared: null };
   }
 
   // Focus: the shopper or worker selected (the inspector's).

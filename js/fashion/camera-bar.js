@@ -12,8 +12,10 @@ import { el } from "./ui.js";
 let uid = 0;
 
 export class CameraBar {
-  // `presets`: [{ id, label, title }]; `onPreset(id)`, `onFocus()`, `onStop()`.
-  constructor({ label, presets, onPreset, onFocus, onStop = null }) {
+  // `presets`: [{ id, label, title }]; `onPreset(id)`, `onFocus()`, `onStop()`;
+  // `perspectives` ([{ id, label, title }]) and `onPerspective(id)`: how
+  // someone followed is looked at, shown only while following.
+  constructor({ label, presets, onPreset, onFocus, onStop = null, perspectives = [], onPerspective = null }) {
     this.actions = new Map();          // id → { button, reason, title, ok, why }
     this.presetIds = presets.map((p) => p.id);
     const group = el("div", { class: "seg camera-presets", role: "group", "aria-label": `${label}: presets` },
@@ -21,10 +23,13 @@ export class CameraBar {
     this.focusButton = this.#action("focus", "Focus", "Turn the camera to the selection", () => onFocus(), false, "btn small");
     this.targets = el("span", { class: "camera-targets" });
     this.stopButton = el("button", { type: "button", class: "btn small camera-stop", text: "Stop follow", hidden: true, onclick: () => onStop?.() });
+    this.perspectiveButtons = perspectives.map((p) => el("button", { type: "button", text: p.label, title: p.title, "aria-pressed": "false", dataset: { perspective: p.id },
+      onclick: () => onPerspective?.(p.id) }));
+    this.perspectiveGroup = el("div", { class: "seg camera-presets camera-perspective", role: "group", "aria-label": `${label}: follow perspective`, hidden: true }, ...this.perspectiveButtons);
     this.status = el("span", { class: "camera-status", role: "status", "aria-live": "polite" });
     this.note = el("p", { class: "camera-note" });
     this.root = el("div", { class: "camera-bar", role: "toolbar", "aria-label": label, hidden: true },
-      el("div", { class: "camera-row" }, group, this.focusButton, this.targets, this.stopButton),
+      el("div", { class: "camera-row" }, group, this.focusButton, this.targets, this.perspectiveGroup, this.stopButton),
       el("div", { class: "camera-row" }, this.status), this.note);
   }
 
@@ -72,6 +77,8 @@ export class CameraBar {
     for (const id of this.presetIds) this.actions.get(id).button.setAttribute("aria-pressed", String(state.mode === id));
     const tracking = state.mode === "follow";
     this.stopButton.hidden = !tracking;
+    this.perspectiveGroup.hidden = !tracking || !this.perspectiveButtons.length;
+    for (const b of this.perspectiveButtons) b.setAttribute("aria-pressed", String(tracking && state.perspective === b.dataset.perspective));
     const text = `Camera: ${state.label || state.mode}${state.note ? ` — ${state.note}` : ""}`;
     if (text !== this.stateText) { this.stateText = text; this.explained = ""; }
     this.setStatus(this.explained ? `${text} — ${this.explained}` : text, tracking);

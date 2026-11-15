@@ -1239,3 +1239,172 @@ test("the inspector's Follow camera: shown for a shopper with the 3D floor, says
   ins.setFollowCamera({ shown: false, ok: false, active: false });
   assert.ok(ins.followBox.hidden);
 });
+
+// ---- Follow perspectives: Orbit, Chase, Front ----------------------------------------------------------
+//
+//   - Orbit is following as it was: its own distance and height to start
+//   - the heading is read from the followed visit's position in one frame
+//     and the next (by visit id); a step under 5 cm, or none, keeps the
+//     last; until they've stepped there's none, and Chase and Front wait
+//   - Chase stands behind them, Front ahead looking back; switching keeps
+//     the same shopper; the user's tilt and zoom are kept
+//   - Chase and Front never stand inside a solid fixture of the floor, and
+//     nothing else is changed: a rack between camera and shopper stays
+
+const { FOLLOW_PERSPECTIVES, clearOfFixtures, cameraPoint } = await import("../js/fashion/view-3d.js");
+const horiz = (view) => { const o = view.camera.position.clone().sub(view.controls.target); return { X: o.x, Z: o.z, len: Math.hypot(o.x, o.z) }; };
+const visitAt = (view, x, y) => spatial.floorToScene(view.model.frame, x, y);
+
+test("Follow perspectives: Orbit keeps its default angle; the heading comes from consecutive frames of the same visit, is kept while they stand, and isn't invented before they move", () => {
+  const { view, run } = followView();
+  view.followCamera({ kind: "shopper", visit: 302 }); run(TRANSITION_MS + 50);
+  let p = view.currentPose();
+  assert.ok(near(p.distance, 5.5, 1e-6) && near(p.polar, 1.15, 1e-9), "Orbit: the angle following has always started with");
+  assert.ok(view.tracking.perspective === "orbit" && view.tracking.heading === null && view.cameraState.perspective === "orbit");
+  // Chase with no step seen yet: no heading made up; the camera follows as in Orbit, and it says so.
+  const before = horiz(view);
+  view.setFollowPerspective("chase");
+  assert.ok(view.tracking.id === 302 && view.tracking.heading === null && !view.transition);
+  assert.match(view.cameraState.note, /No direction yet: visit #302 hasn't moved/);
+  assert.match(view.trackBadge.textContent, /visit #302 · Chase/);
+  view.setAgents(followFrame([[10, 5], [20, 7], [30, 9]], [301, 302, 303])); dom.frames();      // the same place
+  assert.equal(view.tracking.heading, null);
+  const h0 = horiz(view); assert.ok(near(h0.X, before.X) && near(h0.Z, before.Z), "still the Orbit offset");
+  // A step east (in another order in the frame): heading east; the camera goes behind them (west).
+  view.setAgents(followFrame([[22, 7], [10, 5], [30, 9]], [302, 301, 303])); run(TRANSITION_MS + 50);
+  assert.deepEqual(view.tracking.heading, { X: 1, Z: 0 });
+  assert.equal(view.cameraState.note, "");
+  let o = horiz(view); const at = visitAt(view, 22, 7);
+  assert.ok(near(view.controls.target.x, at.X) && near(view.controls.target.z, at.Z));
+  assert.ok(o.X < 0 && Math.abs(o.Z) < 1e-6, "behind: west of a shopper going east");
+  p = view.currentPose();
+  assert.ok(near(p.distance, FOLLOW_PERSPECTIVES.chase.distance, 1e-6) && near(p.polar, FOLLOW_PERSPECTIVES.chase.polar, 1e-6));
+  // Standing still, or a step under 5 cm: the last heading stays.
+  view.setAgents(followFrame([[22, 7]], [302])); dom.frames();
+  view.setAgents(followFrame([[22.04, 7]], [302])); dom.frames();
+  assert.deepEqual(view.tracking.heading, { X: 1, Z: 0 });
+  // Going north (y up, Z down): the camera comes round behind, to the south.
+  view.setAgents(followFrame([[22.04, 10]], [302])); run(TRANSITION_MS + 50);
+  assert.ok(near(view.tracking.heading.X, 0) && near(view.tracking.heading.Z, -1));
+  o = horiz(view); assert.ok(o.Z > 0 && Math.abs(o.X) < 1e-6, "south of a shopper going north");
+  // Front: the same shopper, the camera ahead (north), looking back at them.
+  view.setFollowPerspective("front"); run(TRANSITION_MS + 50);
+  o = horiz(view);
+  assert.ok(view.tracking.id === 302 && o.Z < 0 && Math.abs(o.X) < 1e-6, "ahead of them");
+  assert.ok(near(view.currentPose().distance, FOLLOW_PERSPECTIVES.front.distance, 1e-6));
+  assert.match(view.trackBadge.textContent, /· Front/);
+  // Back to Orbit: its own distance and height again, the same shopper.
+  view.setFollowPerspective("orbit"); run(TRANSITION_MS + 50);
+  p = view.currentPose();
+  assert.ok(view.tracking.id === 302 && near(p.distance, 5.5, 1e-6) && near(p.polar, 1.15, 1e-9));
+  // Orbit doesn't turn with the heading: a step south leaves the offset as it was.
+  const ob = horiz(view);
+  view.setAgents(followFrame([[22.04, 6]], [302])); dom.frames();
+  const oa = horiz(view); assert.ok(near(oa.X, ob.X) && near(oa.Z, ob.Z));
+  // Following someone else: their heading starts again from nothing.
+  view.setAgents(followFrame([[22.04, 6], [10, 5]], [302, 301]));
+  view.followCamera({ kind: "shopper", visit: 301 });
+  assert.ok(view.tracking.heading === null && view.tracking.perspective === "orbit");
+  // Not following, or no such perspective.
+  view.stopTracking("");
+  assert.ok(!view.setFollowPerspective("chase").ok);
+  view.setAgents(followFrame([[10, 5]], [301])); view.followCamera({ kind: "shopper", visit: 301 });
+  assert.throws(() => view.setFollowPerspective("drone"), CameraTargetError);
+  view.dispose();
+});
+
+test("Follow perspectives: in Chase the user's tilt and zoom are kept from frame to frame; the heading stays the shopper's", () => {
+  const { view, run } = followView();
+  view.followCamera({ kind: "shopper", visit: 302 }); run(TRANSITION_MS + 50);
+  view.setFollowPerspective("chase");
+  view.setAgents(followFrame([[24, 7]], [302])); run(TRANSITION_MS + 50);
+  const r = view.canvas.getBoundingClientRect(); const x = r.left + 400; const y = r.top + 300;
+  view.canvas.dispatch("wheel", { deltaY: 300, deltaMode: 0, clientX: x, clientY: y, preventDefault() {}, ctrlKey: false });     // zoom out
+  view.canvas.dispatch("keydown", { code: "ArrowUp", key: "ArrowUp", shiftKey: true, preventDefault() {} });                       // tilt up a little
+  const mine = view.currentPose();
+  assert.ok(mine.distance > FOLLOW_PERSPECTIVES.chase.distance + 0.1 && mine.polar < FOLLOW_PERSPECTIVES.chase.polar);
+  view.setAgents(followFrame([[26, 7]], [302])); run(TRANSITION_MS + 50);
+  const next = view.currentPose();
+  assert.ok(near(next.distance, mine.distance, 1e-6) && near(next.polar, mine.polar, 1e-6), "kept");
+  assert.ok(horiz(view).X < 0, "still behind them");
+  assert.equal(view.tracking.cleared, null);
+  view.dispose();
+});
+
+test("clearance: a camera inside a fixture is pulled in along its line, then raised; one that isn't is left as it is", () => {
+  const block = (X0, X1, Z0, Z1, h) => (X, Z) => (X >= X0 && X <= X1 && Z >= Z0 && Z <= Z1 ? h : 0);
+  const pose = { target: { X: 0, Y: 0.85, Z: 0 }, distance: 2.6, polar: 1.32, azimuth: Math.PI };       // the camera at Z ≈ −2.5, Y ≈ 1.49
+  const c = cameraPoint(pose);
+  assert.deepEqual(clearOfFixtures(pose, block(-1, 1, -10, -5, 2)), { pose, cleared: null }, "nothing there");
+  const pulled = clearOfFixtures(pose, block(-1, 1, -3, -2, 2));          // a stockroom-high block where it stands
+  const pc = cameraPoint(pulled.pose);
+  assert.ok(pulled.cleared === "pulled in" && pulled.pose.distance < pose.distance && pc.Z > -2 && pulled.pose.polar === pose.polar && pulled.pose.azimuth === pose.azimuth);
+  const raised = clearOfFixtures(pose, block(-1, 1, -3, -0.2, 1.9));      // up to the shopper: no clear point on the line
+  const rc = cameraPoint(raised.pose);
+  assert.ok(raised.cleared === "raised" && raised.pose.distance === pose.distance && rc.Y >= 2.0 - 1e-9);
+  assert.ok(c.Y < 2 && c.Z < -2);
+});
+
+test("clearance on a real floor: Chase never stands inside a wall, rack, counter, stockroom or cubicle; a rack between it and the shopper stays in the way", () => {
+  const { view, run } = followView();
+  const M = view.model; const f = M.frame; const H = view.fixtures;
+  const want = FOLLOW_PERSPECTIVES.chase;
+  // Every open cell, with the shopper having just stepped south onto it: where Chase would stand.
+  const cases = [];
+  for (let r = 1; r < f.H - 1; r++) for (let c = 0; c < f.W; c++) {
+    if (M.kind[r * f.W + c] !== "floor" || M.kind[(r - 1) * f.W + c] !== "floor") continue;
+    const x = c; const y = f.H - 1 - r;
+    const t = visitAt(view, x, y);
+    const cam = cameraPoint({ target: { X: t.X, Y: 0.85, Z: t.Z }, distance: want.distance, polar: want.polar, azimuth: Math.PI });
+    const h = H.heightAt(cam.X, cam.Z);
+    cases.push({ x, y, inside: h > 0 && cam.Y < h + 0.1, cam, t });
+  }
+  const insides = cases.filter((k) => k.inside);
+  assert.ok(insides.length > 5, `${insides.length} places where Chase would stand inside a fixture`);
+  for (const k of insides.slice(0, 40)) {
+    view.followCamera({ kind: "shopper", visit: 302 });
+    view.setAgents(followFrame([[k.x, k.y + 1]], [302])); run(TRANSITION_MS + 50);
+    view.setFollowPerspective("chase");
+    view.setAgents(followFrame([[k.x, k.y]], [302])); run(TRANSITION_MS + 50);
+    const cam = view.camera.position; const h = H.heightAt(cam.x, cam.z);
+    assert.ok(h === 0 || cam.y >= h + 0.1 - 1e-6, `(${k.x}, ${k.y}): the camera at height ${cam.y.toFixed(2)} over a ${h} m fixture`);
+    assert.ok(["pulled in", "raised"].includes(view.tracking.cleared));
+    assert.ok(near(view.controls.target.x, k.t.X) && near(view.controls.target.z, k.t.Z), "still on the shopper");
+    view.stopTracking("");
+  }
+  // A rack between the camera and the shopper, the camera itself clear: left as it is.
+  const behindRack = cases.find((k) => {
+    if (k.inside || H.heightAt(k.cam.X, k.cam.Z) > 0) return false;
+    for (let s = 0.05; s < 0.95; s += 0.02) {
+      const X = k.cam.X + (k.t.X - k.cam.X) * s; const Z = k.cam.Z + (k.t.Z - k.cam.Z) * s; const Y = k.cam.Y + (0.85 - k.cam.Y) * s;
+      const g = H.heightAt(X, Z); if (g > 0 && Y < g) return true;
+    }
+    return false;
+  });
+  assert.ok(behindRack, "a place with a fixture in the line of sight");
+  view.followCamera({ kind: "shopper", visit: 302 });
+  view.setAgents(followFrame([[behindRack.x, behindRack.y + 1]], [302])); run(TRANSITION_MS + 50);
+  view.setFollowPerspective("chase");
+  view.setAgents(followFrame([[behindRack.x, behindRack.y]], [302])); run(TRANSITION_MS + 50);
+  const p = view.currentPose();
+  assert.ok(view.tracking.cleared === null && near(p.distance, want.distance, 1e-6) && near(p.polar, want.polar, 1e-6), "occlusion isn't removed");
+  // Orbit is never moved for fixtures.
+  view.setFollowPerspective("orbit"); run(TRANSITION_MS + 50);
+  assert.ok(near(view.currentPose().distance, 5.5, 1e-6));
+  view.dispose();
+});
+
+test("the camera bar's follow perspectives: shown only while following, the one in use pressed, a press asks for that one", () => {
+  const asked = [];
+  const bar = new CameraBar({ label: "Floor camera", presets: [{ id: "overview", label: "Overview", title: "o" }], onPreset() {}, onFocus() {}, onStop() {},
+    perspectives: [{ id: "orbit", label: "Orbit" }, { id: "chase", label: "Chase" }, { id: "front", label: "Front" }], onPerspective: (id) => asked.push(id) });
+  bar.setState({ mode: "overview", label: "Overview", note: "" });
+  assert.equal(bar.perspectiveGroup.hidden, true);
+  bar.setState({ mode: "follow", perspective: "chase", label: "Following visit #3 · Chase", note: "" });
+  assert.equal(bar.perspectiveGroup.hidden, false);
+  assert.deepEqual(bar.perspectiveButtons.map((b) => b.getAttribute("aria-pressed")), ["false", "true", "false"]);
+  bar.perspectiveButtons[2].click(); bar.perspectiveButtons[0].click();
+  assert.deepEqual(asked, ["front", "orbit"]);
+  bar.setState({ mode: "manual", perspective: null, label: "Stopped following visit #3", note: "" });
+  assert.equal(bar.perspectiveGroup.hidden, true);
+});

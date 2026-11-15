@@ -103,7 +103,8 @@ button shows the files that are running, and the world they run in.
    **Follow a random shopper** rings the shopper followed. **Top-down**,
    **Shopper** and **Checkout** frame the floor, the inspector's shopper
    and the tills, and **Follow camera** in a shopper's inspector keeps the
-   camera with them as they move.
+   camera with them as they move: round them (**Orbit**), behind them
+   (**Chase**) or ahead of them looking back (**Front**).
 6. **Draw your world** (in the header): paint the map's homes, roads and
    water with a brush, start from another geography, place stores, draw
    their floors. The model previews every stroke: households placed,
@@ -219,9 +220,27 @@ screenshot), installed and running.*
 
 **Follow camera.** With the floor in 3D, a shopper's inspector has
 **Follow camera**: the camera moves round them, low, and then stays with
-them as each frame moves them. You can still turn and zoom round them, but
-not move off them; *Following visit #…* shows over the floor, and **Stop
-follow** beside the presets and in the inspector. Following ends, leaving
+them as each frame moves them. *Following visit #…* shows over the floor,
+and **Orbit**, **Chase**, **Front** and **Stop follow** beside the presets
+(**Stop follow** in the inspector too). Switching between them keeps the
+same shopper.
+
+- **Orbit** (where following starts) keeps the camera's offset from them;
+  you turn and zoom round them as you like, but can't move off them.
+- **Chase** sits low and close behind them, facing the way they're going;
+  **Front** stands ahead of them, looking back as they come. Which way
+  they're going is read from where the frames put them, one frame to the
+  next: while they stand at a rack or in a queue, the last way they went
+  holds, and until they've taken a step there's none, so Chase and Front
+  follow as Orbit does and say they're waiting. You can tilt and zoom; the
+  heading is theirs.
+- Racks, walls and other shoppers can stand between the camera and them,
+  as in the store itself; Orbit's angle is yours to change. Chase and
+  Front only keep the camera out of the floor's solid fixtures: where it
+  would stand inside a wall, rack, counter, the stockroom or a fitting
+  cubicle, it comes in closer, or failing that, higher.
+
+Following ends, leaving
 the camera where it is, when a frame no longer has them on the floor
 (*Shopper no longer visible in this store*: the frames say who is there,
 not why someone left), when someone else or no one is in the inspector, on
@@ -229,7 +248,9 @@ another store, a preset, Reset or Focus, in 2D or the Flow view, and at the
 fastest speed, which doesn't draw the floor. It moves only the camera;
 **Follow a random shopper** still picks whom to inspect.
 
-![Following visit #2402 in 3D, the camera turned higher to see over the racks: the shopper browsing between the Dresses racks, and their inspector with Stop follow](screenshots/store-3d-follow.png)
+![Following visit #2402 in Orbit, at the angle following starts with: the shopper walking to the Outerwear racks, and their inspector with Stop follow](screenshots/store-3d-follow.png)
+
+![The same shopper in Chase a minute later, standing at the Outerwear racks: the camera behind them, facing the way they last walked, down the aisle by the fitting rooms](screenshots/store-3d-chase.png)
 
 ### Strategy
 
@@ -986,7 +1007,14 @@ the camera's distance, angle and heading over 700 ms, inside the orbit
 controls' limits, drawn a frame at a time only while it runs. Follow
 camera moves the camera by the followed shopper's step in each frame, so
 it keeps its offset from them; panning and zooming toward the pointer are
-off while it does. None of it sends anything to the worker:
+off while it does. The heading Chase and Front use is the shopper's last
+step of at least 5 cm, from one frame to the next of the same visit; it's
+never made up before the first. Their keeping clear of fixtures reads the
+cells the 3D floor draws as blocks, at the heights it draws them (walls,
+racks, the counter, the stockroom, the fitting cubicles, the tills), and
+checks only where the camera itself would stand, never what lies between
+it and the shopper; it isn't collision handling for the rest of the
+camera. None of it sends anything to the worker:
 `tools/test-browser-3d.mjs` runs 40 ticks with the camera following a
 shopper, and in 2D with the same shopper inspected, and compares.
 
@@ -1236,7 +1264,11 @@ or a key, replaced by another, ended when hidden and cancelled on dispose;
 the compass's heading and its turn to north, Reset and Focus; and Follow
 camera by visit id across frames in any order, ending when the visit
 leaves the frame, with the controls restored, and as an error on a
-malformed frame.
+malformed frame; Orbit at its starting angle; the heading from
+consecutive frames, kept while still, none before a step; Chase behind
+and Front ahead, the user's tilt and zoom kept, switching keeping the
+shopper; and, on a real floor, Chase never standing inside a fixture
+where it would have, while a rack in its line of sight is left there.
 
 `npm run test:browser:3d` (`tools/test-browser-3d.mjs`, `--webr=<dir>` as
 above) runs the 3D views in headless Chromium with WebGL (SwiftShader) and
@@ -1255,9 +1287,11 @@ refuses leaves it as it was. Its camera checks press the presets, Focus,
 the compass and Reset, pick areas and stores, drag in the middle of a
 move, and record that none of it sends the worker anything; then follow
 shoppers through real ticks (each frame on R's position, some leaving the
-floor) and end following by Stop follow, a preset, the inspector closed,
-Reset, another store, 2D and the fastest speed; and 40 ticks following a
-shopper end in the same season as 40 in 2D.
+floor), switch to Chase, Front and back to Orbit on the same shopper
+(each heading R's last step, the camera behind or ahead of it and never
+inside a fixture), and end following by Stop follow, a preset, the
+inspector closed, Reset, another store, 2D and the fastest speed; and 40
+ticks following a shopper end in the same season as 40 in 2D.
 
 `tools/test-grid-editor.mjs` runs the canvas against a stand-in for the
 browser (`tools/fake-dom.mjs`): brush footprints and their edges, strokes
@@ -1441,7 +1475,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `vendor/three.js` | Three.js 0.170.0 and its orbit controls, for the 3D views (`tools/build-three.mjs` bundles it from `tools/three-entry.js`) |
 | `js/fashion/spatial.js`, `js/fashion/scene-adapter.js` | the 3D views' coordinates (simulation to scene) and the reading of R's geometry and frames into what they draw |
 | `js/fashion/view-3d.js`, `market-3d.js`, `store-3d.js`, `view-switch.js`, `three-loader.js` | the 3D views and their camera, the 2D/3D switch, and loading Three.js on demand |
-| `js/fashion/camera-bar.js` | the 3D camera's presets, Focus and pickers over each 3D view |
+| `js/fashion/camera-bar.js` | the 3D camera's presets, Focus, pickers and follow perspectives over each 3D view |
 | `tools/serve.R` | the local server |
 | `tools/build-default-world.R` | how the default world was made from the city the model used to generate |
 | `tools/build-transport.mjs` | the parking, venues and the tiles they need, built by hand into the default and strip-mall worlds |

@@ -448,6 +448,21 @@ export function floorFrameProblems(a, plan) {
   return out;
 }
 
+// How tall the solid fixture on each cell of a floor is (0: none), from
+// the cells floorModel() draws as blocks: `heights` gives each kind's
+// height (walls, racks, the counter, the stockroom, the fitting cubicles,
+// the till on a cashier's place). Row by row from the north edge, as
+// floorModel()'s `kind`. heightAt(X, Z) reads it at a scene point.
+export function fixtureHeights(model, heights) {
+  const f = model.frame; const out = new Float32Array(f.W * f.H);
+  for (let i = 0; i < out.length; i++) out[i] = heights[model.kind[i]] ?? 0;
+  const heightAt = (X, Z) => {
+    const c = Math.floor(X / f.cell); const r = f.H - 1 - Math.floor(-Z / f.cell);
+    return r >= 0 && c >= 0 && r < f.H && c < f.W ? out[r * f.W + c] : 0;
+  };
+  return { cells: out, heightAt };
+}
+
 // The smallest box holding both.
 export function union(a, b) {
   return { X0: Math.min(a.X0, b.X0), X1: Math.max(a.X1, b.X1), Z0: Math.min(a.Z0, b.Z0), Z1: Math.max(a.Z1, b.Z1) };

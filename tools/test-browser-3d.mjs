@@ -476,6 +476,50 @@ check(turned.tracking === v2 && turned.onShopper && turned.mode === "follow" && 
 await page.click("#btn-step"); await page.waitForTimeout(300);
 const afterTurn = await trackState();
 check(afterTurn.tracking === null || (afterTurn.onShopper && afterTurn.offset.every((v, j) => Math.abs(v - turned.offset[j]) < 1e-6)), "the next frame keeps the offset the user turned to", afterTurn);
+// Perspectives on the one followed: Chase and Front from the heading R's positions give, Orbit back as it was.
+{
+  if ((await trackState()).tracking === null) await restart();
+  const persp = (id) => page.click(`#tab-store .camera-perspective button[data-perspective="${id}"]`);
+  const look = () => page.evaluate(() => { const tab = window.fashion.tabs.store; const v = tab.dims.view; const tr = v.tracking; const a = v.agents;
+    const i = tr && a ? Array.from(a.visit.subarray(0, a.n)).indexOf(tr.id) : -1; const c = v.camera.position; const t = v.controls.target; const h = v.fixtures.heightAt(c.x, c.z);
+    return { id: tr?.id ?? null, perspective: tr?.perspective ?? null, heading: tr?.heading ?? null, cleared: tr?.cleared ?? null, at: i >= 0 ? [a.x[i], a.y[i]] : null,
+      off: [c.x - t.x, c.z - t.z], onShopper: i >= 0 && Math.abs(t.x - (a.x[i] + 0.5) * 0.5) < 1e-6 && Math.abs(t.z + (a.y[i] + 0.5) * 0.5) < 1e-6,
+      clear: h === 0 || c.y >= h + 0.1 - 1e-6, pose: v.currentPose(), note: v.cameraState.note, pressed: document.querySelector('#tab-store .camera-perspective button[aria-pressed="true"]')?.textContent,
+      shown: !document.querySelector("#tab-store .camera-perspective").hidden, badge: document.querySelector("#tab-store .view3d-tracking").textContent }; });
+  const s0 = await look();
+  await persp("chase"); await settled("store");
+  const s1 = await look();
+  check(s0.shown && s0.pressed === "Orbit" && s1.id === s0.id && s1.perspective === "chase" && s1.pressed === "Chase" && /· Chase/.test(s1.badge)
+    && (s1.heading !== null || /No direction yet/.test(s1.note)),
+    `with visit #${s0.id} followed, Chase keeps the same shopper (${s1.heading ? "a heading already seen" : "no step seen yet, and it says so"})`, { s0, s1 });
+  // Real ticks: each heading is the last step R moved them, and the camera stands behind it, never inside a fixture.
+  let steps = 0; let behind = true; let clear = true; let same = true; let followed = true; let prev = s1.at; let expected = null; const cleared = [];
+  for (let k = 0; k < 40 && steps < 4; k++) {
+    await page.click("#btn-step"); await page.waitForTimeout(250); await settled("store");
+    const s = await look();
+    if (s.id === null) break;
+    if (s.id !== s0.id) same = false;
+    if (!s.onShopper) followed = false;
+    if (!s.clear) clear = false;
+    if (s.cleared) cleared.push(s.cleared);
+    if (prev && s.at) { const dX = (s.at[0] - prev[0]) * 0.5; const dZ = -(s.at[1] - prev[1]) * 0.5; const d = Math.hypot(dX, dZ); if (d >= 0.05) { expected = [dX / d, dZ / d]; steps++; } }
+    prev = s.at;
+    if (expected && s.heading) {
+      if (Math.abs(s.heading.X - expected[0]) > 1e-6 || Math.abs(s.heading.Z - expected[1]) > 1e-6) behind = false;
+      const L = Math.hypot(...s.off); if (L > 1e-6 && (s.off[0] * expected[0] + s.off[1] * expected[1]) / L > -0.999) behind = false;
+    }
+  }
+  check(steps > 0 && behind && clear && same && followed,
+    `over real ticks Chase stayed on visit #${s0.id}, each heading R's last step (${steps} steps), the camera behind it and never inside a fixture${cleared.length ? ` (cleared ${cleared.length} times: ${[...new Set(cleared)].join(", ")})` : ""}`, { steps, behind, clear, same, followed });
+  await persp("front"); await settled("store");
+  const s2 = await look();
+  const ahead = s2.heading && Math.hypot(...s2.off) > 1e-6 && (s2.off[0] * s2.heading.X + s2.off[1] * s2.heading.Z) / Math.hypot(...s2.off) > 0.999;
+  check(s2.id === s0.id && s2.pressed === "Front" && ahead && s2.clear, `Front: the same shopper, the camera ahead of them looking back, clear of fixtures`, s2);
+  await persp("orbit"); await settled("store");
+  const s3 = await look();
+  check(s3.id === s0.id && s3.pressed === "Orbit" && Math.abs(s3.pose.distance - 5.5) < 1e-6 && Math.abs(s3.pose.polar - 1.15) < 1e-9 && s3.onShopper,
+    "back to Orbit: the same shopper, at the distance and height following starts with", s3);
+}
 // Stop follow (the controls' button): the camera stays, the controls are back.
 if ((await trackState()).tracking === null) await restart();
 const beforeStop = await camPose("store");

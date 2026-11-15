@@ -34,6 +34,18 @@ import { tooltip } from "./charts.js";
 const CLICK_PX = 5;          // a press that moves less than this is a click, not a drag
 export const TRANSITION_MS = 700;
 const ARROWS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+// Following: a step this long (metres) between two frames gives a heading;
+// a turn of more than TURN_EASE radians is eased over TURN_MS.
+const MIN_STEP_M = 0.05;
+const TURN_EASE = 0.35; const TURN_MS = 350;
+// The follow perspectives. Orbit's distance and height are the pose
+// following starts with (the view's own); Chase sits low and close behind,
+// Front a little farther ahead.
+export const FOLLOW_PERSPECTIVES = {
+  orbit: { label: "Orbit" },
+  chase: { label: "Chase", distance: 2.6, polar: 1.32 },
+  front: { label: "Front", distance: 3.0, polar: 1.28 },
+};
 
 // Slow in, slow out.
 export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
@@ -86,7 +98,7 @@ export class View3D {
     this.controls.addEventListener("change", () => {
       this.cameraChanged();
       if (!this.stepping) this.invalidate();
-      if ((this.driving || this.keyDriving) && !this.applying) this.movedByHand();
+      if ((this.driving || this.keyDriving) && !this.applying) { this.#wantFromUser(); this.movedByHand(); }
     });
     // A drag, a pinch or the wheel: the user has the camera.
     this.controls.addEventListener("start", () => { this.driving = true; this.cancelTransition(); });
@@ -399,6 +411,18 @@ export class View3D {
   // zoom round them; panning is off, and so is zooming toward the pointer
   // (it would move the target off them): both back as they were when
   // following ends.
+  //
+  // Three perspectives on the one followed, switched without changing who:
+  // Orbit (the start: the camera keeps its offset, turned as the user
+  // likes), Chase (behind them, low and close, facing the way they go) and
+  // Front (ahead of them, looking back). Which way they go is read from
+  // their position in one frame and the next: a step of at least
+  // MIN_STEP_M sets it, a smaller one (or none) keeps the last, and until
+  // they have stepped there is none, so Chase and Front wait, the camera
+  // following as in Orbit, and say so. In Chase and Front the user can tilt
+  // and zoom (kept from frame to frame); the heading is theirs. clearPose()
+  // keeps those two cameras out of solid fixtures; what stands between the
+  // camera and the one followed is left in view.
 
   startTracking({ id, label, point, pose }) {
     this.checkPoint(point, `following ${label}`);
@@ -406,20 +430,28 @@ export class View3D {
     if (!this.tracking) { this.panBefore = this.controls.enablePan; this.zoomToCursorBefore = this.controls.zoomToCursor; }
     else this.tracking = null;               // someone else: the camera turns to them
     this.animateTo(pose, { mode: "follow", label: `Following ${label}`, note: "" });
-    this.tracking = { id, label, point: { ...point } };
+    this.tracking = { id, label, point: { ...point }, perspective: "orbit", heading: null,
+      orbit: { distance: pose.distance, polar: pose.polar }, want: null, applied: null, cleared: null };
     this.controls.enablePan = false; this.controls.zoomToCursor = false;
-    this.trackBadge.textContent = `Following ${label}`;
-    this.trackBadge.hidden = false;
-    this.setCameraState({ mode: "follow", label: `Following ${label}`, note: "" });
+    this.#trackingShown();
   }
 
   // Where the one followed is now: the camera keeps its offset from them
-  // (and a move under way to them ends on where they are now).
+  // (and a move under way to them ends on where they are now); in Chase or
+  // Front, once they have a heading, it takes its place behind or ahead.
   updateTracking(point) {
     const tr = this.tracking; if (!tr) return;
     this.checkPoint(point, `following ${tr.label}`);
     const dX = point.X - tr.point.X; const dY = point.Y - tr.point.Y; const dZ = point.Z - tr.point.Z;
     tr.point = { ...point };
+    const step = Math.hypot(dX, dZ);
+    const hadHeading = !!tr.heading;
+    if (step >= MIN_STEP_M) tr.heading = { X: dX / step, Z: dZ / step };
+    if (tr.perspective !== "orbit" && tr.heading) {
+      if (!hadHeading) this.#trackingShown();
+      this.#placePerspective();
+      return;
+    }
     if (!dX && !dY && !dZ) return;
     if (this.transition) {
       const t = this.transition.to.target;
@@ -434,6 +466,82 @@ export class View3D {
     this.invalidate();
   }
 
+  // Orbit, Chase or Front, for the one followed now (the same one).
+  setFollowPerspective(name) {
+    const tr = this.tracking;
+    if (!tr) return unavailable("Follow a shopper first: the perspectives are on the one followed.");
+    if (!FOLLOW_PERSPECTIVES[name]) throw new CameraTargetError(`There is no follow perspective called "${name}"`, { name });
+    if (name === tr.perspective) return { ok: true };
+    tr.perspective = name;
+    if (name === "orbit") {
+      // Back to Orbit as it starts: its own distance and height, from where the camera is now.
+      this.#moveTo(this.constrain({ target: { ...tr.point }, distance: tr.orbit.distance, polar: tr.orbit.polar, azimuth: this.currentPose().azimuth }), TRANSITION_MS);
+    } else {
+      const P = FOLLOW_PERSPECTIVES[name];
+      tr.want = { distance: P.distance, polar: P.polar };
+      if (tr.heading) this.#placePerspective(true);
+    }
+    this.#trackingShown();
+    return { ok: true };
+  }
+
+  // The Chase or Front pose for where they are and the way they go: the
+  // camera behind them (Chase) or ahead of them looking back (Front), at the
+  // distance and height wanted, then kept out of solid fixtures.
+  perspectivePose() {
+    const tr = this.tracking; const h = tr.heading;
+    const azimuth = tr.perspective === "chase" ? Math.atan2(-h.X, -h.Z) : Math.atan2(h.X, h.Z);
+    const pose = this.constrain({ target: { ...tr.point }, distance: tr.want.distance, polar: tr.want.polar, azimuth });
+    const r = this.clearPose(pose);
+    tr.cleared = r.cleared;
+    return r.pose;
+  }
+
+  // Where a camera at `pose` would stand clear of solid fixtures: the view's
+  // own geometry says (Store3DView); { pose, cleared: null | "pulled in" | "raised" }.
+  clearPose(pose) { return { pose, cleared: null }; }
+
+  #placePerspective(ease = false) {
+    const pose = this.perspectivePose();
+    this.tracking.applied = { distance: pose.distance, polar: pose.polar };
+    if (this.transition) { this.transition.to = pose; return; }
+    const cur = this.currentPose();
+    const turn = Math.abs(Math.atan2(Math.sin(pose.azimuth - cur.azimuth), Math.cos(pose.azimuth - cur.azimuth)));
+    if (ease || turn > TURN_EASE) { this.#moveTo(pose, ease ? TRANSITION_MS : TURN_MS); return; }
+    this.#apply(pose);
+    this.invalidate();
+  }
+
+  // A move that keeps following (it doesn't change what the camera shows).
+  #moveTo(pose, duration) {
+    this.checkPose(pose, "following");
+    if (!this.active || !this.visible || this.disposed) { this.transition = null; this.#apply(pose); return; }
+    this.transition = { from: this.currentPose(), to: pose, t0: this.clock(), duration };
+    this.invalidate();
+  }
+
+  // The user tilted or zoomed in Chase or Front: kept for the frames to come.
+  #wantFromUser() {
+    const tr = this.tracking; if (!tr || tr.perspective === "orbit" || !tr.want) return;
+    const cur = this.currentPose(); const a = tr.applied;
+    if (a) {
+      tr.want = { distance: tr.want.distance * (cur.distance / a.distance), polar: tr.want.polar + (cur.polar - a.polar) };
+      tr.applied = { distance: cur.distance, polar: cur.polar };
+    } else tr.want = { distance: cur.distance, polar: cur.polar };
+  }
+
+  // The badge over the view and what the camera shows: who, how, and
+  // whether Chase or Front is waiting for a heading.
+  #trackingShown() {
+    const tr = this.tracking; if (!tr) return;
+    const how = FOLLOW_PERSPECTIVES[tr.perspective].label;
+    const waiting = tr.perspective !== "orbit" && !tr.heading;
+    this.trackBadge.textContent = `Following ${tr.label} · ${how}`;
+    this.trackBadge.hidden = false;
+    this.setCameraState({ mode: "follow", perspective: tr.perspective, label: `Following ${tr.label} · ${how}`,
+      note: waiting ? `No direction yet: ${tr.label} hasn't moved since following began, so ${how} waits and the camera follows as in Orbit.` : "" });
+  }
+
   // Ends following: the camera stays where it is, panning as it was before.
   // `reason` says why (shown with the camera's state); `error`, if it ended
   // because the data was wrong. Returns whether anyone was being followed.
@@ -443,7 +551,7 @@ export class View3D {
     this.transition = null;                 // a move to them stops where it is
     this.controls.enablePan = this.panBefore; this.controls.zoomToCursor = this.zoomToCursorBefore;
     this.trackBadge.hidden = true; this.trackBadge.textContent = "";
-    this.setCameraState({ mode: "manual", label: `Stopped following ${tr.label}`, note: reason });
+    this.setCameraState({ mode: "manual", perspective: null, label: `Stopped following ${tr.label}`, note: reason });
     this.onTrackingStop?.({ id: tr.id, label: tr.label, reason, error });
     return true;
   }
@@ -533,6 +641,7 @@ export class View3D {
       if (key === "ArrowLeft") p.azimuth -= step; else if (key === "ArrowRight") p.azimuth += step;
       else if (key === "ArrowUp") p.polar -= step; else p.polar += step;
       this.#apply(this.constrain(p));
+      this.#wantFromUser();
       this.invalidate();
       return;
     }
@@ -639,6 +748,33 @@ export class View3D {
     mesh.instanceMatrix.needsUpdate = true;
     return mesh;
   }
+}
+
+// Where a camera at `pose` stands: its target, then distance, polar angle
+// and azimuth away (as OrbitControls places it).
+export function cameraPoint(pose) {
+  const t = pose.target; const sp = Math.sin(pose.polar);
+  return { X: t.X + pose.distance * sp * Math.sin(pose.azimuth), Y: t.Y + pose.distance * Math.cos(pose.polar), Z: t.Z + pose.distance * sp * Math.cos(pose.azimuth) };
+}
+
+// Keeps a camera out of solid fixtures, and does nothing else. `heightAt(X,
+// Z)` is how tall the solid fixture under a scene point is (0: none). If
+// the camera would stand inside one (below its top, plus `margin`), it's
+// pulled in along its line to the target, then, if no point on that line
+// is clear, raised until it's above it. It doesn't look for a clear line of
+// sight: a rack between the camera and the one followed stays there.
+export function clearOfFixtures(pose, heightAt, { margin = 0.1, step = 0.1, minDistance = 0.6, minPolar = 0.05 } = {}) {
+  const inside = (p) => { const c = cameraPoint(p); const h = heightAt(c.X, c.Z); return h > 0 && c.Y < h + margin; };
+  if (!inside(pose)) return { pose, cleared: null };
+  for (let d = pose.distance - step; d >= minDistance - 1e-9; d -= step) {
+    const p = { ...pose, distance: d };
+    if (!inside(p)) return { pose: p, cleared: "pulled in" };
+  }
+  for (let polar = pose.polar - 0.05; polar >= minPolar - 1e-9; polar -= 0.05) {
+    const p = { ...pose, polar };
+    if (!inside(p)) return { pose: p, cleared: "raised" };
+  }
+  return { pose: { ...pose, polar: minPolar }, cleared: "raised" };
 }
 
 // A colour's red, green and blue (0 to 255): #rgb, #rrggbb, rgb() or rgba().

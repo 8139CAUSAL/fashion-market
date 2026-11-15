@@ -22,6 +22,13 @@ const CAMERA_PRESETS = [
   { id: "checkout", label: "Checkout", title: "The tills, their counters and the till queue" },
 ];
 
+// How the camera looks at the shopper it follows (view-3d.js).
+const FOLLOW_VIEWS = [
+  { id: "orbit", label: "Orbit", title: "Round the shopper, turned and zoomed as you like" },
+  { id: "chase", label: "Chase", title: "Low behind the shopper, facing the way they're going" },
+  { id: "front", label: "Front", title: "Ahead of the shopper, looking back at them as they come" },
+];
+
 const NS = "http://www.w3.org/2000/svg";
 const OUTCOMES = ["paid", "nothing appealed", "too expensive", "not in my size", "left the fitting-room queue", "didn't fit or like it", "walked out of the till queue"];
 const HOURS = Array.from({ length: 10 }, (_, i) => `${10 + i}:00`);
@@ -85,7 +92,9 @@ export class StoreTab {
     this.camBar = new CameraBar({ label: "Floor camera", presets: CAMERA_PRESETS,
       onPreset: (id) => this.dims.view?.runAction(() => this.dims.view.goPreset(id, { selection: this.shown.inspect, zone: this.cam.zone })),
       onFocus: () => this.dims.view?.runAction(() => this.dims.view.focus(this.shown.inspect)),
-      onStop: () => this.#stopFollow("Stopped following: you pressed Stop follow.") });
+      onStop: () => this.#stopFollow("Stopped following: you pressed Stop follow."),
+      // The same shopper, looked at another way.
+      perspectives: FOLLOW_VIEWS, onPerspective: (id) => this.dims.view?.runAction(() => this.dims.view.setFollowPerspective(id)) });
     this.zoneSel = targetSelect({ label: "Till zone", placeholder: "Every till", onChange: (v) => { this.cam.zone = v; this.#camera(); } });
     this.zoneSel.root.hidden = true;
     this.camBar.targets.append(this.zoneSel.root);
