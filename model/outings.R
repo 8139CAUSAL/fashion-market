@@ -209,7 +209,10 @@ og_depart <- function(o) {
   }
   pre[!drv] <- T$wf$time[cbind(tile[!drv], og$dest[o[!drv]])]
   late <- t + pre >= LAST_ENTRY_S
-  if (any(late)) og_end(o[late], t[late], END_LATE, travelled = FALSE)
+  if (any(late)) {
+    for (i in o[late & og$kind[o] == OG_RETURN]) post_returns(i)     # a return trip too late to make: the items go by post
+    og_end(o[late], t[late], END_LATE, travelled = FALSE)
+  }
   go <- !late
   og$t_depart[o[go]] <<- t[go]
   og$busy[og$hh[o[go]]] <<- o[go]
@@ -418,6 +421,7 @@ og_end <- function(o, t, reason, travelled = TRUE) {
   og$ended[o] <<- ifelse_int(og$ended[o] > 0L, og$ended[o], reason)
   if (!travelled) {
     og$t_home[o] <<- t; og$ev_at[o] <<- Inf
+    release_household(o, t)                    # a household's outing waiting behind this one may still go
     return(invisible())
   }
   T <- city
@@ -453,9 +457,14 @@ og_end <- function(o, t, reason, travelled = TRUE) {
 og_home <- function(o) {
   t <- og$ev_at[o]
   og$t_home[o] <<- t; og$ev_at[o] <<- Inf
+  release_household(o, t)
+}
+
+# Outings o have ended at times t (home, or never left): their households
+# are free, and a next outing that was waiting for one leaves now.
+release_household <- function(o, t) {
   h <- og$hh[o]
   og$busy[h[og$busy[h] == o]] <<- 0L
-  # A household's next outing that was waiting for it leaves now.
   w <- which(og$waiting & og$hh %in% h)
   if (length(w)) {
     og$waiting[w] <<- FALSE

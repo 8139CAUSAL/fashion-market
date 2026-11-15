@@ -292,6 +292,12 @@ export class MapEditor {
 
   renderPalette() { this.#renderPalette(); }
 
+  // The Parking & venues layer, with tiles (a warning's) shown on the map.
+  showTransport(tiles) {
+    this.#setLayer("transport");
+    if (tiles?.length) { this.editor.setHighlights(tiles); this.editor.reveal(tiles); }
+  }
+
   // A change on the Parking & venues layer: everything that shows it, and
   // the model's preview of it.
   afterTransportEdit({ plan = true } = {}) {

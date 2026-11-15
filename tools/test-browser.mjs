@@ -191,6 +191,13 @@ check(await page.evaluate((e) => eval(e).world.draft.macro.venues.length === 4 &
 
 // ---- Setup, a day, and what the simulation did -----------------------------------------------------
 
+// Check and run: the model's check of the draft, with the access warnings beside it.
+await page.click('button:has-text("Check and run")');
+await page.waitForFunction(() => /Ready to run|problems? to fix/.test(document.querySelector("#tab-setup")?.textContent ?? ""), null, { timeout: 120_000 });
+const verdict = await page.evaluate(() => document.querySelector(".run-verdict")?.textContent ?? "");
+const warnLine = await page.evaluate(() => [...document.querySelectorAll(".problems.warn b")].map((b) => b.textContent).join(" "));
+check(/Ready to run/.test(verdict) && !/Getting there/.test(warnLine),
+  "Check and run: the model finds no problems in the draft with the new lot, and no access warnings (every store can still be reached)");
 console.log("Setup and a day");
 await page.click("#btn-setup");
 await page.waitForFunction(async () => (await window.fashion.client.request("EVAL", { code: "N_FAC" })).values[0] === 12, null, { timeout: 300_000, polling: 2000 });

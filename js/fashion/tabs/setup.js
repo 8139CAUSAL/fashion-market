@@ -684,7 +684,16 @@ export class SetupTab {
     const out = await this.app.client.request("CHECK_WORLD", { text: this.world.text() }).catch((e) => ({ problems: [{ path: "", message: e.message }] }));
     if (rev !== this.checkRev) return;
     const problems = out.problems ?? [];
-    this.worldCheck = { state: problems.length ? "problems" : "ok", problems };
+    // With no problems, what the networks can't reach: the same warnings
+    // the map editor shows (model/transport.R). They don't stop Setup; they
+    // mean some trips can't happen, and the simulation won't make them.
+    let warnings = [];
+    if (!problems.length) {
+      const pv = await this.app.client.request("PREVIEW_MACRO", { text: this.world.text() }).catch(() => null);
+      if (rev !== this.checkRev) return;
+      warnings = pv?.warnings ?? [];
+    }
+    this.worldCheck = { state: problems.length ? "problems" : "ok", problems, warnings };
     if (this.section === "run") this.#renderRun();
   }
 
@@ -703,7 +712,10 @@ export class SetupTab {
       ["Brands", fmt.int(d.brands.length), `${d.segments.length} segments`],
       ["Season", `${fmt.int(d.season_days)} days`, `seed ${d.seed}`],
     ].map(([k, v, sub]) => el("div", { class: "stat" }, el("div", { class: "stat-label", text: k }), el("div", { class: "stat-value small", text: v }), el("div", { class: "stat-sub", text: sub }))));
-    const verdict = chk.state === "ok" ? el("div", { class: "ok-line run-verdict", text: "Ready to run: the model finds no problems in this world." })
+    const warns = chk.state === "ok" && chk.warnings?.length ? el("div", { class: "problems warn" },
+      el("b", { text: `Getting there: ${chk.warnings.length} warning${chk.warnings.length === 1 ? "" : "s"}. The world runs, but these trips can't happen (no parking is made up for them). Click one to see it on the map.` }),
+      ...chk.warnings.map((w) => el("button", { type: "button", class: "problem", onclick: () => { this.#show("macro"); this.mapEditor.showTransport(w.tiles); } }, el("code", { text: w.path || "map" }), ` ${w.message}`))) : null;
+    const verdict = chk.state === "ok" ? el("div", {}, el("div", { class: "ok-line run-verdict", text: "Ready to run: the model finds no problems in this world." }), warns)
       : chk.state === "problems" ? el("div", { class: "problems" }, el("b", { text: `${chk.problems.length} problem${chk.problems.length === 1 ? "" : "s"} to fix before this world can run. Click one to go where it is.` }),
         ...chk.problems.map((p) => el("button", { type: "button", class: "problem", onclick: () => this.#goTo(p) }, el("code", { text: p.path || "file" }), ` ${p.message}`)))
         : el("p", { class: "note", text: "The model is checking the draft…" });

@@ -337,6 +337,9 @@ browse_plan <- function(h, brand) {
 # is settled). Inf runs the day out: every shopper still in a store leaves.
 advance <- function(to) {
   while (next_step <= to && !day_over()) {
+    # Every outing is home well before this; one that isn't is a fault in
+    # the model, said aloud rather than run forever.
+    if (next_step > DAY_S + 12 * 3600) stop("the day can't end: outings still out at ", clock_hm(next_step), " (", sum(is.na(og$t_home)), " not home)")
     run_step(next_step, next_step + STEP_S)
     next_step <<- next_step + STEP_S
   }
