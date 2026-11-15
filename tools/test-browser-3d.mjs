@@ -167,7 +167,16 @@ console.log(`    (the whole default market in 3D: ${timing.calls} draw calls, ${
 console.log("Market 3D camera");
 const camPose = (tab) => page.evaluate((t) => { const v = window.fashion.tabs[t].dims.view;
   return { ...v.currentPose(), mode: v.cameraState.mode, label: v.cameraState.label, note: v.cameraState.note, moving: !!v.transition, raf: v.raf }; }, tab);
-const settled = (tab) => page.waitForFunction((t) => { const v = window.fashion.tabs[t].dims.view; return !v.transition && !v.raf; }, tab, { timeout: 10_000 });
+const settled = async (tab) => {
+  // (Generous: SwiftShader draws the whole market from a low angle at ~0.5–1 s a frame, its 19,000 houses being most of that.)
+  try { await page.waitForFunction((t) => { const v = window.fashion.tabs[t].dims.view; return !v.transition && !v.raf; }, tab, { timeout: 60_000, polling: 100 }); }
+  catch (err) {
+    const state = await page.evaluate((t) => { const v = window.fashion.tabs[t].dims.view;
+      return { transition: v.transition && { t0: v.transition.t0, duration: v.transition.duration, now: v.clock() }, raf: v.raf, active: v.active, visible: v.visible, disposed: v.disposed,
+        size: [v.wrap.clientWidth, v.wrap.clientHeight], renders: v.renders, mode: v.cameraState.mode, tracking: v.tracking?.id ?? null }; }, tab);
+    throw new Error(`the ${tab} camera didn't settle: ${JSON.stringify(state)}`);
+  }
+};
 const btn = (tab, label) => `#tab-${tab} .camera-bar button:text-is("${label}")`;
 const attr = (sel, name) => page.getAttribute(sel, name);
 // Every message the page sends the simulation from here on, to show that camera actions send none.
@@ -390,6 +399,123 @@ check(sp.visit === pick.visit && sp.ok && sp.low < 0.5 && sp.d < 8, `Shopper loo
 const storeSent = await sentSince();
 check(storeSent.length === 1 && storeSent[0] === "ACTION", `the store's camera actions sent the simulation nothing (only the click on the shopper asked R to inspect: ${JSON.stringify(storeSent)})`);
 
+// ---- Following a shopper with the camera ---------------------------------------------------------------------
+
+console.log("Follow camera");
+const followBtn = "#tab-store .inspector-follow button";
+const trackState = () => page.evaluate(() => { const tab = window.fashion.tabs.store; const v = tab.dims.view; const a = v.agents;
+  const id = v.tracking?.id ?? tab.shown.inspect?.visit; const i = a ? Array.from(a.visit.subarray(0, a.n)).indexOf(id) : -1; const t = v.controls.target;
+  return { tracking: v.tracking?.id ?? null, i, onShopper: i >= 0 && Math.abs(t.x - (a.x[i] + 0.5) * 0.5) < 1e-6 && Math.abs(t.z + (a.y[i] + 0.5) * 0.5) < 1e-6,
+    at: i >= 0 ? [a.x[i], a.y[i]] : null, offset: v.camera.position.clone().sub(t).toArray(), pan: v.controls.enablePan, mode: v.cameraState.mode, note: v.cameraState.note,
+    badge: !document.querySelector("#tab-store .view3d-tracking").hidden, stop: !document.querySelector("#tab-store .camera-stop").hidden,
+    status: document.querySelector("#tab-store .camera-status").textContent, button: document.querySelector("#tab-store .inspector-follow button")?.textContent,
+    inspector: document.querySelector("#tab-store .inspector").textContent }; });
+const fb = { shown: await page.isVisible(followBtn), aria: await attr(followBtn, "aria-disabled") };
+check(fb.shown && fb.aria === "false", "the shopper's inspector has Follow camera, available while they're in the live frame");
+// Start: by the inspector's own button.
+await page.click(followBtn);
+await settled("store");
+const f0 = await trackState();
+check(f0.tracking === sp.visit && f0.onShopper && !f0.pan && f0.mode === "follow" && f0.badge && f0.stop && /Following visit/.test(f0.status) && f0.button === "Stop follow",
+  `Follow camera moves round visit #${sp.visit} and follows it: panning off, "Following visit #${sp.visit}" over the view and in the controls, Stop follow shown`, f0);
+// Follows someone on the floor now: a click on them (as a user would), then Follow camera.
+const restart = async () => {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const who = await page.evaluate((k) => { const tab = window.fashion.tabs.store; const v = tab.dims.view; const a = tab.shown.agents;
+      if (!a?.n) return null; const i = k % a.n;
+      const X = (a.x[i] + 0.5) * 0.5; const Z = -(a.y[i] + 0.5) * 0.5; v.animateTo({ target: { X, Y: 0, Z }, distance: 8, polar: 0.9, azimuth: 0.4 }, { duration: 0 }); v.render();
+      const s = v.toScreen(X, 1.2, Z); const r = v.canvas.getBoundingClientRect(); return { x: r.left + s.x, y: r.top + s.y, visit: a.visit[i] }; }, attempt);
+    if (who) {
+      await page.mouse.click(who.x, who.y);
+      const ok = await page.waitForFunction((visit) => window.fashion.tabs.store.shown.inspect?.visit === visit && document.querySelector("#tab-store .inspector-follow button")?.getAttribute("aria-disabled") === "false",
+        who.visit, { timeout: 10_000 }).then(() => true, () => false);
+      if (ok) { await page.click(followBtn); await settled("store"); return who.visit; }
+    }
+    await page.click("#btn-step"); await page.waitForTimeout(400);
+  }
+  const why = await page.evaluate(() => { const tab = window.fashion.tabs.store; const h = window.fashion.header;
+    return { reason: document.querySelector("#tab-store .inspector-follow button")?.title, live: tab.shown.live, viewLive: tab.dims.view.live, pace: h?.pace, clock: h?.clock, day: h?.day,
+      agents: tab.shown.agents?.n, inspect: tab.shown.inspect, tab: window.fashion.tab, is3d: tab.dims.is3d }; });
+  throw new Error(`no shopper on the floor could be followed after 40 tries: ${JSON.stringify(why)}`);
+};
+// Real ticks: the shopper moves, the camera with them, keeping its offset; one who
+// leaves ends it as a departure, and the next is followed.
+let moved = 0; let followedOk = true; let sameOffset = true; let ticks = 0; const departures = [];
+let cur = await trackState(); let lastAt = cur.at; let ref = cur.offset;
+for (let k = 0; k < 60 && moved < 6; k++) {
+  const leaving = await page.evaluate(() => window.fashion.tabs.store.dims.view.currentPose());
+  await page.click("#btn-step");
+  await page.waitForTimeout(250);
+  const s = await trackState();
+  if (s.tracking === null) {
+    const pose = await page.evaluate(() => window.fashion.tabs.store.dims.view.currentPose());
+    departures.push({ note: s.note, pan: s.pan, badge: s.badge, stop: s.stop, gone: s.i === -1, kept: Math.abs(pose.distance - leaving.distance) < 1e-9 });
+    await restart(); cur = await trackState(); lastAt = cur.at; ref = cur.offset;
+    continue;
+  }
+  ticks++;
+  if (!s.onShopper) followedOk = false;
+  if (!s.offset.every((v, j) => Math.abs(v - ref[j]) < 1e-6)) sameOffset = false;
+  if (s.at && lastAt && (s.at[0] !== lastAt[0] || s.at[1] !== lastAt[1])) moved++;
+  lastAt = s.at;
+}
+check(followedOk && moved >= 3 && sameOffset && f0.inspector.length > 0,
+  `over ${ticks} ticks the camera stayed on the followed shopper at R's position in each frame (they moved ${moved} times), keeping its offset; the inspector went on showing them`, { moved, followedOk, sameOffset, ticks, departures });
+check(departures.every((d) => d.note === "Shopper no longer visible in this store." && d.pan && !d.badge && !d.stop && d.gone && d.kept),
+  `${departures.length} followed shopper(s) left the floor meanwhile: each time following ended with "Shopper no longer visible in this store.", the camera left where it was, panning back`, departures);
+// Following someone on the floor now: rotate and zoom keep following; a right-drag doesn't pan away.
+const v2 = await restart();
+const box2 = await page.evaluate(() => { const r = window.fashion.tabs.store.dims.view.canvas.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+await page.mouse.move(box2.x, box2.y); await page.mouse.down(); await page.mouse.move(box2.x + 60, box2.y, { steps: 4 }); await page.mouse.up();
+await page.mouse.wheel(0, -200); await page.waitForTimeout(200);
+await page.mouse.move(box2.x, box2.y); await page.mouse.down({ button: "right" }); await page.mouse.move(box2.x + 90, box2.y + 40, { steps: 4 }); await page.mouse.up({ button: "right" });
+await page.waitForTimeout(200);
+const turned = await trackState();
+check(turned.tracking === v2 && turned.onShopper && turned.mode === "follow" && turned.offset.some((v, j) => Math.abs(v - f0.offset[j]) > 0.05),
+  `turning (drag) and zooming (wheel) while following visit #${v2} keep following it; a right-drag doesn't pan off them`, turned);
+await page.click("#btn-step"); await page.waitForTimeout(300);
+const afterTurn = await trackState();
+check(afterTurn.tracking === null || (afterTurn.onShopper && afterTurn.offset.every((v, j) => Math.abs(v - turned.offset[j]) < 1e-6)), "the next frame keeps the offset the user turned to", afterTurn);
+// Stop follow (the controls' button): the camera stays, the controls are back.
+if ((await trackState()).tracking === null) await restart();
+const beforeStop = await camPose("store");
+await page.click("#tab-store .camera-stop");
+const stopped = await trackState(); const stoppedPose = await camPose("store");
+check(stopped.tracking === null && stopped.pan && !stopped.badge && !stopped.stop && stopped.button === "Follow camera" && Math.abs(stoppedPose.distance - beforeStop.distance) < 1e-9 && /Stop follow/.test(stopped.note),
+  `Stop follow ends it: the camera stays where it was, panning back, the tracking shown no more ("${stopped.note}")`, stopped);
+await page.click("#btn-step"); await page.waitForTimeout(300);
+const still = await camPose("store");
+check(Math.abs(still.target.X - stoppedPose.target.X) < 1e-9 && Math.abs(still.target.Z - stoppedPose.target.Z) < 1e-9, "after Stop follow, the next frame doesn't move the camera");
+// Ending it: a preset; the inspector closed; another store; the floor not live; 2D.
+const endWith = async (what, act, re) => {
+  if ((await trackState()).tracking === null) await restart();
+  const t = await trackState();
+  await act();
+  await page.waitForTimeout(400);
+  const e = await trackState();
+  check(t.tracking !== null && e.tracking === null && e.pan && !e.badge && re.test(e.note + e.status), `${what} ends following (${e.note || e.status})`, { t, e });
+};
+await endWith("a camera preset (Top-down)", () => page.click(btn("store", "Top-down")), /Top-down/);
+await endWith("closing the inspector", () => page.click('#tab-store .inspector button[aria-label="Close the inspector"]'), /inspector no longer shows/);
+await endWith("Reset view", () => page.click('#tab-store .view-switch button:text-is("Reset view")'), /Overview/);
+await endWith("another store", () => page.click('#tab-store button[aria-label="Next store"]'), /changed stores/);
+await page.click('#tab-store button[aria-label="Previous store"]'); await page.click("#btn-step"); await page.waitForTimeout(800);
+await page.click('#tab-store .view-switch button:text-is("3D")').catch(() => {});
+{
+  if ((await trackState()).tracking === null) await restart();
+  const t = await trackState();
+  await page.click('#tab-store .view-switch button:text-is("2D")');
+  await page.waitForTimeout(300);
+  const e = await page.evaluate(() => { const v = window.fashion.tabs.store.dims.view; return { tracking: v.tracking, pan: v.controls.enablePan, follow: !document.querySelector("#tab-store .inspector-follow")?.hidden }; });
+  check(t.tracking !== null && e.tracking === null && e.pan && !e.follow, "switching to 2D ends following and hides Follow camera", e);
+  await page.click('#tab-store .view-switch button:text-is("3D")'); await page.waitForTimeout(300);
+}
+// Last, as it finishes the day: the fastest speed, which doesn't draw the floor.
+await endWith("the fastest speed (no live floor)", () => page.selectOption("#speed", "day"), /isn't drawn live/);
+await page.selectOption("#speed", "600");
+const followSent = (await sentSince()).filter((t) => !["ACTION", "STEP", "SET", "VIEW"].includes(t));
+check(followSent.length === 0, `following sent the simulation nothing of its own (only the clicks, steps, speed and store picks did: ${JSON.stringify(followSent)})`);
+
 // ---- Same season in 2D and 3D --------------------------------------------------------------------------------
 
 console.log("2D and 3D leave the season as it is");
@@ -405,6 +531,35 @@ const runFrom = async (dims) => {
   for (let k = 0; k < 40; k++) await page.evaluate(() => window.fashion.client.request("STEP"));
   return fingerprint();
 };
+// The same, watched with the 3D camera following a shopper, and in 2D with the
+// same shopper inspected (the one R action both make): the season is the same.
+const runFollowing = async (dims) => {
+  await page.evaluate((d) => window.fashion.tabs.store.dims.set(d), dims);
+  await page.evaluate(() => window.fashion.setupSeason());
+  await page.waitForTimeout(500);
+  await page.selectOption("#speed", "600");
+  await page.waitForTimeout(300);
+  await R("advance(4 * 3600)");               // to the middle of the day, the same in both runs: the store has shoppers
+  let picked = null;
+  for (let k = 0; k < 40; k++) {
+    await page.evaluate(() => window.fashion.client.request("STEP"));
+    if (k >= 5 && !picked) {
+      await page.waitForTimeout(200);
+      picked = await page.evaluate(() => { const a = window.fashion.tabs.store.shown.agents; return a?.n ? { x: a.x[0], y: a.y[0], visit: a.visit[0] } : null; });
+      if (picked) {
+        await page.evaluate((p) => window.fashion.action("inspect_at", { store: window.fashion.tabs.store.store, x: p.x, y: p.y }), picked);
+        await page.waitForTimeout(300);
+        if (dims === "3d") await page.evaluate(() => { const tab = window.fashion.tabs.store; tab.dims.view.followCamera(tab.shown.inspect); });
+      }
+    }
+    if (dims === "3d" && k === 30 && picked) picked.following = await page.evaluate(() => window.fashion.tabs.store.dims.view.tracking?.id ?? "ended");
+  }
+  return { fp: await fingerprint(), picked };
+};
+const fol3d = await runFollowing("3d");
+const fol2d = await runFollowing("2d");
+check(fol3d.picked && JSON.stringify(fol3d.fp) === JSON.stringify(fol2d.fp) && fol3d.fp[3] > 0 && fol3d.picked.following !== undefined,
+  `40 ticks with the 3D camera following visit #${fol3d.picked?.visit} (still following at tick 30: ${fol3d.picked?.following}) and in 2D with that shopper inspected: the same random-number state, clock, legs, visits and takings`, { fol3d, fol2d });
 const in3d = await runFrom("3d");
 const in2d = await runFrom("2d");
 check(JSON.stringify(in3d) === JSON.stringify(in2d) && in3d[3] > 0,

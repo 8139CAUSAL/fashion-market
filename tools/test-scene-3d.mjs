@@ -1024,3 +1024,218 @@ test("easing and steps: slow in and out, a pose half-way is between, the short w
   assert.ok(near(half.target.X, 5) && near(half.polar, 0.75) && Math.abs(Math.sin(half.azimuth)) < 1e-9 && Math.cos(half.azimuth) < 0, "through south-west-ish π, not round through 0");
   assert.ok(easeInOut(0) === 0 && easeInOut(1) === 1 && near(easeInOut(0.5), 0.5) && easeInOut(0.1) < 0.1 && easeInOut(0.9) > 0.9);
 });
+
+// ---- Following a shopper with the camera ---------------------------------------------------------------
+//
+//   - Follow starts only for a shopper in the inspector who is in the
+//     current live frame, found by their visit's id, never their place in it
+//   - the camera moves round them, then keeps its offset from them as each
+//     frame moves them; the user can still turn and zoom, not pan
+//   - it stops, leaving the camera where it is and the controls as they
+//     were, when: Stop follow; a live frame without the visit ("Shopper no
+//     longer visible in this store."); another preset, Reset or Focus; the
+//     floor changes; the view is hidden or disposed; the floor stops being
+//     live
+//   - a malformed frame, or one with the visit twice, stops it as an error,
+//     shown and logged, not as a departure
+
+const followFrame = (pts, visits, extra = {}) => ({ n: pts.length, x: pts.map((p) => p[0]), y: pts.map((p) => p[1]), look: pts.map(() => 2), visit: visits,
+  staffN: 1, staffX: [60], staffY: [12], staffRole: [1], staffId: [1], staffBusy: [0], cubBusy: [], cubOpen: [], frQ: 0, tillQ: 0, receipts: 0, inStore: pts.length, ...extra });
+
+function followView() {
+  const plan = planOf(flagship, keys);
+  const made = camView(Store3DView);
+  made.view.setPlan(plan, flagship.rows, keys); made.view.setActive(true); made.view.setLive(true);
+  made.view.setAgents(followFrame([[10, 5], [20, 7], [30, 9]], [301, 302, 303]));
+  dom.frames();
+  made.f = made.view.model.frame;
+  return made;
+}
+
+test("Follow camera: starts round the inspector's shopper, found by visit id; unavailable (and why) when not a shopper, not live or not in the frame; a defect when the frame contradicts itself", () => {
+  const { view, run, f } = followView();
+  assert.match(view.followCamera(null).reason, /Select a shopper/);
+  assert.match(view.followCamera({ kind: "cashier", server: 1 }).reason, /Select a shopper/);
+  assert.ok(!view.followCamera({ kind: "shopper", visit: 999 }).ok && view.tracking === null);
+  view.setLive(false);
+  assert.match(view.followCamera({ kind: "shopper", visit: 302 }).reason, /isn't drawn live/);
+  view.setLive(true);
+  view.setAgents(followFrame([[10, 5], [20, 7]], [302, 302]));
+  assert.throws(() => view.followCamera({ kind: "shopper", visit: 302 }), CameraTargetError);
+  assert.equal(view.tracking, null);
+  view.setAgents(followFrame([[10, 5], [20, 7], [30, 9]], [301, 302, 303]));
+  const r = view.followCamera({ kind: "shopper", visit: 302 });
+  assert.ok(r.ok && view.tracking.id === 302 && view.cameraState.mode === "follow" && view.controls.enablePan === false);
+  assert.equal(view.trackBadge.hidden, false);
+  assert.match(view.trackBadge.textContent, /visit #302/);
+  run(TRANSITION_MS + 50);
+  const at = spatial.floorToScene(f, 20, 7);
+  assert.ok(near(view.controls.target.x, at.X) && near(view.controls.target.z, at.Z) && view.distance < 8);
+  view.dispose();
+});
+
+test("Follow camera: each live frame moves the camera with the shopper (by visit id, wherever they are in the frame's order), keeping its offset; the user can turn and zoom, not pan", () => {
+  const { view, run, f } = followView();
+  view.followCamera({ kind: "shopper", visit: 302 }); run(TRANSITION_MS + 50);
+  const offset = () => view.camera.position.clone().sub(view.controls.target);
+  const o0 = offset();
+  // Across racks, the fitting rooms, the queue and a till: frame after frame, in a different order each time.
+  const path = [[22, 8], [25, 12], [41.5, 30], [50, 20], [56, 14], [60, 10]];
+  path.forEach(([x, y], k) => {
+    const others = [[10, 5 + k], [30, 9]];
+    const order = k % 2 ? [[x, y], ...others] : [...others, [x, y]];
+    const visits = k % 2 ? [302, 301, 303] : [301, 303, 302];
+    view.setAgents(followFrame(order, visits)); dom.frames();
+    const p = spatial.floorToScene(f, x, y);
+    assert.ok(near(view.controls.target.x, p.X) && near(view.controls.target.z, p.Z), `frame ${k}: on the shopper`);
+    assert.ok(offset().distanceTo(o0) < 1e-9, `frame ${k}: the same offset`);
+    assert.ok(onScreen(view, p.X, 1, p.Z));
+  });
+  // Frames during the move in: the move ends on the shopper where they are now.
+  view.followCamera({ kind: "shopper", visit: 301 });
+  run(200);
+  view.setAgents(followFrame([[12, 6], [30, 9], [60, 10]], [301, 303, 302]));
+  run(TRANSITION_MS);
+  const p1 = spatial.floorToScene(f, 12, 6);
+  assert.ok(view.tracking.id === 301 && near(view.controls.target.x, p1.X) && near(view.controls.target.z, p1.Z));
+  // Turning by the pointer and zooming by the wheel keep following; panning is off.
+  const r = view.canvas.getBoundingClientRect(); const x = r.left + 400; const y = r.top + 300;
+  view.canvas.dispatch("pointerdown", pointer(x, y)); view.canvas.dispatch("pointermove", pointer(x + 50, y)); view.canvas.dispatch("pointerup", pointer(x + 50, y, { buttons: 0 }));
+  view.canvas.dispatch("wheel", { deltaY: -100, deltaMode: 0, clientX: x, clientY: y, preventDefault() {}, ctrlKey: false });
+  const turned = offset();
+  assert.ok(view.tracking && view.cameraState.mode === "follow" && turned.distanceTo(o0) > 0.01);
+  assert.ok(near(view.controls.target.x, p1.X) && near(view.controls.target.z, p1.Z), "zooming while following zooms round the shopper, not toward the pointer");
+  assert.equal(view.controls.zoomToCursor, false);
+  // Shift + arrow keys turn the camera too (the controls ignore keys while panning is off).
+  const az = view.currentPose().azimuth;
+  view.canvas.dispatch("keydown", { code: "ArrowLeft", key: "ArrowLeft", shiftKey: true, preventDefault() {} });
+  assert.ok(view.currentPose().azimuth < az && view.tracking);
+  const kept = offset();
+  view.setAgents(followFrame([[14, 6], [30, 9], [60, 10]], [301, 303, 302])); dom.frames();
+  assert.ok(offset().distanceTo(kept) < 1e-9 && near(view.controls.target.x, spatial.floorToScene(f, 14, 6).X), "the turned offset is kept");
+  // A right-drag (pan) doesn't move the target off the shopper.
+  const t = view.controls.target.clone();
+  view.canvas.dispatch("pointerdown", pointer(x, y, { button: 2 })); view.canvas.dispatch("pointermove", pointer(x + 80, y + 40, { button: 2, buttons: 2 })); view.canvas.dispatch("pointerup", pointer(x + 80, y + 40, { button: 2, buttons: 0 }));
+  assert.ok(view.controls.target.distanceTo(t) < 1e-9);
+  // The compass turns round the shopper and keeps following.
+  view.compass.dispatch("click"); run(TRANSITION_MS + 50);
+  assert.ok(view.tracking && near(view.currentPose().azimuth, 0, 1e-9));
+  view.dispose();
+});
+
+test("Follow camera: a live frame without the visit ends it as a departure — camera left where it is, controls restored, no reset — and says only that the shopper isn't visible", () => {
+  const { view, run } = followView();
+  view.followCamera({ kind: "shopper", visit: 303 }); run(TRANSITION_MS + 50);
+  view.setAgents(followFrame([[33, 11]], [303])); dom.frames();
+  const pose = view.currentPose();
+  const stops = []; view.onTrackingStop = (s) => stops.push(s);
+  view.setAgents(followFrame([[10, 5]], [301])); dom.frames();
+  assert.equal(view.tracking, null);
+  assert.ok(poseNear(view.currentPose(), pose), "left where it was");
+  assert.ok(view.controls.enablePan === true && view.controls.zoomToCursor === true && view.trackBadge.hidden);
+  assert.equal(view.cameraState.mode, "manual");
+  assert.equal(view.cameraState.note, "Shopper no longer visible in this store.");
+  assert.deepEqual(stops.map((s) => [s.id, s.error ?? null]), [[303, null]]);
+  run(500); assert.ok(poseNear(view.currentPose(), pose) && view.raf === 0, "and stays there, nothing more drawn");
+  view.dispose();
+});
+
+test("Follow camera: malformed or contradictory frames end it as an error, shown and logged, never as a departure", () => {
+  const quiet = console.error;
+  for (const [what, frame, re] of [
+    ["the visit twice", followFrame([[10, 5], [20, 7]], [302, 302]), /visit #302 appears 2 times/],
+    ["another visit twice", followFrame([[20, 7], [10, 5], [11, 5]], [302, 301, 301]), /visit #301 appears 2 times/],
+    ["no real point", followFrame([[NaN, 7]], [302]), /not a point/],
+    ["arrays shorter than n", { ...followFrame([[20, 7]], [302]), n: 3 }, /x has 1 values for 3/],
+    ["a visit id that isn't one", followFrame([[20, 7], [10, 5]], [302, 1.5]), /visit id 1.5/],
+    ["off the floor", followFrame([[500, 7]], [302]), /not a point of the 66 × 36 floor/],
+  ]) {
+    const { view, run } = followView();
+    view.followCamera({ kind: "shopper", visit: 302 }); run(TRANSITION_MS + 50);
+    const pose = view.currentPose();
+    const errors = []; const logged = [];
+    view.onCameraError = (e) => errors.push(e);
+    console.error = (...a) => logged.push(a.join(" "));
+    try { view.setAgents(frame); dom.frames(); } finally { console.error = quiet; }
+    assert.equal(view.tracking, null, what);
+    assert.ok(errors.length === 1 && errors[0] instanceof CameraTargetError && re.test(errors[0].message), `${what}: ${errors[0]?.message}`);
+    assert.ok(logged.length >= 1, `${what}: logged`);
+    assert.ok(view.cameraState.note !== "Shopper no longer visible in this store." && /stopped/i.test(view.cameraState.note), `${what}: ${view.cameraState.note}`);
+    assert.ok(poseNear(view.currentPose(), pose) && view.controls.enablePan === true);
+    view.dispose();
+  }
+});
+
+test("Follow camera: a preset, Reset or Focus, a new floor, hiding or disposing the view, or the floor no longer live each end it; the camera is reset only where asked or the floor changed", () => {
+  const cases = [
+    ["Top-down", (v) => v.goPreset("topdown"), "topdown"],
+    ["Reset", (v) => v.goPreset("overview"), "overview"],
+    ["Focus", (v) => v.focus({ kind: "cashier", server: 1 }), "focus"],
+    ["hidden", (v) => v.setActive(false), "manual"],
+    ["not live", (v) => v.setLive(false), "manual"],
+    ["Stop follow", (v) => v.stopTracking("Stopped following."), "manual"],
+  ];
+  for (const [what, act, mode] of cases) {
+    const { view, run } = followView();
+    view.followCamera({ kind: "shopper", visit: 301 }); run(TRANSITION_MS + 50);
+    const pose = view.currentPose();
+    act(view);
+    assert.equal(view.tracking, null, what);
+    assert.ok(view.controls.enablePan && view.trackBadge.hidden, what);
+    assert.equal(view.cameraState.mode, mode, what);
+    if (mode === "manual") assert.ok(poseNear(view.currentPose(), pose), `${what}: the camera stays where it was`);
+    // A frame after: nothing follows any more.
+    view.setActive(true); view.setLive(true);
+    view.setAgents(followFrame([[40, 20]], [301])); run(TRANSITION_MS + 50);
+    if (mode === "manual") assert.ok(poseNear(view.currentPose(), pose), `${what}: not following`);
+    view.dispose();
+  }
+  // A new floor: following ends, and the new floor's Overview.
+  const { view, run } = followView();
+  view.followCamera({ kind: "shopper", visit: 301 }); run(TRANSITION_MS + 50);
+  const small = json("layouts/small.layout.json");
+  view.setPlan(planOf(small, keys), small.rows, keys);
+  assert.ok(view.tracking === null && view.controls.enablePan && view.cameraState.mode === "overview" && /floor changed/.test(view.cameraState.note));
+  // Disposed while following: no frames asked for, no listeners left.
+  view.setLive(true); view.setAgents(followFrame([[10, 5]], [301]));
+  view.followCamera({ kind: "shopper", visit: 301 }); run(100);
+  view.dispose();
+  assert.ok(view.tracking === null && view.raf === 0 && !view.transition);
+  assert.equal(view.canvas.listeners.get("keydown")?.length ?? 0, 0);
+  view.setAgents(followFrame([[12, 5]], [301]));
+  assert.equal(view.tracking, null);
+});
+
+test("Follow camera: tracking moves on with frames only — no frames, no animation; nothing is sent to the simulation", () => {
+  const sent = [];
+  const { view, run, renderer } = followView();
+  view.onClick = (...a) => sent.push(a);
+  view.followCamera({ kind: "shopper", visit: 302 }); run(TRANSITION_MS + 50);
+  const calls = renderer.calls;
+  run(1000);
+  assert.equal(renderer.calls, calls, "no frame, nothing drawn: following isn't an animation of its own");
+  view.setAgents(followFrame([[21, 7]], [302])); run(100);
+  assert.equal(renderer.calls, calls + 1, "a frame: one render");
+  assert.deepEqual(sent, []);
+  view.dispose();
+});
+
+test("the inspector's Follow camera: shown for a shopper with the 3D floor, says why it can't start, turns into Stop follow while following; the panel's own content is untouched", async () => {
+  const { Inspector } = await import("../js/fashion/inspector.js");
+  const calls = [];
+  const ins = new Inspector({ onClose() {}, onHousehold() {}, onFollowCamera: (active) => calls.push(active), app: { brands: [], brandName: (b) => `Brand ${b}` } });
+  const b = ins.followButton;
+  ins.setFollowCamera({ shown: true, ok: false, active: false, reason: "Visit #5 isn't on this floor in the current frame." });
+  assert.ok(!ins.followBox.hidden && b.getAttribute("aria-disabled") === "true" && /isn't on this floor/.test(b.title) && /Unavailable/.test(ins.followWhy.textContent));
+  b.click();
+  assert.deepEqual(calls, []);
+  assert.match(ins.followNote.textContent, /isn't on this floor/);
+  ins.setFollowCamera({ shown: true, ok: true, active: false });
+  b.click();
+  ins.setFollowCamera({ shown: true, ok: true, active: true });
+  assert.ok(b.textContent === "Stop follow" && b.getAttribute("aria-pressed") === "true");
+  b.click();
+  assert.deepEqual(calls, [false, true]);
+  ins.setFollowCamera({ shown: false, ok: false, active: false });
+  assert.ok(ins.followBox.hidden);
+});

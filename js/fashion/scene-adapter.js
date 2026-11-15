@@ -415,6 +415,39 @@ export function locateOnFloor(a, plan, sel) {
   return { ok: true, at: floorToScene(f, x, y), x, y, index: i };
 }
 
+// What's wrong with a frame's floor (parseFrame()'s floor), as a list
+// (empty: nothing): counts that aren't counts, arrays shorter than their
+// count, a shopper or worker not at a real point of the floor, a visit id
+// that isn't a whole number or is in the frame more than once. Checked on
+// every frame while the camera follows someone: a frame like this is a
+// defect, not a shopper leaving.
+export function floorFrameProblems(a, plan) {
+  const out = [];
+  if (!a || typeof a !== "object") return ["there is no floor in the frame"];
+  const count = (n, what) => { if (!Number.isInteger(n) || n < 0) { out.push(`its ${what} count is ${n}`); return false; } return true; };
+  const arrays = (n, names) => { for (const k of names) if (!a[k] || a[k].length < n) out.push(`${k} has ${a[k]?.length ?? "no"} values for ${n}`); };
+  const inFloor = (x, y) => Number.isFinite(x) && Number.isFinite(y) && x >= -1 && y >= -1 && x <= plan.width && y <= plan.height;
+  if (count(a.n, "shopper")) {
+    arrays(a.n, ["x", "y", "look", "visit"]);
+    if (!out.length) {
+      const seen = new Map();
+      for (let i = 0; i < a.n; i++) {
+        if (!inFloor(a.x[i], a.y[i])) out.push(`visit #${a.visit[i]} is at (${a.x[i]}, ${a.y[i]}), not a point of the ${plan.width} × ${plan.height} floor`);
+        const v = a.visit[i];
+        if (!Number.isInteger(v) || v < 1) out.push(`shopper ${i} has visit id ${v}`);
+        else seen.set(v, (seen.get(v) ?? 0) + 1);
+      }
+      for (const [v, k] of seen) if (k > 1) out.push(`visit #${v} appears ${k} times`);
+    }
+  }
+  if (count(a.staffN, "staff")) {
+    const before = out.length;
+    arrays(a.staffN, ["staffX", "staffY", "staffRole", "staffId"]);
+    if (out.length === before) for (let i = 0; i < a.staffN; i++) if (!inFloor(a.staffX[i], a.staffY[i])) out.push(`worker ${i} is at (${a.staffX[i]}, ${a.staffY[i]}), not a point of the floor`);
+  }
+  return out;
+}
+
 // The smallest box holding both.
 export function union(a, b) {
   return { X0: Math.min(a.X0, b.X0), X1: Math.max(a.X1, b.X1), Z0: Math.min(a.Z0, b.Z0), Z1: Math.max(a.Z1, b.Z1) };

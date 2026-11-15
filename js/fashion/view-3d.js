@@ -63,7 +63,9 @@ export class View3D {
     this.compass = el("button", { type: "button", class: "view3d-compass", hidden: true, title: "North (−Z on the map): click to turn the view to face north",
       "aria-label": "Turn the view to face north" }, this.needle);
     this.compass.addEventListener("click", () => this.runAction(() => this.faceNorth()));
-    wrap.append(this.canvas, this.labelLayer, this.caption, this.compass);
+    // While the camera follows someone: who, over the view.
+    this.trackBadge = el("div", { class: "view3d-tracking", role: "status", hidden: true });
+    wrap.append(this.canvas, this.labelLayer, this.caption, this.compass, this.trackBadge);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(32, 4 / 3, 1, 1e5);
@@ -101,6 +103,10 @@ export class View3D {
     this.transition = null;
     this.driving = false; this.keyDriving = false; this.stepping = false; this.applying = 0;
     this.cameraState = { mode: "overview", label: "Overview", note: "" };
+    // Following someone: { id, label, point } (the scene point the camera
+    // keeps its offset from), and whether panning was on before.
+    this.tracking = null; this.panBefore = true; this.zoomToCursorBefore = true;
+    this.onTrackingStop = null;       // ({ id, label, reason, error }) => …, when following ends
     this.onCameraState = null;        // (state) => …, when what the camera shows changes
     this.onCameraError = null;        // (error) => …, a camera action that went wrong
 
@@ -149,7 +155,10 @@ export class View3D {
   // nothing, and a move under way ends where it was going.
   setActive(on) {
     this.active = on;
-    if (on) { this.#resize(); this.invalidate(); } else { this.#finishTransition(); tooltip.hide(); }
+    if (on) { this.#resize(); this.invalidate(); } else {
+      this.stopTracking("Stopped following: the 3D view was closed.");
+      this.#finishTransition(); tooltip.hide();
+    }
   }
 
   setCaption(text) { this.caption.textContent = text; this.caption.hidden = !text; }
@@ -190,6 +199,7 @@ export class View3D {
     this.disposed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0; this.transition = null;
+    this.stopTracking("Stopped following: the 3D view was closed.");
     this.resizeObserver.disconnect();
     this.media.removeEventListener?.("change", this.onThemeChange);
     for (const [type, fn] of Object.entries(this.handlers)) this.canvas.removeEventListener?.(type, fn);
@@ -198,8 +208,8 @@ export class View3D {
     View3D.disposeTree(this.scene);
     this.renderer.dispose();
     this.renderer.forceContextLoss?.();
-    this.canvas.remove(); this.labelLayer.remove(); this.caption.remove(); this.compass.remove();
-    this.onCameraState = null; this.onCameraError = null;
+    this.canvas.remove(); this.labelLayer.remove(); this.caption.remove(); this.compass.remove(); this.trackBadge.remove();
+    this.onCameraState = null; this.onCameraError = null; this.onTrackingStop = null;
     tooltip.hide();
   }
 
@@ -247,6 +257,7 @@ export class View3D {
   // Straight back to the Overview, with no move (a new world or floor).
   reset() {
     if (!this.home) return;
+    this.stopTracking("Stopped following: the scene changed.");
     this.transition = null;
     this.#apply(this.home.pose);
     this.setCameraState({ mode: "overview", label: "Overview", note: "" });
@@ -328,10 +339,12 @@ export class View3D {
 
   // Moves the camera to `pose`, easing there over `duration` ms (at once
   // while the view isn't shown). Checked first: an invalid pose throws and
-  // the camera stays as it was. Replaces a move under way.
-  animateTo(pose, { mode = "manual", label = "", note = "", duration = TRANSITION_MS } = {}) {
+  // the camera stays as it was. Replaces a move under way, and ends
+  // following someone unless `keepTracking` (the compass's turn).
+  animateTo(pose, { mode = "manual", label = "", note = "", duration = TRANSITION_MS, keepTracking = false } = {}) {
     this.checkPose(pose, label || mode);
     const to = this.constrain(pose);
+    if (!keepTracking) this.stopTracking("");
     this.transition = null;
     this.setCameraState({ mode, label, note });
     if (!this.active || !this.visible || this.disposed || duration <= 0) { this.#apply(to); this.invalidate(); return; }
@@ -377,6 +390,70 @@ export class View3D {
     this.cameraChanged();
   }
 
+  // ---- Following someone ---------------------------------------------------------------------------
+  //
+  // The camera moves round a point (`pose`, about `point`) and from then on
+  // keeps its offset from that point as the view reports where the one
+  // followed is now (updateTracking(), from each frame: their actual
+  // position, nothing interpolated or guessed). The user can still turn and
+  // zoom round them; panning is off, and so is zooming toward the pointer
+  // (it would move the target off them): both back as they were when
+  // following ends.
+
+  startTracking({ id, label, point, pose }) {
+    this.checkPoint(point, `following ${label}`);
+    this.checkPose(pose, `following ${label}`);
+    if (!this.tracking) { this.panBefore = this.controls.enablePan; this.zoomToCursorBefore = this.controls.zoomToCursor; }
+    else this.tracking = null;               // someone else: the camera turns to them
+    this.animateTo(pose, { mode: "follow", label: `Following ${label}`, note: "" });
+    this.tracking = { id, label, point: { ...point } };
+    this.controls.enablePan = false; this.controls.zoomToCursor = false;
+    this.trackBadge.textContent = `Following ${label}`;
+    this.trackBadge.hidden = false;
+    this.setCameraState({ mode: "follow", label: `Following ${label}`, note: "" });
+  }
+
+  // Where the one followed is now: the camera keeps its offset from them
+  // (and a move under way to them ends on where they are now).
+  updateTracking(point) {
+    const tr = this.tracking; if (!tr) return;
+    this.checkPoint(point, `following ${tr.label}`);
+    const dX = point.X - tr.point.X; const dY = point.Y - tr.point.Y; const dZ = point.Z - tr.point.Z;
+    tr.point = { ...point };
+    if (!dX && !dY && !dZ) return;
+    if (this.transition) {
+      const t = this.transition.to.target;
+      this.transition.to = { ...this.transition.to, target: { X: t.X + dX, Y: t.Y + dY, Z: t.Z + dZ } };
+      return;
+    }
+    this.controls.target.set(this.controls.target.x + dX, this.controls.target.y + dY, this.controls.target.z + dZ);
+    this.camera.position.set(this.camera.position.x + dX, this.camera.position.y + dY, this.camera.position.z + dZ);
+    this.applying++;
+    try { this.controls.update(); } finally { this.applying--; }
+    this.cameraChanged();
+    this.invalidate();
+  }
+
+  // Ends following: the camera stays where it is, panning as it was before.
+  // `reason` says why (shown with the camera's state); `error`, if it ended
+  // because the data was wrong. Returns whether anyone was being followed.
+  stopTracking(reason = "", error = null) {
+    const tr = this.tracking; if (!tr) return false;
+    this.tracking = null;
+    this.transition = null;                 // a move to them stops where it is
+    this.controls.enablePan = this.panBefore; this.controls.zoomToCursor = this.zoomToCursorBefore;
+    this.trackBadge.hidden = true; this.trackBadge.textContent = "";
+    this.setCameraState({ mode: "manual", label: `Stopped following ${tr.label}`, note: reason });
+    this.onTrackingStop?.({ id: tr.id, label: tr.label, reason, error });
+    return true;
+  }
+
+  // A scene point must be numbers. A defect if not.
+  checkPoint(point, what) {
+    const bad = ["X", "Y", "Z"].filter((k) => !Number.isFinite(point?.[k]));
+    if (bad.length) throw new CameraTargetError(`${what}: not a point (${bad.map((k) => `${k} = ${point?.[k]}`).join(", ")})`, { what, point });
+  }
+
   // ---- Camera actions --------------------------------------------------------------------------
 
   // A camera preset: the view works out its pose (presetTarget()), then the
@@ -410,7 +487,8 @@ export class View3D {
       this.setCameraState({ note: "Already facing north." });
       return { ok: true, already: true };
     }
-    this.animateTo({ ...p, azimuth: 0 }, { mode: "north", label: "Facing north" });
+    if (this.tracking) this.animateTo({ ...p, azimuth: 0 }, { mode: "follow", label: this.cameraState.label, keepTracking: true });
+    else this.animateTo({ ...p, azimuth: 0 }, { mode: "north", label: "Facing north" });
     return { ok: true };
   }
 
@@ -437,12 +515,27 @@ export class View3D {
 
   // The user moved the camera: it shows no preset now.
   movedByHand() {
+    if (this.tracking) return;       // turning or zooming while following: still following
     if (this.cameraState.mode !== "manual" || this.cameraState.note) this.setCameraState({ mode: "manual", label: "Moved by hand", note: "" });
   }
 
   keyDown(ev) {
-    if (!ARROWS.has(ev.code ?? ev.key)) return;
+    const key = ev.code ?? ev.key;
+    if (!ARROWS.has(key)) return;
     this.cancelTransition();
+    // Following, panning is off and the controls ignore keys altogether:
+    // Shift (or Ctrl, ⌘) and an arrow still turn the camera, by the
+    // controls' own step, round the one followed.
+    if (this.tracking && (ev.shiftKey || ev.ctrlKey || ev.metaKey)) {
+      ev.preventDefault?.();
+      const step = 2 * Math.PI * this.controls.rotateSpeed / Math.max(1, this.canvas.clientHeight || this.wrap.clientHeight);
+      const p = this.currentPose();
+      if (key === "ArrowLeft") p.azimuth -= step; else if (key === "ArrowRight") p.azimuth += step;
+      else if (key === "ArrowUp") p.polar -= step; else p.polar += step;
+      this.#apply(this.constrain(p));
+      this.invalidate();
+      return;
+    }
     this.keyDriving = true;
     queueMicrotask(() => { this.keyDriving = false; });
   }

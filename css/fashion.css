@@ -829,3 +829,10 @@ svg.calendar-chart { display: block; font-size: 11px; }
 .quick-btn[disabled] { opacity: 0.4; }
 .quick-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 @media (pointer: coarse), (max-width: 640px) { .canvas-quick { display: flex; } }
+/* Following someone with the 3D camera (js/fashion/view-3d.js, inspector.js). */
+.view3d-tracking { position: absolute; left: 10px; top: 8px; font-size: 12px; font-weight: 600; color: var(--ink); pointer-events: none;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); border: 1px solid var(--hairline); padding: 2px 8px; border-radius: 5px; }
+.view3d-tracking::before { content: "● "; color: var(--critical); }
+.inspector-follow { margin: 6px 0; }
+.inspector-follow button[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.inspector-follow button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }

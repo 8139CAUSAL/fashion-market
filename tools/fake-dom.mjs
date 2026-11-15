@@ -24,6 +24,17 @@ class FakeElement extends FakeNode {
     this.style = style;
     this.box = { left: 0, top: 0 };
   }
+  // The classes, kept in className.
+  get classList() {
+    const names = () => this.className.split(/\s+/).filter(Boolean);
+    const set = (list) => { this.className = list.join(" "); };
+    return {
+      add: (...c) => set([...new Set([...names(), ...c])]),
+      remove: (...c) => set(names().filter((n) => !c.includes(n))),
+      contains: (c) => names().includes(c),
+      toggle: (c, on = !names().includes(c)) => { set(on ? [...new Set([...names(), c])] : names().filter((n) => n !== c)); return on; },
+    };
+  }
   append(...nodes) { for (const n of nodes) { if (n instanceof FakeElement) n.parent = this; this.children.push(n); } }
   replaceChildren(...nodes) { this.children = []; this.append(...nodes); }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); }

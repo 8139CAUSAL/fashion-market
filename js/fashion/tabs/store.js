@@ -84,7 +84,8 @@ export class StoreTab {
     this.cam = { zone: null, reported: new Set() };
     this.camBar = new CameraBar({ label: "Floor camera", presets: CAMERA_PRESETS,
       onPreset: (id) => this.dims.view?.runAction(() => this.dims.view.goPreset(id, { selection: this.shown.inspect, zone: this.cam.zone })),
-      onFocus: () => this.dims.view?.runAction(() => this.dims.view.focus(this.shown.inspect)) });
+      onFocus: () => this.dims.view?.runAction(() => this.dims.view.focus(this.shown.inspect)),
+      onStop: () => this.#stopFollow("Stopped following: you pressed Stop follow.") });
     this.zoneSel = targetSelect({ label: "Till zone", placeholder: "Every till", onChange: (v) => { this.cam.zone = v; this.#camera(); } });
     this.zoneSel.root.hidden = true;
     this.camBar.targets.append(this.zoneSel.root);
@@ -99,7 +100,10 @@ export class StoreTab {
 
     // The inspector, KPIs and the followed shopper.
     const right = el("div", { class: "grid" });
-    this.inspector = new Inspector({ onClose: () => app.action("close_inspector"), onHousehold: (h) => app.openHousehold(h), app });
+    this.inspector = new Inspector({ onClose: () => app.action("close_inspector"), onHousehold: (h) => app.openHousehold(h), app,
+      // Follow camera: the 3D camera stays with the inspector's shopper (store-3d.js).
+      onFollowCamera: (active) => (active ? this.#stopFollow("Stopped following: you pressed Stop follow.")
+        : this.dims.view?.runAction(() => this.dims.view.followCamera(this.shown.inspect))) });
     right.append(this.inspector.root);
     const k = card("Today", { sub: "" });
     this.kpiCard = k;
@@ -187,9 +191,12 @@ export class StoreTab {
     this.cam.zone = this.zoneSel.setOptions(ch.zones.map((z) => ({ value: z.index, label: z.label })), this.cam.zone, ch.together ? "Every till" : "Pick a till zone…");
   }
 
+  #stopFollow(reason) { this.dims.view?.stopTracking(reason); }
+
   // Which camera actions can run now, and what the camera shows.
   #camera() {
-    const v = this.dims.view; if (!v || this.camBar.root.hidden) return;
+    const v = this.dims.view;
+    if (!v || this.camBar.root.hidden) { this.inspector.setFollowCamera({ shown: false, ok: false, active: false }); return; }
     const avail = (id, r) => {
       if (r.defect && !this.cam.reported.has(r.reason)) { this.cam.reported.add(r.reason); this.app.error("A 3D camera target is wrong", new Error(r.reason)); }
       this.camBar.setAvailable(id, r.ok ? { ok: true } : { ok: false, reason: r.defect ? `Error: ${r.reason}` : r.reason });
@@ -200,6 +207,12 @@ export class StoreTab {
     avail("focus", f);
     if (f.ok) this.camBar.setFocusTitle(`Turn the camera to ${f.label.replace(/^Focus · /, "")}, in the inspector`);
     this.camBar.setState(v.cameraState);
+    // Follow camera, in the shopper's inspector panel.
+    const ins = this.shown.inspect;
+    const ft = v.followTarget(ins);
+    if (ft.defect && !this.cam.reported.has(ft.reason)) { this.cam.reported.add(ft.reason); this.app.error("A 3D camera target is wrong", new Error(ft.reason)); }
+    this.inspector.setFollowCamera({ shown: ins?.kind === "shopper", ok: ft.ok, active: !!v.tracking && v.tracking.id === ins?.visit,
+      reason: ft.ok ? "" : ft.defect ? `Error: ${ft.reason}` : ft.reason });
   }
 
   #caption(text) {
@@ -234,10 +247,15 @@ export class StoreTab {
       this.floor.setSells(g.brands[st.brand - 1]?.sells ?? null);
       this.floor.setAgents(null);
       this.shown.agents = null;
-      // Live again once this store's report says so; its zones are its own.
+      // Live again once this store's report says so; its zones are its own;
+      // no one in the last store is followed here.
+      const followed = this.dims.view?.tracking;
+      this.#stopFollow("Stopped following: you changed stores.");
       this.shown.live = false; this.shown.inspect = null; this.cam.zone = null;
       this.dims.view?.setLive(false);
       this.#plan3d();
+      // Another layout's floor opens at its Overview: still say why following ended.
+      if (followed) this.dims.view?.setCameraState({ note: "Stopped following: you changed stores." });
       this.inspector.update(null);
       this.#camera();
     }
@@ -282,9 +300,16 @@ export class StoreTab {
     this.floor.setFollow(r.follow?.visit ?? null);
     this.floor.setInspect(inspect);
     Object.assign(this.shown, { follow: r.follow?.visit ?? null, inspect });
+    // The camera follows the inspector's shopper only: anyone else in it, or no one, ends that.
+    const tr = this.dims.view?.tracking;
+    if (tr && !(inspect?.kind === "shopper" && inspect.visit === tr.id)) {
+      this.#stopFollow(inspect ? "Stopped following: someone else is in the inspector now." : "Stopped following: the inspector no longer shows this shopper.");
+    }
     this.dims.view?.setFollow(this.shown.follow);
     this.dims.view?.setInspect(inspect);
-    this.shown.live = !!r.live;
+    // Live positions: today in progress, at the watching pace (the fastest
+    // doesn't draw the floor; the header comes before the report).
+    this.shown.live = !!r.live && this.app.header?.pace === "watch";
     this.dims.view?.setLive(this.shown.live);
     this.#camera();
     this.inspector.update(r.inspect);

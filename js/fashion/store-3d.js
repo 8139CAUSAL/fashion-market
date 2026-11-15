@@ -21,10 +21,16 @@
 // plan_geometry() and the installed rows place them); Focus turns to the
 // selected shopper or worker. A preset that needs a live frame, a
 // selection or geometry the plan doesn't have says so instead.
+//
+// Follow camera: the camera stays with the inspector's shopper as each
+// live frame moves them, found by their visit's id. frame_pack() sends who
+// is on the floor, not who left: a live frame without the visit ends it,
+// and says only that the shopper isn't visible. A frame that contradicts
+// itself ends it as an error.
 
 import { sceneToFloor } from "./spatial.js";
-import { floorModel, floorAgentsOf, checkoutGeometry, locateOnFloor, union } from "./scene-adapter.js";
-import { View3D, placeMatrix, personGeometry, staffGeometry, groundPlane, overlayMaterial, rgb, unavailable, defect } from "./view-3d.js";
+import { floorModel, floorAgentsOf, checkoutGeometry, locateOnFloor, floorFrameProblems, union } from "./scene-adapter.js";
+import { View3D, CameraTargetError, placeMatrix, personGeometry, staffGeometry, groundPlane, overlayMaterial, rgb, unavailable, defect } from "./view-3d.js";
 import { LOOK_NAMES } from "./floor-view.js";
 import { cssVar } from "./ui.js";
 import { tooltip } from "./charts.js";
@@ -60,6 +66,7 @@ export class Store3DView extends View3D {
   // the same plan again does nothing.
   setPlan(plan, rows = null, keys = []) {
     if (this.plan === plan && this.rows === rows) return;
+    const followed = this.tracking;
     this.plan = plan; this.rows = rows; this.keys = keys;
     this.model = plan ? floorModel(plan, rows, keys) : null;
     this.checkout = this.model ? checkoutGeometry(plan, this.model) : null;
@@ -70,6 +77,9 @@ export class Store3DView extends View3D {
       const f = this.model.frame;
       this.frame({ X0: 0, X1: f.width, Z0: -f.depth, Z1: 0 }, { azimuth: 0.3, elevation: 0.92, fill: 0.95 });
     }
+    // A new floor: whoever was followed isn't on it.
+    if (this.tracking) this.stopTracking("Stopped following: the store's floor changed.");
+    if (followed) this.setCameraState({ note: "Stopped following: the store's floor changed." });
     this.invalidate();
   }
   setMode(mode) { this.mode = mode; this.heatDirty = true; this.dynamicDirty = true; this.invalidate(); }
@@ -79,10 +89,17 @@ export class Store3DView extends View3D {
     if (JSON.stringify([...(next ?? [])]) === JSON.stringify([...(this.sells ?? [])])) return;
     this.sells = next; this.racksDirty = true; this.dynamicDirty = true; this.invalidate();
   }
-  setAgents(a) { this.agents = a; this.dynamicDirty = true; this.invalidate(); }
+  setAgents(a) {
+    this.agents = a; this.dynamicDirty = true;
+    if (this.tracking && a) this.#track(a);
+    this.invalidate();
+  }
   // Whether the frames now carry this store's floor live (the Store report's
-  // `live`): without it, where anyone stands isn't known now.
-  setLive(on) { this.live = !!on; }
+  // `live`): without it, where anyone stands isn't known now, and following ends.
+  setLive(on) {
+    this.live = !!on;
+    if (!this.live) this.stopTracking("Stopped following: the floor isn't drawn live at this speed.");
+  }
   setHeat(h) { this.heat = h; this.heatDirty = true; if (this.mode === "heat") { this.dynamicDirty = true; this.invalidate(); } }
   setFollow(v) { this.follow = v; this.dynamicDirty = true; this.invalidate(); }
   setInspect(target) { this.inspect = target; this.dynamicDirty = true; this.invalidate(); }
@@ -323,6 +340,42 @@ export class Store3DView extends View3D {
       return { ok: true, pose, label, note: notes.join(" ") };
     }
     return super.presetTarget(name);
+  }
+
+  // ---- Follow camera ------------------------------------------------------------------------------
+
+  // Whether the inspector's shopper can be followed now.
+  followTarget(sel) {
+    if (sel?.kind !== "shopper") return unavailable("Select a shopper on the floor to follow them.");
+    return this.locate(sel);
+  }
+
+  // Follows the inspector's shopper: the camera moves round them, low, from
+  // the side it's on, and stays with them frame by frame.
+  followCamera(sel) {
+    const r = this.followTarget(sel);
+    if (!r.ok) { if (r.defect) throw new CameraTargetError(r.reason, { action: "follow", ...r.context }); return r; }
+    this.startTracking({ id: sel.visit, label: `visit #${sel.visit}`, point: r.point,
+      pose: { target: r.point, distance: SHOPPER_DISTANCE, polar: SHOPPER_POLAR, azimuth: this.currentPose().azimuth } });
+    return { ok: true };
+  }
+
+  // A frame while following: the camera moves with the visit, or following
+  // ends — normally if the visit isn't in it, as an error if the frame is wrong.
+  #track(a) {
+    const visit = this.tracking.id;
+    const problems = floorFrameProblems(a, this.plan);
+    const r = problems.length ? null : locateOnFloor(a, this.plan, { kind: "shopper", visit });
+    if (problems.length || r.defect) {
+      const detail = problems.length ? problems.slice(0, 4).join("; ") : r.reason;
+      const err = new CameraTargetError(`Following visit #${visit} stopped: the frame is wrong (${detail})`, { visit, problems });
+      console.error(`[fashion] ${err.message}`, err.context);
+      this.stopTracking(`Stopped following: the store's frame was wrong (${detail}).`, err);
+      this.onCameraError?.(err);
+      return;
+    }
+    if (!r.ok) { this.stopTracking("Shopper no longer visible in this store."); return; }
+    this.updateTracking({ X: r.at.X, Y: AGENT_LOOK_Y, Z: r.at.Z });
   }
 
   // Focus: the shopper or worker selected (the inspector's).
