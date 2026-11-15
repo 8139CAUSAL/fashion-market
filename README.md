@@ -20,9 +20,30 @@ on every report is a sum of those decisions, so any KPI can be followed down
 to the shoppers behind it, and any shopper can be opened to see why they did
 what they did.
 
-You set the market: the brands, their ranges and calendars, the shoppers,
-the city map and every store's floor plan. The same world and seed always
-give the same season, so two runs differ only by what you changed.
+- **Design the market.** You set the brands, their ranges and calendars,
+  the shoppers, the city map (homes, roads, water, parking, malls) and every
+  store's floor plan, drawn tile by tile on the Setup tab.
+- **Watch it run.** Cars drive the streets, shoppers walk to the stores and
+  through them, and cashiers and assistants serve them, on a 2D plan or in
+  a 3D city and store you can turn and zoom.
+- **Open any decision.** Click a shopper to see their basket, their loyalty
+  and the reasoning behind each choice, with the numbers that decided it.
+- **Follow behaviour to the results.** Sales, margin, share, conversion,
+  queues and staff costs are totals of those visits, by store, brand, area
+  and day.
+- **Compare strategies fairly.** The same world and seed always give the
+  same season, so two runs differ only by what you changed.
+
+![The default city in 3D in week 8: households coloured by the brand they last bought from, the stores, and cars on the streets](screenshots/market-3d.png)
+
+*The same market in 3D: the world drawn on the Setup tab, with every store,
+household, car and walker where the simulation has them.*
+
+Fashion Market is a simulation. Its results follow from the world you
+configure and the model's assumptions about how people shop; they show what
+those assumptions imply, and on their own they don't establish real-world
+causal effects. [What's real and what's illustrative](#whats-real-and-whats-illustrative)
+lists the assumptions.
 
 The model is R, running in the page through
 [webR](https://docs.r-wasm.org/webr/) and
@@ -58,20 +79,40 @@ button shows the files that are running, and the world they run in.
    families running 19 stores and four online stores across a city of four
    areas and 24,000 households, over a 13-week season with two demand
    events: spikes on days 3 and 23, and a slump into day 90.
-2. **Press Go.** The speed menu runs store time from real time to 3,600×,
-   or *Fastest*: a market day per tick, without drawing.
-3. **Click any store** on the map to watch its floor, then **click a
-   shopper** to see their basket, their loyalty and their thoughts.
-4. **Draw your world** (in the header): paint the map's homes, roads and
+2. **Press Go.** The speed menu sets how fast store time runs. The watch
+   speeds, *Real time (1×)*, *30×*, *120×*, *600×* (the default) and
+   *3,600× real time*, draw everyone moving: cars and walkers on the map,
+   shoppers and staff on a store's floor. *Fastest: a day per tick* runs a
+   whole market day per tick without drawing anyone moving: the map shows
+   each store's visits that day as a halo instead, and the Store tab says
+   the floor isn't drawn at that speed. To watch agents, in 2D or 3D, pick
+   a watch speed.
+3. **Click any store** on the map to watch its floor (at *Fastest*, this
+   switches back to the last watch speed), then **click a shopper** to see
+   their basket, their loyalty and their thoughts.
+4. **See the market in 3D.** Over the Market tab's map, switch **2D** to
+   **3D**. Drag to turn the city, right-drag (or Shift-drag) to move across
+   it, and scroll to zoom; with the view selected, the arrow keys move it.
+   On a touch screen, one finger turns it and two move and zoom it.
+   **Reset view** goes back to the starting angle. Click a store to open
+   its floor; click anywhere else to pick the household nearest that point.
+   The first switch to 3D downloads the 3D library (about 500 kB); a
+   browser without WebGL stays in 2D.
+5. **See a store in 3D.** On the Store tab, the same switch over the floor
+   shows the store in 3D, as the floor or its heat map (the Flow view has
+   no 3D). Click a shopper or a cashier or assistant to open them in the
+   inspector, as in 2D; hover over one to see what they're doing.
+   **Follow a random shopper** rings the shopper followed.
+6. **Draw your world** (in the header): paint the map's homes, roads and
    water with a brush, start from another geography, place stores, draw
    their floors. The model previews every stroke: households placed,
    stores in reach, problems on the floor where they are.
-5. **Change something.** Settings marked *live* act at once, even
+7. **Change something.** Settings marked *live* act at once, even
    mid-season. Anything that changes the world waits for **Setup**, which
    counts the changes waiting. Setup checks the world first; if anything is
    wrong, it lists every problem where it is, and the season carries on in
    the world set up before.
-6. **Export world** saves the whole market as one JSON file, to share or
+8. **Export world** saves the whole market as one JSON file, to share or
    import later.
 
 ---
@@ -80,7 +121,7 @@ button shows the files that are running, and the world they run in.
 
 ### Market
 
-The whole market at once (above): households coloured by the brand they last
+The whole market at once (the screenshot at the top): households coloured by the brand they last
 bought from (or by segment, offer held, or area), stores in their brand's
 colour, the parking lots and garages, the malls' corridors, and everyone
 outdoors: cars driving the road network, shoppers walking (from their car,
@@ -99,21 +140,31 @@ online stores in its reach, the offers it holds) and its ledger: every item
 it has bought this season, where and for how much, and what it returned,
 with gross, refunds and net by brand.
 
-**2D or 3D.** The switch over the map shows the same market in 3D: the
-world drawn on the Setup tab and installed by Setup, as low-poly scenery
-(the ground in each tile's colour, roads, highways and footpaths, bridges,
-houses by density in their area's colour, buildings, woodland, parks,
-garages' see-through decks, each mall's plan with its roof off), the
-stores in their brand's colours with today's visits as a halo, the
-households in the colours the map is set to, and everyone outdoors where
-the simulation has them. Drag to turn the view, right-drag (or Shift-drag)
-to move it, scroll to zoom; **Reset view** goes back to the starting angle.
-A click works as on the 2D map: a store opens its floor, anywhere else
-picks the household nearest the point. See [The 3D views](#how-it-works).
+**2D or 3D.** The switch over the map turns the same market into a 3D city
+you can turn and zoom, from the whole map down to one street: it
+is the world drawn on the Setup tab and installed by Setup, with everyone
+outdoors where the simulation has them, so you can see where traffic
+gathers, which stores draw the crowds and how shoppers move between a car
+park and a store's door. It's drawn as low-poly scenery: the ground in each
+tile's colour, roads, highways and footpaths, bridges, houses by density in
+their area's colour, buildings, woodland, parks, garages' see-through
+decks and each mall's plan with its roof off, so the shoppers in its
+corridors show. The stores stand in their brand's colours with today's
+visits as a halo, and the households take the colours the map is set to.
+Drag to turn the view, right-drag (or Shift-drag) to move it, scroll to
+zoom; with the view selected, the arrow keys move it, and on a touch
+screen one finger turns it and two move and zoom it. **Reset view** goes
+back to the starting angle. A click works as on the 2D map: a store opens
+its floor, anywhere else picks the household nearest the point. Switching
+changes only what's drawn: see [The 3D views](#the-3d-views).
+
+![Old Town in 3D: five stores with halos of today's visits, cars on the streets, and a parking garage](screenshots/market-3d-old-town.png)
+
+![Millbrook Mall in 3D with its roof off: storefronts, entrances, the garage's see-through decks and a lot of parked cars](screenshots/market-3d-mall.png)
 
 ### Store
 
-![The Store tab on a Saturday: the flagship's floor, and a shopper in a fitting room with four items and the thoughts behind them](screenshots/store.png)
+![The Store tab: the flagship's floor in 2D, and the inspector on a shopper in a fitting room, with their items and thoughts](screenshots/store.png)
 
 Any store's floor, live, as the floor, a footfall heat map or the process
 flow with counts. Click a shopper to see what they're doing, their basket
@@ -126,18 +177,28 @@ straight to the tills. Click a cashier or an assistant to see their work
 shopper through their visit. The store's sales are shown gross and net of
 the day's refunds.
 
-The floor and its heat map can also be shown in 3D (the switch over the
-floor): the installed layout's walls cut away low, its entrances, racks in
-their category's colour, the stockroom and its door, the till counter and
-the cashiers' places, the fitting cubicles (lit when in use, grey when
-closed) and the queues, with everyone in the store where the simulation
-has them, shoppers coloured by what they're doing and staff filled when
-busy. A click on a shopper or a worker in 3D opens the inspector as a
-click on the 2D floor does.
+**2D or 3D.** The switch over the floor shows the store in 3D, as the
+floor or its heat map (the Flow view has no 3D): the layout as it was
+drawn in the Micro world, with everyone in the store where the simulation
+has them, so a queue backing up to the racks or a fitting room that's
+always full can be seen where it happens. The installed layout's walls are
+cut away low, with its entrances, racks in their category's colour (grey
+where the brand doesn't stock the category), the stockroom and its door,
+the till counter and the cashiers' places, the fitting cubicles (lit when
+in use, grey when closed) and the queues. Shoppers are coloured by what
+they're doing, as in the 2D legend, and staff are paler when free. The
+camera works as on the Market tab, with **Reset view**. A click on a
+shopper or a worker in 3D opens the inspector as a click on the 2D floor
+does; hovering over one says what they're doing.
+
+![The Ours Old Town flagship in 3D on a Saturday: racks by category, shoppers trying on, queuing and paying, and the cashier at the till](screenshots/store-3d.png)
+
+*The Flagship layout drawn in Setup (the [Micro world](#draw-your-world)
+screenshot), installed and running.*
 
 ### Strategy
 
-![The Strategy tab: our levers beside the competitors' average, market share over time, revenue and spend per customer net of refunds, and each segment's share of wallet](screenshots/strategy.png)
+![The Strategy tab: our levers against the competitors' average, market share over time, revenue and spend per customer, and share of wallet by segment](screenshots/strategy.png)
 
 Our family against the competition: our levers beside the competitors'
 average, market share over time (addressable, ours, other brands), revenue,
@@ -183,7 +244,7 @@ refunds.
 
 ### Scorecard
 
-![The Scorecard tab: satisfied and unsatisfied visits and why, online visits and returns, time in store, staff utilisation and the size fill rate](screenshots/scorecard.png)
+![The Scorecard tab: visits satisfied and not, and why, online visits, returns, time in store, staff utilisation and size fill rate](screenshots/scorecard.png)
 
 Satisfied and unsatisfied visits and why, online visits and why they didn't
 order, returns, time in store, staff utilisation (the tills' time on returns
@@ -224,17 +285,21 @@ with a brush of 1, 3 × 3 or 7 × 7 tiles (`[` and `]` change it; the brush's
 whole footprint shows before it paints, and a stroke paints every tile it
 crosses, however fast it's drawn), **Fill**, **Erase**, **Place** (a store
 on the map, a fitting room or till unit on a floor), **Undo** and **Redo**,
-one step for each drag. Rectangle, line, eyedropper, select and move, pan
-and the queue tool sit in the row below. One click switches between the
+one step for each drag. Rectangle (Shift for its edge only), line,
+eyedropper, select and move, pan and the queue tool sit in the row below.
+The canvas's size (width and height in tiles) can be grown or cropped,
+keeping the drawing at a chosen edge. One click switches between the
 **Overview**, the whole map or floor, and the **Draw** view, tiles big
 enough to paint one by one (16 px, 20 for a finger) where you were working.
 A line under the tools says what a press would do: the tile, the layer and
 the brush's footprint in tiles and metres. Zoom and pan never change the
 grid or what a tile stands for. On a phone or tablet one finger draws and
 two move and zoom the view, and Undo, Redo and the view stay on the
-canvas's corner.
+canvas's corner. The draft is kept in the browser, so a reload loses
+nothing, and **Import world → Default world** puts the default back (it
+asks first when the draft holds changes Setup hasn't installed).
 
-![Setup, Draw your world: the default city in the Draw view, the large brush about to paint homes of density 6, every tile named on the palette, and what each does in the simulation beside the map](screenshots/macro-world.png)
+![Setup, Macro world: Old Town in the Draw view, the large brush set to paint homes of density 6, the tile palette, and what each tile does in the simulation](screenshots/macro-world.png)
 
 On the **map**, every tile is named, with what it does in the model: who
 can cross it, cars or people, both or neither (the table under
@@ -257,14 +322,20 @@ town or a harbour bay. It replaces the map's tiles, after asking, repaints
 your areas onto its districts and puts your stores on its sites; nothing
 else in the world changes, and Undo brings the old map back.
 
-![Setup, Draw your world: the Flagship's floor, its tiles by name beside the plan, racks, stockroom, fitting rooms and tills named on it, and what the model says about it](screenshots/micro-world.png)
+![Setup, Micro world: the Flagship layout, its tile palette, its racks, stockroom, fitting rooms and tills named on the plan, and the model's report on it](screenshots/micro-world.png)
 
 On a **floor**, the tiles are listed by name beside the plan; fitting rooms
-and till units are put down whole and turned with `[` and `]`, and each
-queue is dragged out from its head. Racks, the stockroom, the fitting rooms
-and the tills are named on the plan, and every problem the model finds is
-outlined on the tiles it's about. A new layout starts from a blank shell or
-a copy of a prefab.
+(a walled cubicle) and till units are stamped down whole and turned with
+`[` and `]`, and each queue is dragged out from its head with the queue
+tool. Racks, the stockroom, the fitting rooms and the tills are named on
+the plan, and every problem the model finds is outlined on the tiles it's
+about. A new layout starts from a blank shell or a copy of a prefab.
+
+**Rack faces set capacity.** A rack tile with floor beside it is a face. A
+store's space for a category is that category's faces against a standard
+store's, and sets how much of the category it plans to sell and puts on the
+floor. Racks buried in a block, or of a category the brand doesn't sell,
+hold nothing.
 
 ### Every section
 
@@ -307,9 +378,10 @@ The seven sections that set the world and the market:
   reached, and (the trip tool) any household's trip to any store.
 - **Micro world.** The stores and their floor plans, painted in half-metre
   tiles: walls, doors, the stockroom, racks by category, fitting-room
-  cubicles, and tills with their queues. The **queue tool** drags a queue
-  out from its head; **stamps** put down a walled cubicle or a till unit
-  whole. The model reads the plan as you paint: it lists problems (no door,
+  cubicles, and tills with their queues, drawn with the tools in
+  [Draw your world](#draw-your-world) (the **queue tool** and the
+  **stamps** for cubicles and till units). The model reads the plan as you
+  paint: it lists problems (no door,
   a queue not joined to its head, racks no one can reach) and reports the
   floor area, fitting rooms, tills, rack space against a standard store, and
   the longest walk from a door. A new store goes on the map from the Macro
@@ -326,20 +398,7 @@ The seven sections that set the world and the market:
   The default world has both kinds: days 3 and 23 at 1.3, and that slump
   into day 90.
 
-![Setup, Season: the default world's demand events, spikes on days 3 and 23 and a slump ramped into day 90, each day's demand as they add up, and the ramp's panel walking -1.4, -1.5 ... -2 on days 84 to 90](screenshots/season.png)
-
-**Rack faces set capacity.** A rack tile with floor beside it is a face. A
-store's space for a category is that category's faces against a standard
-store's, and sets how much of the category it plans to sell and puts on the
-floor. Racks buried in a block, or of a category the brand doesn't sell,
-hold nothing.
-
-Both editors share draw and erase with three brush sizes, rectangle (Shift
-for its edge only), line, fill, eyedropper, select and move, undo and redo,
-canvas size, the Overview and Draw views, zoom and pan. The draft is kept in
-the browser, so a reload loses nothing, and **Import world → Default world**
-puts the default back (it asks first when the draft holds changes Setup
-hasn't installed).
+![Setup, Season: the default world's demand events (spikes on days 3 and 23, a slump ramped into day 90) and each day's demand as they add up](screenshots/season.png)
 
 **Check and run**, the last stage, shows the model's own check of the draft
 world, the one Setup makes before it installs a world, with every problem a
@@ -444,6 +503,7 @@ with one. How they get about is the next section.
 
 </details>
 
+<a id="getting-about-roads-paths-parking-and-venues"></a>
 <details>
 <summary><b>Getting about</b>: roads, paths, parking and venues (<code>model/transport.R</code>, <code>model/outings.R</code>)</summary>
 
@@ -508,8 +568,7 @@ out), from leaving home to getting back, and the map draws everyone from it.
 the minutes of each part: driving (`drive_w`, 0.132 a minute in the
 default world), finding a space and getting out (`park_w`, 1.5 times that)
 and walking (`walk_w`, twice it), no walk longer than `max_walk_km` (2 km).
-It replaces the old cost per km of route; the segment's radius still bounds
-the route's length. A facility a household found full lately weighs on it
+The segment's radius bounds the route's length. A facility a household found full lately weighs on it
 as a bad visit does, fading the same way. None of these weights is
 calibrated to data: they are assumptions, set on the Shoppers tab
 (`docs/transport-design.md` says how each was chosen).
@@ -531,6 +590,12 @@ shoppers in by each, in proportion to its width, and out by the nearest.
 
 <details>
 <summary><b>A day in the market</b>: who shops, where, and why (<code>model/market.R</code>, <code>model/loyalty.R</code>)</summary>
+
+A day's sales, share and margin are what these choices add up to: which
+households go shopping, which stores they pick and walk on to, and what
+they buy there (In the store, below). A change that moves a store's
+appeal, by price, a promotion, a shorter trip or a better layout, shows up
+in the reports as the visits and purchases it wins or loses.
 
 1. Each household with a store in reach (or any online store) is in the
    market for clothes with a chance that depends on its segment, the
@@ -808,18 +873,24 @@ stores they could afford). Every sentence names the brand's own products.
 
 </details>
 
+<a id="the-3d-views"></a>
 <details>
 <summary><b>The 3D views</b>: the installed world and its agents, drawn with Three.js (<code>js/fashion/spatial.js</code>, <code>scene-adapter.js</code>, <code>market-3d.js</code>, <code>store-3d.js</code>)</summary>
 
-The Market and Store tabs' 3D views draw what the 2D views draw, from the
-same messages: GEOMETRY (`city_geometry()`, `plan_geometry()`, the
-households and the installed world file) and each FRAME (`frame_pack()`).
-NetLogoR is the only simulation. The 3D views move no agent, route no trip,
-draw no random number and send nothing to the worker; switching between 2D
-and 3D leaves the season, its random numbers, its agents' paths, its
-reports and its exports exactly as they would have been
-(`tools/test-browser-3d.mjs` runs the same ticks watched in 2D and in 3D
-and compares).
+The 3D city and the 3D store floors are the world the simulation is
+running: the map and layouts installed by the last Setup, and every car,
+walker, shopper and member of staff where NetLogoR has them at that moment.
+They are another way of looking, not another model, so a season looks the
+same in either and its results don't depend on which was on screen.
+
+They draw what the 2D views draw, from the same messages: GEOMETRY
+(`city_geometry()`, `plan_geometry()`, the households and the installed
+world file) and each FRAME (`frame_pack()`). NetLogoR is the only
+simulation. The 3D views move no agent, route no trip, draw no random
+number and send nothing to the worker; switching between 2D and 3D leaves
+the season, its random numbers, its agents' paths, its reports and its
+exports exactly as they would have been (`tools/test-browser-3d.mjs` runs
+the same ticks watched in 2D and in 3D and compares).
 
 **Coordinates** (`js/fashion/spatial.js`). Three.js has Y up; north is −Z
 and east +X. A point x metres east and y metres north of the map's
@@ -876,6 +947,11 @@ WebGL context the tab goes back to 2D.
 <details>
 <summary><b>One clock</b>: the same seed gives the same season at any speed</summary>
 
+Because the same world and seed always give the same season, at any speed
+and in 2D or 3D, two runs differ only by what was changed between them: a
+cashier added, a markdown rule, a new store. That makes a comparison of
+two strategies a fair one.
+
 A shopper spends 10–40 minutes in a store, and a season in the default world
 lasts 13 weeks. So every activity gets its exact start and end time when it
 begins, and the simulation advances in one-minute steps. Within each step it
@@ -917,6 +993,31 @@ the season's last weeks).
 
 ### Performance
 
+Wall-clock times depend on the machine, the browser and what else is
+running, so each figure below says where it comes from. None is a
+benchmark the tests repeat, except the 3D views' figures, which
+`tools/test-browser-3d.mjs` prints each time it runs.
+
+**The default world, as most recently measured**, with the transport model
+(Getting about) in place, on one machine: headless Chromium with webR
+0.6.0 served locally, and native R 4.3.3. Later changes to how outings and
+return trips are scheduled haven't been timed since.
+
+| Measurement | Time |
+|---|---|
+| Boot in webR, R included | about 9 s |
+| Setup in webR | about 3.1 s, most of it the walking and driving fields toward every store and every facility's entrances |
+| A market day at the fastest speed (about 2,100 outings, 2,100 cars parked, 4,300 store visits) | about 5 s in webR; about 2.2 s in native R |
+| A 13-week season at the fastest speed | about 8 minutes in webR |
+
+**Earlier measurements**, taken before the transport model existed, on a
+machine and browser that weren't recorded. Their default-world rows are
+superseded by the table above; the other rows haven't been measured since.
+The market-day and largest-world times are earlier timings scaled by the
+cost of online stores and returns (below), not direct measurements. The two machines
+differ: on the one above, a market day without the transport model took
+1.5–1.9 s in webR, against 0.6 s here.
+
 | Measurement | Time |
 |---|---|
 | Default world in webR: boot, R included | about 5 s |
@@ -926,52 +1027,52 @@ the season's last weeks).
 | A 120 × 80 layout, read and routed, native R | 0.1 s |
 | The forecast, fitted again as each day ends (only while the Strategy tab is open) | in webR, about 0.3–0.6 s at day 61 of the default world, a series; native R, about 0.1–0.25 s; between days it's kept, and costs nothing |
 
-**Getting about** (the two networks, parking, venues and outings that visit
-several stores) made the default world's market day slower, measured side
-by side against the code before it on one machine (headless Chromium,
-webR 0.6.0 served locally; native R 4.3.3): in webR, a market day at the
-fastest speed took 1.5–1.9 s before and about 5 s after (about 2,100
-outings, 2,100 cars parked, 4,300 store visits); in native R, about 1.1 s
-before and 2.2 s after. Boot in webR is about 9 s (Setup 3.1 s, most of it
-the walking and driving fields toward every store and every facility's
-entrances). A 13-week season at the fastest speed now takes about 8 minutes
-in webR. The rows above were measured before it.
-
 Those are the largest a world can be: 24 brands, 80 stores, 12 segments, 6
 tiers a brand, 40 areas, a map of 60,000 tiles, 60,000 households, and
 layouts up to 120 × 80 tiles (60 × 40 m).
 
-Online stores and returns made a market day about a fifth longer, in webR
-and in native R, measured side by side against the code before them on one
-machine: online visits and return trips are extra work, and every unit sold
-gets a ledger line as it's sold. A world with no online stores and no
-returns runs about a tenth slower than before, for the ledger. The times in
-the table are those measured before, scaled by these comparisons.
+**What each part costs**, each measured side by side against the model
+without it, on one machine:
 
-Putting the map, the households and word of mouth on NetLogoR made Setup
-and a market day each about 5% longer in webR, measured side by side
-against the code before it on one machine, about four times slower than
-the one the table was measured on (Setup 2.25 s before, 2.36 s after; a
-market day at the fastest speed 2.66 s before, 2.77 s after). Nearly all of
-the extra time in a day is `diffuse()`, run for each brand every evening:
-there, about 15 ms a brand on the default world's 16 × 12 patches of word
-of mouth, and about 0.4 s an evening for 24 brands on 24 × 18 patches. The
-rest of NetLogoR's work is at Setup: building the map's world takes about
-20 ms, and the households, turtles and all, about 0.15 s.
+- **Getting about** (the two networks, parking, venues and outings that
+  visit several stores) is the largest part of a market day. On the machine
+  of the first table, a day of the default world takes about 5 s in webR
+  against 1.5–1.9 s without it, and about 2.2 s in native R against 1.1 s.
+- **Online stores and returns** add about a fifth to a market day, in webR
+  and in native R: online visits and return trips are extra work, and every
+  unit sold gets a ledger line as it's sold. The ledger alone costs about a
+  tenth, so a world with no online stores and no returns still pays that.
+- **NetLogoR**, holding the map, the households and word of mouth, adds
+  about 5% to Setup and to a market day in webR. On a machine about four
+  times slower than the earlier table's, Setup took 2.36 s against 2.25 s
+  without it, and a market day at the fastest speed 2.77 s against 2.66 s.
+  Nearly all of a day's share is `diffuse()`, run for each brand every
+  evening: about 15 ms a brand on the default world's 16 × 12 patches of
+  word of mouth, and about 0.4 s an evening for 24 brands on 24 × 18
+  patches. The rest of NetLogoR's work is at Setup: building the map's
+  world takes about 20 ms, and the households, turtles and all, about
+  0.15 s.
 
-The 3D views, measured by `tools/test-browser-3d.mjs` in headless Chromium
-with WebGL in software (SwiftShader, no GPU): the default market is 19 draw
-calls and about 490,000 triangles (19,400 houses, 24,000 households), and a
-frame of it took 0.4–1.1 ms to submit across runs. At watch pace (600×)
-the season ran at 531–545 store seconds a second with the 2D map showing
-and 577–591 with the 3D one, over 8 seconds each: the worker doesn't wait
-for the page to draw, so 3D doesn't slow the simulation. The scenery is
-built once per installed world; a frame only moves the agents.
+**The 3D views**, as `tools/test-browser-3d.mjs` measured them in headless
+Chromium with WebGL in software (SwiftShader, no GPU): the default market
+is 19 draw calls and about 490,000 triangles (19,400 houses, 24,000
+households). Issuing one frame's drawing took 0.4–1.1 ms across runs; that
+is the time to submit a frame, not a frame rate, and it wasn't measured on
+a GPU. At watch pace (600×), in two runs of the test with one 8-second
+sample each way, the season ran at 531 and 545 store seconds a second with
+the 2D map showing, and at 591 and 577 with the 3D map: no slowdown in
+these runs, though samples this short can't tell a small difference from
+the machine's own variation. The worker runs R on its own thread and
+doesn't wait for a frame to be drawn before the next tick; it skips
+sending a frame while the page hasn't acknowledged the last one. The 3D
+scenery is built once per installed world, and a frame only moves the
+agents.
 
-Two measurements shaped the code. With NetLogoR's dependencies loaded,
-`nrow()` and `ncol()` become S4 generics, and dispatch costs more than the
-work, so the hot code uses `dim()`. Per-step overhead dominates in webR, so
-the step is a minute and only shoppers inside a store are scanned.
+**How the hot code is written.** Two properties of webR and NetLogoR set
+it. With NetLogoR's dependencies loaded, `nrow()` and `ncol()` become S4
+generics, and dispatch costs more than the work, so the hot code uses
+`dim()`. Per-step overhead dominates in webR, so the step is a minute and
+only shoppers inside a store are scanned.
 
 ---
 
@@ -1022,12 +1123,13 @@ image (`vfs/netlogor-lib`) is plain R and can be copied out of it instead.
 
 `npm test` runs it after the service worker's test (`tools/test-sw.mjs`),
 the editors' canvas test (`tools/test-grid-editor.mjs`), the world
-builder's page side (`tools/test-world-builder.mjs`) and the shims'
-(`tools/test-shims.R`), and then the world builder's model side
-(`tools/test-world-builder.R`) and getting about (`tools/test-transport.R`):
+builder's page side (`tools/test-world-builder.mjs`), the 3D views' page
+side (`tools/test-scene-3d.mjs`) and the shims' (`tools/test-shims.R`),
+and then the world builder's model side (`tools/test-world-builder.R`) and
+getting about (`tools/test-transport.R`):
 
 ```bash
-node --test tools/test-grid-editor.mjs tools/test-world-builder.mjs
+node --test tools/test-grid-editor.mjs tools/test-world-builder.mjs tools/test-scene-3d.mjs
 Rscript tools/test-world-builder.R
 Rscript tools/test-transport.R
 ```
@@ -1053,7 +1155,7 @@ what the simulation did with the new lot and where everyone outdoors is.
 its npm package where its CDN can't be reached.
 
 `tools/test-scene-3d.mjs` (in `npm test`) checks the 3D views' page side
-against the same stand-in, with the real Three.js bundle and a renderer
+against the stand-in for the browser in `tools/fake-dom.mjs`, with the real Three.js bundle and a renderer
 that only counts: the transformation from map tiles, floor cells and
 agents to the scene against the coordinate contract and the 2D views'
 pixels; the ground texture's tiles; the default world read as scenery (each
@@ -1072,7 +1174,8 @@ Three.js; with it, the stores stand at R's `STORES$x`, `STORES$y`, the
 houses on NetLogoR's home patches, everyone outdoors at R's
 `travellers_at(clock)`, and every shopper at R's floor position on open
 floor; ticks never rebuild the scenery, and a hidden view draws nothing;
-clicking a store, a shopper and a cashier in 3D does what it does in 2D; 40
+clicking a store, a shopper and a member of staff in 3D does what it does
+in 2D; 40
 ticks watched in 3D and in 2D from the same Setup end in the same random
 number state, clock, legs, visits and takings; the season's pace at 600×
 is measured with the 2D and the 3D map; and a draft edit leaves the 3D
@@ -1179,14 +1282,14 @@ in `tools/fixtures/spatial-contract.json`.
   (`tools/fixtures/v2-default.world.json`,
   `tools/fixtures/v5-default.world.json`) upgrade and run; the version 6,
   7 and 8 default worlds upgrade (their promotion buttons go; a tendency to
-  return of 1; no demand events) and run. They used to replay seasons their
-  models recorded (`tools/fixtures/v*-season.json`); those seasons drove
-  across parks and open land and parked anywhere, which version 11 doesn't,
-  and an upgraded world is given no parking, because none was built. So the
-  checks say what must happen instead: no one drives, no car parks, and
-  every store visit is made on foot by a household within walking range of
-  the store's door; version 6 still has no online orders or returns, and
-  version 7 still has both
+  return of 1; no demand events) and run. An upgraded world is given no
+  parking, because none was built, so the checks say what must happen: no
+  one drives, no car parks, and every store visit is made on foot by a
+  household within walking range of the store's door; version 6 has no
+  online orders or returns, and version 7 has both. (The seasons recorded
+  with those versions, `tools/fixtures/v*-season.json`, drove across parks
+  and open land and parked anywhere, which version 11's networks don't
+  allow, so they aren't replayed.)
 - demand events do what they say: days 3 and 23 at 1.3 are demand ×1.3,
   and day 90 at -2, ramped over 7 days from -1.4, walks -1.4, -1.5 … -2 on
   days 84 to 90; overlapping events multiply, ramp days before day 1 are
