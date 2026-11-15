@@ -13,10 +13,24 @@
 // a click does what a click on the 2D floor does: onClick(x, y) at the
 // clicked agent's own position (or the floor's point under the pointer),
 // in the floor's patch units, for the model's inspect_at().
+//
+// Its camera presets: Overview (the floor as it opens), Top-down (the
+// whole floor from overhead, north up), Shopper (low, round the shopper
+// selected in the inspector, where the current live frame has them) and
+// Checkout (the tills, their counters and the till queue, as far as
+// plan_geometry() and the installed rows place them); Focus turns to the
+// selected shopper or worker. A preset that needs a live frame, a
+// selection or geometry the plan doesn't have says so instead.
+//
+// Follow camera: the camera stays with the inspector's shopper as each
+// live frame moves them, found by their visit's id. frame_pack() sends who
+// is on the floor, not who left: a live frame without the visit ends it,
+// and says only that the shopper isn't visible. A frame that contradicts
+// itself ends it as an error.
 
 import { sceneToFloor } from "./spatial.js";
-import { floorModel, floorAgentsOf } from "./scene-adapter.js";
-import { View3D, placeMatrix, personGeometry, staffGeometry, groundPlane, overlayMaterial, rgb } from "./view-3d.js";
+import { floorModel, floorAgentsOf, checkoutGeometry, locateOnFloor, floorFrameProblems, fixtureHeights, union } from "./scene-adapter.js";
+import { View3D, CameraTargetError, clearOfFixtures, placeMatrix, personGeometry, staffGeometry, groundPlane, overlayMaterial, rgb, unavailable, defect } from "./view-3d.js";
 import { LOOK_NAMES } from "./floor-view.js";
 import { cssVar } from "./ui.js";
 import { tooltip } from "./charts.js";
@@ -28,13 +42,20 @@ const STOCK_M = 1.9;
 const CUBICLE_M = 2.0;
 const SHOPPER_M = 1.7;
 const STAFF_M = 1.75;
+const TILL_TOP_M = 1.13;     // a till on its cashier's place: 0.85 up, 0.28 high
+const AGENT_LOOK_Y = 0.85;   // a camera on someone looks at their middle
+const SHOPPER_DISTANCE = 5.5;
+const SHOPPER_POLAR = 1.15;  // 0.42 rad (24°) above the floor: low, inside the store
+const CHECKOUT_ELEVATION = 0.85;
+const COMBINE_SPAN = 0.7;    // tills in separate places framed together while they span no more than this share of the floor
 
 export class Store3DView extends View3D {
   constructor(wrap, THREE, { onClick, createRenderer } = {}) {
     super(wrap, THREE, { createRenderer, label: "Store floor in 3D with shoppers and staff", background: "--surface" });
     this.onClick = onClick;
-    this.plan = null; this.rows = null; this.keys = []; this.model = null; this.sells = null;
+    this.plan = null; this.rows = null; this.keys = []; this.model = null; this.sells = null; this.checkout = null;
     this.agents = null; this.heat = null; this.mode = "floor"; this.follow = null; this.inspect = null;
+    this.live = false;           // whether frames now carry this store's floor as it is (watch pace)
     this.shapes = { shopper: personGeometry(THREE), staff: staffGeometry(THREE) };
     this.meshes = {};
   }
@@ -46,14 +67,22 @@ export class Store3DView extends View3D {
   // the same plan again does nothing.
   setPlan(plan, rows = null, keys = []) {
     if (this.plan === plan && this.rows === rows) return;
+    const followed = this.tracking;
     this.plan = plan; this.rows = rows; this.keys = keys;
     this.model = plan ? floorModel(plan, rows, keys) : null;
+    this.checkout = this.model ? checkoutGeometry(plan, this.model) : null;
+    // What a following camera mustn't stand inside: the blocks drawn below, at their heights.
+    this.fixtures = this.model ? fixtureHeights(this.model, { wall: WALL_M, rack: RACK_M, counter: COUNTER_M, stock: STOCK_M, cubicle: CUBICLE_M, cashier: TILL_TOP_M }) : null;
+    if (this.checkout?.problem) console.error(`[fashion] the Checkout camera can't read this floor: ${this.checkout.problem}`);
     this.agents = null; this.heat = null;
     this.staticDirty = true;
     if (this.model) {
       const f = this.model.frame;
       this.frame({ X0: 0, X1: f.width, Z0: -f.depth, Z1: 0 }, { azimuth: 0.3, elevation: 0.92, fill: 0.95 });
     }
+    // A new floor: whoever was followed isn't on it.
+    if (this.tracking) this.stopTracking("Stopped following: the store's floor changed.");
+    if (followed) this.setCameraState({ note: "Stopped following: the store's floor changed." });
     this.invalidate();
   }
   setMode(mode) { this.mode = mode; this.heatDirty = true; this.dynamicDirty = true; this.invalidate(); }
@@ -63,7 +92,17 @@ export class Store3DView extends View3D {
     if (JSON.stringify([...(next ?? [])]) === JSON.stringify([...(this.sells ?? [])])) return;
     this.sells = next; this.racksDirty = true; this.dynamicDirty = true; this.invalidate();
   }
-  setAgents(a) { this.agents = a; this.dynamicDirty = true; this.invalidate(); }
+  setAgents(a) {
+    this.agents = a; this.dynamicDirty = true;
+    if (this.tracking && a) this.#track(a);
+    this.invalidate();
+  }
+  // Whether the frames now carry this store's floor live (the Store report's
+  // `live`): without it, where anyone stands isn't known now, and following ends.
+  setLive(on) {
+    this.live = !!on;
+    if (!this.live) this.stopTracking("Stopped following: the floor isn't drawn live at this speed.");
+  }
   setHeat(h) { this.heat = h; this.heatDirty = true; if (this.mode === "heat") { this.dynamicDirty = true; this.invalidate(); } }
   setFollow(v) { this.follow = v; this.dynamicDirty = true; this.invalidate(); }
   setInspect(target) { this.inspect = target; this.dynamicDirty = true; this.invalidate(); }
@@ -236,6 +275,123 @@ export class Store3DView extends View3D {
     tex.colorSpace = THREE.SRGBColorSpace; tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
     this.heatPlane.material.map = tex; this.heatPlane.material.transparent = true; this.heatPlane.material.needsUpdate = true;
     old?.dispose();
+  }
+
+  // ---- Camera targets ------------------------------------------------------------------------------
+
+  // Where a selected shopper or worker stands now: in the current frame,
+  // which must be live. See locateOnFloor().
+  locate(sel) {
+    if (!this.model) return unavailable("No floor is installed.");
+    if (!sel) return unavailable("Select a shopper or a worker on the floor first.");
+    if (!this.live) return unavailable("The floor isn't drawn live at this speed: pick a slower speed to see where everyone is.");
+    if (!this.agents) return unavailable("No live frame of this store has arrived yet.");
+    const r = locateOnFloor(this.agents, this.plan, sel);
+    if (!r.ok) return r;
+    return { ...r, point: { X: r.at.X, Y: AGENT_LOOK_Y, Z: r.at.Z } };
+  }
+
+  // The checkout's zones as the camera controls offer them: each zone's
+  // tills, and whether they can all be framed at once.
+  checkoutChoices() {
+    const g = this.checkout;
+    if (!g || g.problem || !g.zones.length) return { zones: [], together: false };
+    const f = this.model.frame;
+    const all = this.#checkoutBox(g.zones.map((_, i) => i), true);
+    const together = g.zones.length === 1 || Math.max(all.X1 - all.X0, all.Z1 - all.Z0) <= COMBINE_SPAN * Math.max(f.width, f.depth);
+    return { together, zones: g.zones.map((z, i) => ({ index: i + 1, label: z.tills.length === 1 ? `Till ${z.tills[0]}` : `Tills ${z.tills[0]}–${z.tills.at(-1)}`, tills: z.tills })) };
+  }
+
+  #checkoutBox(zones, withQueue) {
+    const g = this.checkout; let box = null;
+    for (const i of zones) box = box ? union(box, g.zones[i].box) : g.zones[i].box;
+    if (withQueue) for (const q of [g.queue.head, ...(g.queue.line ?? [])]) if (q) box = union(box, q);
+    return box;
+  }
+
+  // Overview; Top-down; Shopper { selection }; Checkout { zone } (a zone's
+  // number, or none for every till together).
+  presetTarget(name, { selection = null, zone = null } = {}) {
+    if (!this.model) return unavailable("No floor is installed.");
+    const f = this.model.frame;
+    if (name === "topdown") return { ok: true, pose: this.poseOverhead({ X0: 0, X1: f.width, Z0: -f.depth, Z1: 0 }), label: "Top-down" };
+    if (name === "shopper") {
+      if (selection?.kind !== "shopper") return unavailable("Select a shopper on the floor: the Shopper view looks at the one in the inspector.");
+      const r = this.locate(selection); if (!r.ok) return r;
+      return { ok: true, pose: { target: r.point, distance: SHOPPER_DISTANCE, polar: SHOPPER_POLAR, azimuth: this.currentPose().azimuth }, label: `Shopper · visit #${selection.visit}` };
+    }
+    if (name === "checkout") {
+      const g = this.checkout;
+      if (g.problem) return defect(`The checkout can't be framed: ${g.problem}`, { format: this.plan.format });
+      if (!g.zones.length) return unavailable("This floor plan has no till to frame.");
+      const ch = this.checkoutChoices();
+      let box; let label; const notes = [];
+      if (zone === null || zone === undefined || zone === "") {
+        if (!ch.together) return unavailable(`This floor's tills stand in ${g.zones.length} places too far apart to frame together: pick a till zone.`);
+        box = this.#checkoutBox(g.zones.map((_, i) => i), true);
+        label = g.zones.length === 1 ? "Checkout" : "Checkout · every till";
+        if (!g.queue.head && !g.queue.line) notes.push("The floor's data has no place for the till queue, so only the tills are framed.");
+        else if (!g.queue.line) notes.push("Only the till queue's head is placed in the floor's data here (the installed layout's picture isn't this plan's), so its line isn't framed.");
+      } else {
+        const z = g.zones[zone - 1];
+        if (!Number.isInteger(zone) || !z) return defect(`There is no till zone ${zone} on this floor (it has ${g.zones.length})`, { zone });
+        box = this.#checkoutBox([zone - 1], false);
+        label = `Checkout · ${ch.zones[zone - 1].label}`;
+        notes.push("The till queue serves every till, so it's framed with every till together, not with one zone.");
+      }
+      const pose = this.poseForBox(box, { azimuth: this.currentPose().azimuth, elevation: CHECKOUT_ELEVATION, fill: 1.3, minSpan: 4 });
+      return { ok: true, pose, label, note: notes.join(" ") };
+    }
+    return super.presetTarget(name);
+  }
+
+  // ---- Follow camera ------------------------------------------------------------------------------
+
+  // Whether the inspector's shopper can be followed now.
+  followTarget(sel) {
+    if (sel?.kind !== "shopper") return unavailable("Select a shopper on the floor to follow them.");
+    return this.locate(sel);
+  }
+
+  // Follows the inspector's shopper: the camera moves round them, low, from
+  // the side it's on, and stays with them frame by frame.
+  followCamera(sel) {
+    const r = this.followTarget(sel);
+    if (!r.ok) { if (r.defect) throw new CameraTargetError(r.reason, { action: "follow", ...r.context }); return r; }
+    this.startTracking({ id: sel.visit, label: `visit #${sel.visit}`, point: r.point,
+      pose: { target: r.point, distance: SHOPPER_DISTANCE, polar: SHOPPER_POLAR, azimuth: this.currentPose().azimuth } });
+    return { ok: true };
+  }
+
+  // A frame while following: the camera moves with the visit, or following
+  // ends — normally if the visit isn't in it, as an error if the frame is wrong.
+  #track(a) {
+    const visit = this.tracking.id;
+    const problems = floorFrameProblems(a, this.plan);
+    const r = problems.length ? null : locateOnFloor(a, this.plan, { kind: "shopper", visit });
+    if (problems.length || r.defect) {
+      const detail = problems.length ? problems.slice(0, 4).join("; ") : r.reason;
+      const err = new CameraTargetError(`Following visit #${visit} stopped: the frame is wrong (${detail})`, { visit, problems });
+      console.error(`[fashion] ${err.message}`, err.context);
+      this.stopTracking(`Stopped following: the store's frame was wrong (${detail}).`, err);
+      this.onCameraError?.(err);
+      return;
+    }
+    if (!r.ok) { this.stopTracking("Shopper no longer visible in this store."); return; }
+    this.updateTracking({ X: r.at.X, Y: AGENT_LOOK_Y, Z: r.at.Z });
+  }
+
+  // Chase and Front: kept out of the floor's solid fixtures (nothing else).
+  clearPose(pose) {
+    return this.fixtures ? clearOfFixtures(pose, this.fixtures.heightAt) : { pose, cleared: null };
+  }
+
+  // Focus: the shopper or worker selected (the inspector's).
+  focusTarget(sel) {
+    if (!sel) return unavailable("Select a shopper or a worker on the floor to focus on.");
+    const r = this.locate(sel); if (!r.ok) return r;
+    const who = sel.kind === "shopper" ? `visit #${sel.visit}` : `${sel.kind} ${sel.server}`;
+    return { ok: true, point: r.point, distance: SHOPPER_DISTANCE + 0.5, label: `Focus · ${who}` };
   }
 
   // ---- The pointer ------------------------------------------------------------------------------

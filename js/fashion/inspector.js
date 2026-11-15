@@ -12,6 +12,9 @@
 // bought this season, paid and returned.
 // A worker: what they're doing now, and their day so far (a cashier's
 // sales, and the returns they've taken back).
+// With the Store tab's 3D floor shown, a shopper's panel has Follow camera:
+// the 3D camera stays with them (store-3d.js); the panel and the "Follow a
+// shopper" story go on as they are.
 
 import { el, fmt, card } from "./ui.js";
 import { tooltip } from "./charts.js";
@@ -19,7 +22,7 @@ import { possessive } from "./entry-text.js";
 import { ledgerView } from "./ledger-view.js";
 
 export class Inspector {
-  constructor({ onClose, onHousehold, app }) {
+  constructor({ onClose, onHousehold, onFollowCamera = null, app }) {
     this.app = app;
     this.card = card("Inspector", { right: el("button", { type: "button", class: "icon-btn", "aria-label": "Close the inspector", text: "×", onclick: () => onClose?.() }) });
     this.card.root.classList.add("inspector");
@@ -30,6 +33,29 @@ export class Inspector {
     // grows), so hovering one keeps its numbers up.
     this.thoughtBox = el("div", { class: "thoughts" });
     this.thoughtsOf = null; this.thoughtCount = 0;
+    // Follow camera: kept from one update to the next, as the thoughts are.
+    this.followWhy = el("span", { class: "visually-hidden", id: "inspector-follow-why" });
+    this.followButton = el("button", { type: "button", class: "btn small", text: "Follow camera", "aria-pressed": "false", "aria-describedby": "inspector-follow-why",
+      onclick: () => { if (this.followState.ok || this.followState.active) onFollowCamera?.(this.followState.active); else this.followNote.textContent = this.followState.reason; } });
+    this.followNote = el("span", { class: "stat-sub" });
+    this.followBox = el("div", { class: "row wrap inspector-follow", hidden: true }, this.followButton, this.followWhy, this.followNote);
+    this.followState = { shown: false, ok: false, active: false, reason: "" };
+  }
+
+  // The Follow camera button: shown with the 3D floor; whether it can start
+  // (and if not, why); whether the camera is following this shopper now.
+  setFollowCamera({ shown, ok, active, reason = "" }) {
+    const st = this.followState;
+    if (st.shown === shown && st.ok === ok && st.active === active && st.reason === reason) return;
+    Object.assign(st, { shown, ok, active, reason });
+    this.followBox.hidden = !shown;
+    const b = this.followButton;
+    b.textContent = active ? "Stop follow" : "Follow camera";
+    b.setAttribute("aria-pressed", String(active));
+    b.setAttribute("aria-disabled", String(!ok && !active));
+    b.title = active ? "Stop following this shopper with the 3D camera" : ok ? "Keep the 3D camera with this shopper as they move" : reason;
+    this.followWhy.textContent = !ok && !active ? `Unavailable: ${reason}` : "";
+    this.followNote.textContent = active ? "The 3D camera is following them." : "";
   }
 
   get root() { return this.card.root; }
@@ -45,6 +71,7 @@ export class Inspector {
     const out = [];
     out.push(el("div", { class: "stat-sub", text: s.who }));
     out.push(el("div", { class: "now" }, el("span", { class: "label", text: "Now" }), s.now));
+    out.push(this.followBox);
     if (s.queue) {
       const share = Math.min(1, s.queue.waited / Math.max(1, s.queue.patience));
       out.push(el("div", { class: "patience" }, el("div", { class: "bar-label" }, "Patience", el("span", { text: `${fmt.mins(s.queue.waited)} of ${fmt.mins(s.queue.patience)}` })),

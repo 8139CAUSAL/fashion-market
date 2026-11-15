@@ -34,7 +34,7 @@ what they did.
 - **Compare strategies fairly.** The same world and seed always give the
   same season, so two runs differ only by what you changed.
 
-![The default city in 3D in week 8: households coloured by the brand they last bought from, the stores, and cars on the streets](screenshots/market-3d.png)
+![The default city in 3D in week 8 at its Overview, under the camera presets and with the compass in the corner: households coloured by the brand they last bought from, the stores, and cars on the streets](screenshots/market-3d.png)
 
 *The same market in 3D: the world drawn on the Setup tab, with every store,
 household, car and walker where the simulation has them.*
@@ -88,15 +88,23 @@ button shows the files that are running, and the world they run in.
    **3D**. Drag to turn the city, right-drag (or Shift-drag) to move across
    it, and scroll to zoom; with the view selected, the arrow keys move it.
    On a touch screen, one finger turns it and two move and zoom it.
-   **Reset view** goes back to the starting angle. Click a store to open
-   its floor; click anywhere else to pick the household nearest that point.
+   **Reset view** goes back to the starting angle. Over the map, pick an
+   area or a store, then **Neighborhood** frames that area and **Street**
+   looks low at that store; **Focus** turns to whatever you selected last.
+   The compass in the corner turns the view to face north. Click a store to
+   open its floor; click anywhere else to pick the household nearest that
+   point.
    The first switch to 3D downloads the 3D library (about 500 kB); a
    browser without WebGL stays in 2D.
 5. **See a store in 3D.** On the Store tab, the same switch over the floor
    shows the store in 3D, as the floor or its heat map (the Flow view has
    no 3D). Click a shopper or a cashier or assistant to open them in the
    inspector, as in 2D; hover over one to see what they're doing.
-   **Follow a random shopper** rings the shopper followed.
+   **Follow a random shopper** rings the shopper followed. **Top-down**,
+   **Shopper** and **Checkout** frame the floor, the inspector's shopper
+   and the tills, and **Follow camera** in a shopper's inspector keeps the
+   camera with them as they move: round them (**Orbit**), behind them
+   (**Chase**) or ahead of them looking back (**Front**).
 6. **Draw your world** (in the header): paint the map's homes, roads and
    water with a brush, start from another geography, place stores, draw
    their floors. The model previews every stroke: households placed,
@@ -152,9 +160,22 @@ back to the starting angle. A click works as on the 2D map: a store opens
 its floor, anywhere else picks the household nearest the point. Switching
 changes only what's drawn: see [The 3D views](#the-3d-views).
 
-![Old Town in 3D: five stores with halos of today's visits, cars on the streets, and a parking garage](screenshots/market-3d-old-town.png)
+**The 3D camera.** Over the 3D map, **Overview** is the starting angle,
+**Neighborhood** frames the area picked in **Area** (the box round its own
+tiles, with its roads, stores, households and everyone out in it), and
+**Street** looks low at the store picked in **Store**, from the side the
+camera is on. Nothing is picked for you: a preset that needs an area or a
+store says so until one is, in its tooltip and under the buttons. **Focus**
+turns to what was selected last (an area, a store, or the household picked
+on the map), keeping the camera's direction and height. The compass shows
+the camera's heading, its needle pointing up when the view faces north (up
+the 2D map); click it to turn the view to face north. Each move eases there
+in under a second; dragging, scrolling or an arrow key stops it where it
+is. The line under the buttons says what the camera shows.
 
-![Millbrook Mall in 3D with its roof off: storefronts, entrances, the garage's see-through decks and a lot of parked cars](screenshots/market-3d-mall.png)
+![Old Town framed by the Neighborhood preset: its stores with halos of today's visits, its streets and households, and Millbrook beyond](screenshots/market-3d-old-town.png)
+
+![Street on Ours Millbrook Mall, the camera turned to look across the roofless mall: storefronts, entrances, a few walkers in the corridors, and the garage's see-through decks with parked cars](screenshots/market-3d-mall.png)
 
 ### Store
 
@@ -181,14 +202,55 @@ where the brand doesn't stock the category), the stockroom and its door,
 the till counter and the cashiers' places, the fitting cubicles (lit when
 in use, grey when closed) and the queues. Shoppers are coloured by what
 they're doing, as in the 2D legend, and staff are paler when free. The
-camera works as on the Market tab, with **Reset view**. A click on a
-shopper or a worker in 3D opens the inspector as a click on the 2D floor
-does; hovering over one says what they're doing.
+camera works as on the Market tab, with **Reset view**, **Focus** (on the
+shopper or worker in the inspector) and the compass, and its own presets:
+**Overview**; **Top-down**, the whole floor from overhead, north at the
+top; **Shopper**, low round the shopper in the inspector, where the floor
+has them now; and **Checkout**, the tills, their counters and the till
+queue (its line drawn from the installed layout, or only its head where
+the layout's picture isn't the plan's, which the camera line then says).
+Where a layout's tills stand too far apart to frame together, **Till zone**
+picks which. A click on a shopper or a worker in 3D opens the inspector as
+a click on the 2D floor does; hovering over one says what they're doing.
 
-![The Ours Old Town flagship in 3D on a Saturday: racks by category, shoppers trying on, queuing and paying, and the cashier at the till](screenshots/store-3d.png)
+![The Ours Old Town flagship in 3D on a Saturday afternoon at its Overview, under the floor's camera presets: racks by category, shoppers at the racks and in the fitting rooms, and the cashier at the till](screenshots/store-3d.png)
 
 *The Flagship layout drawn in Setup (the [Micro world](#draw-your-world)
 screenshot), installed and running.*
+
+**Follow camera.** With the floor in 3D, a shopper's inspector has
+**Follow camera**: the camera moves round them, low, and then stays with
+them as each frame moves them. *Following visit #…* shows over the floor,
+and **Orbit**, **Chase**, **Front** and **Stop follow** beside the presets
+(**Stop follow** in the inspector too). Switching between them keeps the
+same shopper.
+
+- **Orbit** (where following starts) keeps the camera's offset from them;
+  you turn and zoom round them as you like, but can't move off them.
+- **Chase** sits low and close behind them, facing the way they're going;
+  **Front** stands ahead of them, looking back as they come. Which way
+  they're going is read from where the frames put them, one frame to the
+  next: while they stand at a rack or in a queue, the last way they went
+  holds, and until they've taken a step there's none, so Chase and Front
+  follow as Orbit does and say they're waiting. You can tilt and zoom; the
+  heading is theirs.
+- Racks, walls and other shoppers can stand between the camera and them,
+  as in the store itself; Orbit's angle is yours to change. Chase and
+  Front only keep the camera out of the floor's solid fixtures: where it
+  would stand inside a wall, rack, counter, the stockroom or a fitting
+  cubicle, it comes in closer, or failing that, higher.
+
+Following ends, leaving
+the camera where it is, when a frame no longer has them on the floor
+(*Shopper no longer visible in this store*: the frames say who is there,
+not why someone left), when someone else or no one is in the inspector, on
+another store, a preset, Reset or Focus, in 2D or the Flow view, and at the
+fastest speed, which doesn't draw the floor. It moves only the camera;
+**Follow a random shopper** still picks whom to inspect.
+
+![Following visit #2402 in Orbit, at the angle following starts with: the shopper walking to the Outerwear racks, and their inspector with Stop follow](screenshots/store-3d-follow.png)
+
+![The same shopper in Chase a minute later, standing at the Outerwear racks: the camera behind them, facing the way they last walked, down the aisle by the fitting rooms](screenshots/store-3d-chase.png)
 
 ### Strategy
 
@@ -869,7 +931,7 @@ stores they could afford). Every sentence names the brand's own products.
 
 <a id="the-3d-views"></a>
 <details>
-<summary><b>The 3D views</b>: the installed world and its agents, drawn with Three.js (<code>js/fashion/spatial.js</code>, <code>scene-adapter.js</code>, <code>market-3d.js</code>, <code>store-3d.js</code>)</summary>
+<summary><b>The 3D views</b>: the installed world and its agents, drawn with Three.js (<code>js/fashion/spatial.js</code>, <code>scene-adapter.js</code>, <code>market-3d.js</code>, <code>store-3d.js</code>, <code>view-3d.js</code>, <code>camera-bar.js</code>)</summary>
 
 The 3D city and the 3D store floors are the world the simulation is
 running: the map and layouts installed by the last Setup, and every car,
@@ -927,6 +989,34 @@ while it's hidden (another tab, or 2D). At the market's scale the agents
 are drawn bigger than life, as the 2D map's dots keep their size at any
 zoom. Rebuilding or closing a view lets go of its geometry, materials,
 textures, listeners and WebGL context.
+
+**The camera** (`js/fashion/view-3d.js`, `camera-bar.js`). Every preset
+and Focus is worked out from what's installed or selected: an area's box
+from the tiles `city_geometry()` puts in it, a store's point from
+`cityModel()`, the floor's size, the tills `plan_geometry()` places (with
+the counters and cashiers' cells joined to them) and its `till_head`, and
+a shopper or worker where the current frame has them, a shopper by visit
+id. The till queue's line is framed only from the installed rows, never
+guessed from the code its cells share with the fitting-room queue. A
+target that isn't there (nothing picked, an area with no tiles, a shopper
+who has left, the fastest speed) makes the action unavailable and says
+why; data that contradicts itself (a visit twice in a frame, a position
+off the floor, a till on no cashier's place) is an error, shown and
+logged, and the camera keeps its last pose. A move eases the target and
+the camera's distance, angle and heading over 700 ms, inside the orbit
+controls' limits, drawn a frame at a time only while it runs. Follow
+camera moves the camera by the followed shopper's step in each frame, so
+it keeps its offset from them; panning and zooming toward the pointer are
+off while it does. The heading Chase and Front use is the shopper's last
+step of at least 5 cm, from one frame to the next of the same visit; it's
+never made up before the first. Their keeping clear of fixtures reads the
+cells the 3D floor draws as blocks, at the heights it draws them (walls,
+racks, the counter, the stockroom, the fitting cubicles, the tills), and
+checks only where the camera itself would stand, never what lies between
+it and the shopper; it isn't collision handling for the rest of the
+camera. None of it sends anything to the worker:
+`tools/test-browser-3d.mjs` runs 40 ticks with the camera following a
+shopper, and in 2D with the same shopper inspected, and compares.
 
 **Loading.** Three.js 0.170.0 (pinned in `package.json`) is bundled with
 its orbit controls into `vendor/three.js` (`npm run build:three`), a
@@ -1063,7 +1153,10 @@ the machine's own variation. The worker runs R on its own thread and
 doesn't wait for a frame to be drawn before the next tick; it skips
 sending a frame while the page hasn't acknowledged the last one. The 3D
 scenery is built once per installed world, and a frame only moves the
-agents.
+agents. From a low angle (the Street preset, or a camera turned that low)
+a whole frame of the market took 0.4–0.9 s to draw in SwiftShader,
+against about 16 ms from the Overview; the 19,400 houses were most of
+it. That too wasn't measured on a GPU.
 
 **How the hot code is written.** Two properties of webR and NetLogoR set
 it. With NetLogoR's dependencies loaded, `nrow()` and `ncol()` become S4
@@ -1161,8 +1254,21 @@ their own stores' colours); a floor read from the installed rows only when
 they are the picture R read; frames moving agents and nothing else, one
 render however many frames arrive, none while hidden; a new installed
 world rebuilding the scenery and freeing the old; clicks picking the store,
-household, shopper or worker the 2D views would; and the 2D/3D switch
-sending nothing to the simulation and staying in 2D without WebGL.
+household, shopper or worker the 2D views would; the 2D/3D switch
+sending nothing to the simulation and staying in 2D without WebGL; every
+camera preset's pose from the geometry, on worlds and floors of different
+sizes, unavailable and saying why with nothing picked, and an error, the
+camera unmoved, on wrong data; Checkout with one till zone, several, none,
+and without the installed rows; moves eased, stopped by a drag, the wheel
+or a key, replaced by another, ended when hidden and cancelled on dispose;
+the compass's heading and its turn to north, Reset and Focus; and Follow
+camera by visit id across frames in any order, ending when the visit
+leaves the frame, with the controls restored, and as an error on a
+malformed frame; Orbit at its starting angle; the heading from
+consecutive frames, kept while still, none before a step; Chase behind
+and Front ahead, the user's tilt and zoom kept, switching keeping the
+shopper; and, on a real floor, Chase never standing inside a fixture
+where it would have, while a rack in its line of sight is left there.
 
 `npm run test:browser:3d` (`tools/test-browser-3d.mjs`, `--webr=<dir>` as
 above) runs the 3D views in headless Chromium with WebGL (SwiftShader) and
@@ -1177,7 +1283,15 @@ ticks watched in 3D and in 2D from the same Setup end in the same random
 number state, clock, legs, visits and takings; the season's pace at 600×
 is measured with the 2D and the 3D map; and a draft edit leaves the 3D
 market alone, a Setup that installs it rebuilds it once, and a Setup R
-refuses leaves it as it was.
+refuses leaves it as it was. Its camera checks press the presets, Focus,
+the compass and Reset, pick areas and stores, drag in the middle of a
+move, and record that none of it sends the worker anything; then follow
+shoppers through real ticks (each frame on R's position, some leaving the
+floor), switch to Chase, Front and back to Orbit on the same shopper
+(each heading R's last step, the camera behind or ahead of it and never
+inside a fixture), and end following by Stop follow, a preset, the
+inspector closed, Reset, another store, 2D and the fastest speed; and 40
+ticks following a shopper end in the same season as 40 in 2D.
 
 `tools/test-grid-editor.mjs` runs the canvas against a stand-in for the
 browser (`tools/fake-dom.mjs`): brush footprints and their edges, strokes
@@ -1360,13 +1474,14 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `vendor/codemirror.js` | the R code drawer's viewer (`tools/build-editor.mjs` bundles it) |
 | `vendor/three.js` | Three.js 0.170.0 and its orbit controls, for the 3D views (`tools/build-three.mjs` bundles it from `tools/three-entry.js`) |
 | `js/fashion/spatial.js`, `js/fashion/scene-adapter.js` | the 3D views' coordinates (simulation to scene) and the reading of R's geometry and frames into what they draw |
-| `js/fashion/view-3d.js`, `market-3d.js`, `store-3d.js`, `view-switch.js`, `three-loader.js` | the 3D views, the 2D/3D switch, and loading Three.js on demand |
+| `js/fashion/view-3d.js`, `market-3d.js`, `store-3d.js`, `view-switch.js`, `three-loader.js` | the 3D views and their camera, the 2D/3D switch, and loading Three.js on demand |
+| `js/fashion/camera-bar.js` | the 3D camera's presets, Focus, pickers and follow perspectives over each 3D view |
 | `tools/serve.R` | the local server |
 | `tools/build-default-world.R` | how the default world was made from the city the model used to generate |
 | `tools/build-transport.mjs` | the parking, venues and the tiles they need, built by hand into the default and strip-mall worlds |
 | `tools/test-transport.R`, `tools/transport-worlds.R` | getting about: the networks, parking, venues, outings and their accounting, and two outings end to end |
 | `tools/test-browser.mjs` | the world builder and a day of the simulation in headless Chromium, the real model in webR |
-| `tools/test-scene-3d.mjs`, `tools/test-browser-3d.mjs` | the 3D views: coordinates, scenery, frames, clicks and the 2D/3D switch, under node and in headless Chromium with the real model |
+| `tools/test-scene-3d.mjs`, `tools/test-browser-3d.mjs` | the 3D views: coordinates, scenery, frames, clicks, the camera and Follow camera, and the 2D/3D switch, under node and in headless Chromium with the real model |
 | `tools/test-fashion.R` | the headless test, with its older worlds in `tools/fixtures/` |
 | `tools/test-sw.mjs` | the service worker's test |
 | `tools/test-grid-editor.mjs`, `tools/fake-dom.mjs` | the editors' canvas, tested against a stand-in for the browser |

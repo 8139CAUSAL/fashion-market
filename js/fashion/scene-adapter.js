@@ -195,6 +195,29 @@ export function cityModel(geo, world = null) {
   return { frame: m, tiles, roads, roadDots, highways, paths, yaw, houses, buildings, trees, bridges, crossings, parking, venues, stores, areas };
 }
 
+// ---- Camera targets on the map ---------------------------------------------------------
+
+// An area's ground: the box (scene metres) round every tile city_geometry()
+// puts in area `k` (1-based, as its `area` layer numbers them), and how many
+// tiles that is; null if it has none. Its roads, stores, households and
+// everyone outdoors in it are on those tiles. Throws if the layer isn't
+// the map's size (a defect, not an empty area).
+export function areaExtent(geo, k) {
+  const m = macroFrame(geo);
+  if (!Array.isArray(geo.area) && !ArrayBuffer.isView(geo.area)) throw new Error("city_geometry() has no area layer");
+  if (geo.area.length !== m.nx * m.ny) throw new Error(`the area layer has ${geo.area.length} tiles, the map ${m.nx} × ${m.ny} = ${m.nx * m.ny}`);
+  let r0 = Infinity; let r1 = -Infinity; let c0 = Infinity; let c1 = -Infinity; let n = 0;
+  for (let i = 0; i < geo.area.length; i++) {
+    if (geo.area[i] !== k) continue;
+    const r = Math.floor(i / m.nx); const c = i % m.nx;
+    n++; if (r < r0) r0 = r; if (r > r1) r1 = r; if (c < c0) c0 = c; if (c > c1) c1 = c;
+  }
+  if (!n) return null;
+  // The outer edges of the corner tiles: their middles, half a patch out.
+  const nw = macroTileCentre(m, r0, c0); const se = macroTileCentre(m, r1, c1); const h = m.patch / 2;
+  return { tiles: n, box: { X0: nw.X - h, X1: se.X + h, Z0: nw.Z - h, Z1: se.Z + h } };
+}
+
 // A car's facing on the tile it's on: along the road there.
 export function carYaw(model, x, y) {
   const { nx, ny, patch } = model.frame;
@@ -297,6 +320,152 @@ export function floorModel(plan, rows, keys) {
     doors: (plan.doors ?? []).map(([x, y]) => ({ ...floorToScene(f, x, y), x, y })),
     labels: (plan.labels ?? []).map((l) => ({ text: l.text, category: l.category ?? null, vertical: !!l.vertical, ...floorToScene(f, l.x, l.y) })),
   };
+}
+
+// ---- Camera targets on a floor ---------------------------------------------------------
+
+const COUNTER = 13; const BEHIND = 14;       // FLOOR_CODES: "$", and ":" or "c" (a cashier's place)
+
+// The checkout, from what plan_geometry() says: each till (its cashier's
+// place, `tills`, numbered as the model numbers them) and the block of
+// counter and cashiers' cells it stands in. Tills whose blocks touch are one
+// zone. The till queue is one per layout (model/floors.R allows one head):
+// its head is plan_geometry()'s `till_head`, its line the cells the
+// installed layout's rows draw as q and Q — only when those rows are the
+// picture the plan was read from (floorModel's fromRows); otherwise the
+// line's cells are unknown here, and `queue.line` is null, not guessed from
+// the shared queue code. `problem` names data that contradicts itself.
+export function checkoutGeometry(plan, model) {
+  const f = model.frame; const W = f.W; const H = f.H; const cell = f.cell;
+  const out = { zones: [], queue: { head: null, line: null }, problem: null };
+  const cellBox = (r, c) => ({ X0: c * cell, X1: (c + 1) * cell, Z0: -(H - r) * cell, Z1: -(H - r - 1) * cell });
+  const tills = plan.tills ?? [];
+  if (!Array.isArray(tills)) { out.problem = `plan_geometry()'s tills for ${plan.format} aren't a list of places`; return out; }
+  const zoneOf = new Int32Array(W * H).fill(-1);
+  for (let j = 0; j < tills.length; j++) {
+    const t = tills[j];
+    const [x, y] = Array.isArray(t) ? t : [NaN, NaN];
+    const r = H - 1 - y; const c = x;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || r < 0 || c < 0 || r >= H || c >= W) {
+      out.problem = `till ${j + 1} of ${plan.format} is at (${t}), not a cell of its ${W} × ${H} floor`; return out;
+    }
+    const code = plan.codes[r * W + c];
+    if (code !== BEHIND) { out.problem = `till ${j + 1} of ${plan.format} is at (${x}, ${y}), a cell coded ${code}, not a cashier's place`; return out; }
+    if (zoneOf[r * W + c] < 0) {
+      // A new zone: every counter and cashier's cell joined to this one.
+      const k = out.zones.length; const zone = { tills: [], cells: 0, box: null };
+      const stack = [r * W + c]; zoneOf[r * W + c] = k;
+      while (stack.length) {
+        const i = stack.pop(); const ri = Math.floor(i / W); const ci = i % W;
+        zone.cells++;
+        const b = cellBox(ri, ci);
+        zone.box = zone.box ? union(zone.box, b) : b;
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const r2 = ri + dr; const c2 = ci + dc; const i2 = r2 * W + c2;
+          if (r2 < 0 || c2 < 0 || r2 >= H || c2 >= W || zoneOf[i2] >= 0) continue;
+          const code2 = plan.codes[i2];
+          if (code2 === COUNTER || code2 === BEHIND) { zoneOf[i2] = k; stack.push(i2); }
+        }
+      }
+      out.zones.push(zone);
+    }
+    out.zones[zoneOf[r * W + c]].tills.push(j + 1);
+  }
+  const h = plan.till_head;
+  if (h !== undefined && h !== null) {
+    if (!Array.isArray(h) || h.length !== 2 || !Number.isInteger(h[0]) || !Number.isInteger(h[1]) || h[0] < 0 || h[1] < 0 || h[0] >= W || h[1] >= H) {
+      out.problem = `plan_geometry()'s till_head for ${plan.format} is ${JSON.stringify(h)}, not a cell of its ${W} × ${H} floor`; return out;
+    }
+    out.queue.head = cellBox(H - 1 - h[1], h[0]);
+  }
+  if (model.fromRows) out.queue.line = [...model.cells.tillHead, ...model.cells.tillLine].map((q) => cellBox(q.r, q.c));
+  return out;
+}
+
+// Where a selected agent stands in a frame (parseFrame()'s floor): a
+// shopper by their visit's id ({ kind: "shopper", visit }), never by their
+// place in the frame's order; a worker by role and number ({ kind:
+// "cashier" | "assistant", server }). { ok: true, at: {X, Z}, x, y, index }
+// if they are in it exactly once; { ok: false, reason } if not in it (a
+// normal state: they've left, or not come yet); { ok: false, defect: true }
+// if the frame contradicts itself about them (in it twice, or not at a
+// real point).
+export function locateOnFloor(a, plan, sel) {
+  const f = floorFrame(plan);
+  const shopper = sel?.kind === "shopper";
+  const role = sel?.kind === "cashier" ? 1 : sel?.kind === "assistant" ? 2 : 0;
+  if (!shopper && !role) return { ok: false, defect: true, reason: `not a shopper or a worker: ${JSON.stringify(sel)}`, context: { sel } };
+  const id = shopper ? sel.visit : sel.server;
+  const what = shopper ? `visit #${id}` : `${sel.kind} ${id}`;
+  if (!Number.isFinite(id)) return { ok: false, defect: true, reason: `the selection has no ${shopper ? "visit id" : "number"} (${id})`, context: { sel } };
+  const n = shopper ? a.n : a.staffN;
+  const X = shopper ? a.x : a.staffX; const Y = shopper ? a.y : a.staffY;
+  const ids = shopper ? a.visit : a.staffId;
+  if (!Number.isInteger(n) || n < 0 || !X || !Y || !ids || X.length < n || Y.length < n || ids.length < n || (!shopper && (!a.staffRole || a.staffRole.length < n))) {
+    return { ok: false, defect: true, reason: `the frame's ${shopper ? "shoppers" : "staff"} are malformed (n = ${n}, arrays of ${X?.length}, ${Y?.length}, ${ids?.length})`, context: { sel } };
+  }
+  const hits = [];
+  for (let i = 0; i < n; i++) if (ids[i] === id && (shopper || a.staffRole[i] === role)) hits.push(i);
+  if (!hits.length) return { ok: false, reason: shopper ? `Visit #${id} isn't on this floor in the current frame.` : `The ${what} isn't on this floor in the current frame.` };
+  if (hits.length > 1) return { ok: false, defect: true, reason: `${what} is in the same frame ${hits.length} times (at indices ${hits.join(", ")})`, context: { sel, hits } };
+  const i = hits[0]; const x = X[i]; const y = Y[i];
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x < -1 || y < -1 || x > plan.width || y > plan.height) {
+    return { ok: false, defect: true, reason: `${what} is at (${x}, ${y}), not a point of the ${plan.width} × ${plan.height} floor`, context: { sel, x, y } };
+  }
+  return { ok: true, at: floorToScene(f, x, y), x, y, index: i };
+}
+
+// What's wrong with a frame's floor (parseFrame()'s floor), as a list
+// (empty: nothing): counts that aren't counts, arrays shorter than their
+// count, a shopper or worker not at a real point of the floor, a visit id
+// that isn't a whole number or is in the frame more than once. Checked on
+// every frame while the camera follows someone: a frame like this is a
+// defect, not a shopper leaving.
+export function floorFrameProblems(a, plan) {
+  const out = [];
+  if (!a || typeof a !== "object") return ["there is no floor in the frame"];
+  const count = (n, what) => { if (!Number.isInteger(n) || n < 0) { out.push(`its ${what} count is ${n}`); return false; } return true; };
+  const arrays = (n, names) => { for (const k of names) if (!a[k] || a[k].length < n) out.push(`${k} has ${a[k]?.length ?? "no"} values for ${n}`); };
+  const inFloor = (x, y) => Number.isFinite(x) && Number.isFinite(y) && x >= -1 && y >= -1 && x <= plan.width && y <= plan.height;
+  if (count(a.n, "shopper")) {
+    arrays(a.n, ["x", "y", "look", "visit"]);
+    if (!out.length) {
+      const seen = new Map();
+      for (let i = 0; i < a.n; i++) {
+        if (!inFloor(a.x[i], a.y[i])) out.push(`visit #${a.visit[i]} is at (${a.x[i]}, ${a.y[i]}), not a point of the ${plan.width} × ${plan.height} floor`);
+        const v = a.visit[i];
+        if (!Number.isInteger(v) || v < 1) out.push(`shopper ${i} has visit id ${v}`);
+        else seen.set(v, (seen.get(v) ?? 0) + 1);
+      }
+      for (const [v, k] of seen) if (k > 1) out.push(`visit #${v} appears ${k} times`);
+    }
+  }
+  if (count(a.staffN, "staff")) {
+    const before = out.length;
+    arrays(a.staffN, ["staffX", "staffY", "staffRole", "staffId"]);
+    if (out.length === before) for (let i = 0; i < a.staffN; i++) if (!inFloor(a.staffX[i], a.staffY[i])) out.push(`worker ${i} is at (${a.staffX[i]}, ${a.staffY[i]}), not a point of the floor`);
+  }
+  return out;
+}
+
+// How tall the solid fixture on each cell of a floor is (0: none), from
+// the cells floorModel() draws as blocks: `heights` gives each kind's
+// height (walls, racks, the counter, the stockroom, the fitting cubicles,
+// the till on a cashier's place). Row by row from the north edge, as
+// floorModel()'s `kind`. heightAt(X, Z) reads it at a scene point.
+export function fixtureHeights(model, heights) {
+  const f = model.frame; const out = new Float32Array(f.W * f.H);
+  for (let i = 0; i < out.length; i++) out[i] = heights[model.kind[i]] ?? 0;
+  const heightAt = (X, Z) => {
+    const c = Math.floor(X / f.cell); const r = f.H - 1 - Math.floor(-Z / f.cell);
+    return r >= 0 && c >= 0 && r < f.H && c < f.W ? out[r * f.W + c] : 0;
+  };
+  return { cells: out, heightAt };
+}
+
+// The smallest box holding both.
+export function union(a, b) {
+  return { X0: Math.min(a.X0, b.X0), X1: Math.max(a.X1, b.X1), Z0: Math.min(a.Z0, b.Z0), Z1: Math.max(a.Z1, b.Z1) };
 }
 
 // Everyone on the floor in a frame (parseFrame()'s floor), in the scene:
