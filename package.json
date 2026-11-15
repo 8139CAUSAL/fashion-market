@@ -6,12 +6,14 @@
   "type": "module",
   "scripts": {
     "build:editor": "node tools/build-editor.mjs",
-    "test": "node --test tools/test-sw.mjs tools/test-grid-editor.mjs tools/test-world-builder.mjs && Rscript tools/test-shims.R && Rscript tools/test-fashion.R && Rscript tools/test-world-builder.R && Rscript tools/test-transport.R",
+    "test": "node --test tools/test-sw.mjs tools/test-grid-editor.mjs tools/test-world-builder.mjs tools/test-scene-3d.mjs && Rscript tools/test-shims.R && Rscript tools/test-fashion.R && Rscript tools/test-world-builder.R && Rscript tools/test-transport.R",
     "test:browser": "node tools/test-browser.mjs",
     "build:geographies": "node tools/build-geographies.mjs",
-    "build:transport": "node tools/build-transport.mjs"
+    "build:transport": "node tools/build-transport.mjs",
+    "build:three": "node tools/build-three.mjs",
+    "test:browser:3d": "node tools/test-browser-3d.mjs"
   },
-  "comment": "Dev-only: the app itself is static files. vendor/codemirror.js is committed, so nothing here is needed to run or deploy the app.",
+  "comment": "Dev-only: the app itself is static files. vendor/codemirror.js and vendor/three.js are committed, so nothing here is needed to run or deploy the app.",
   "devDependencies": {
     "@codemirror/commands": "6.8.1",
     "@codemirror/language": "6.11.1",
@@ -19,6 +21,7 @@
     "@codemirror/state": "6.5.2",
     "@codemirror/view": "6.37.1",
     "@lezer/highlight": "1.2.1",
-    "esbuild": "0.25.10"
+    "esbuild": "0.25.10",
+    "three": "0.170.0"
   }
 }
