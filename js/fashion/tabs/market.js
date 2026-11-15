@@ -11,6 +11,8 @@ import { LineChart, BarChart, Donut, tooltip } from "../charts.js";
 import { CityView } from "../city-view.js";
 import { possessive } from "../entry-text.js";
 import { ledgerView } from "../ledger-view.js";
+import { ViewSwitch } from "../view-switch.js";
+import { loadMarket3D } from "../three-loader.js";
 
 const MODES = [
   { value: "brand", label: "Brand last bought from" },
@@ -36,15 +38,35 @@ export class MarketTab {
     const modeSel = select({ label: "Colour homes by", options: MODES, value: "brand", hideLabel: true, onChange: (v) => { this.mode = v; this.#modeChanged(); } });
     this.offerSel = select({ label: "Brand", options: [], value: 1, hideLabel: true, onChange: (v) => { this.offerBrand = Number(v); this.#modeChanged(); } });
     this.offerSel.root.hidden = true;
-    const mapCard = card("The market", { sub: "click a store to open its floor · click a home to see that household",
-      right: el("span", { class: "row" }, modeSel.root, this.offerSel.root) });
+    // The map in 2D (CityView) or 3D (Market3DView, made on first use): the
+    // same installed world, the same frames, the same clicks.
+    const onStore = (id) => app.openStore(id);
+    const onHome = (x, y) => app.action("pick_home_at", { x: Math.round(x), y: Math.round(y) });
     const wrap = el("div", { class: "canvas-wrap map-wrap" });
+    const wrap3d = el("div", { class: "canvas-wrap map-wrap view3d-wrap", hidden: true });
+    this.shown = { geo: null, homes: null, codes: null, mode: "brand", stores: null, selected: null, travellers: null, caption: "" };
+    this.dims = new ViewSwitch({ app, what: "Map", load: loadMarket3D,
+      create: ({ THREE, Market3DView }) => {
+        const v = new Market3DView(wrap3d, THREE, { onStore, onHome });
+        const s = this.shown;
+        if (s.geo) v.setGeometry(s.geo, s.homes, app.world.installed);
+        if (s.codes) v.setHomes(s.codes, s.mode);
+        if (s.stores) v.setStores(s.stores);
+        if (s.selected) v.setSelected(s.selected);
+        if (s.travellers) v.setTravellers(s.travellers);
+        v.setCaption(s.caption);
+        return v;
+      },
+      apply: (is3d) => {
+        wrap.hidden = is3d; wrap3d.hidden = !is3d;
+        // Back in 2D: the map catches up with everyone outdoors.
+        if (!is3d && this.shown.travellers) this.map.setTravellers(this.shown.travellers);
+      } });
+    const mapCard = card("The market", { sub: "click a store to open its floor · click a home to see that household",
+      right: el("span", { class: "row" }, modeSel.root, this.offerSel.root, this.dims.root) });
     this.legendBox = el("div", { class: "map-legend" });
-    mapCard.body.append(wrap, this.legendBox);
-    this.map = new CityView(wrap, {
-      onStore: (id) => app.openStore(id),
-      onHome: (x, y) => app.action("pick_home_at", { x: Math.round(x), y: Math.round(y) }),
-    });
+    mapCard.body.append(wrap, wrap3d, this.legendBox);
+    this.map = new CityView(wrap, { onStore, onHome });
     // One household, beside the map it's picked from.
     const shopper = card("One household", {
       right: el("button", { type: "button", class: "btn small", text: "Pick a random household", onclick: () => app.action("pick_household") }),
@@ -109,19 +131,32 @@ export class MarketTab {
     const opts = this.app.brandOrder.map((b) => ({ value: b.index, label: b.name }));
     this.offerSel.setOptions(opts, this.offerBrand);
     this.map.setGeometry(geo, homes);
+    Object.assign(this.shown, { geo, homes, codes: null, stores: null, selected: null, travellers: null });
+    this.dims.view?.setGeometry(geo, homes, this.app.world.installed);
     this.intro.textContent = `${n} brand${n === 1 ? "" : "s"} run ${geo.stores.length} stores across a market of ${fmt.int(geo.homes.n)} households${geo.areas.length ? ` in ${geo.areas.length} areas` : ""}. Every dot is a household, in the colour of the brand it last bought from. Press Go to play the season and watch shoppers drive to the stores, and back to return things. Online shoppers don't drive, so they aren't on the map.`;
     this.#legend();
   }
-  onHomes(codes, mode, brand) { if (mode === this.mode && (mode !== "offer" || brand === this.offerBrand)) this.map.setHomes(codes, mode); }
+  onHomes(codes, mode, brand) {
+    if (mode !== this.mode || (mode === "offer" && brand !== this.offerBrand)) return;
+    this.map.setHomes(codes, mode);
+    Object.assign(this.shown, { codes, mode });
+    this.dims.view?.setHomes(codes, mode);
+  }
   onFrame(frame) {
     if (this.app.tab !== "market") return;
-    this.map.setTravellers(frame.travellers);
+    this.shown.travellers = frame.travellers;
+    if (this.dims.is3d) this.dims.view.setTravellers(frame.travellers);
+    else this.map.setTravellers(frame.travellers);
   }
 
   update(r) {
     const order = this.app.brandOrder;
     this.map.setStores(r.stores);
-    this.map.setCaption(this.app.header?.pace === "watch" ? `${fmt.int(this.app.header?.on_road)} shoppers out of doors` : `${r.day_label}'s visits shown by each store's halo`);
+    const caption = this.app.header?.pace === "watch" ? `${fmt.int(this.app.header?.on_road)} shoppers out of doors` : `${r.day_label}'s visits shown by each store's halo`;
+    this.map.setCaption(caption);
+    Object.assign(this.shown, { stores: r.stores, caption });
+    this.dims.view?.setStores(r.stores);
+    this.dims.view?.setCaption(caption);
     this.#travel(r.travel);
     this.#promotions(r.brands);
 
@@ -188,6 +223,8 @@ export class MarketTab {
   #shopper(s) {
     if (!s) return;
     this.map.setSelected({ x: s.x, y: s.y });
+    this.shown.selected = { x: s.x, y: s.y };
+    this.dims.view?.setSelected(this.shown.selected);
     const box = this.shopperBox;
     const order = this.app.brandOrder;
     const inReach = order.filter((b) => s.brands[b.index - 1].in_reach);

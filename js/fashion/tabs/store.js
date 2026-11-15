@@ -11,6 +11,8 @@ import { el, fmt, select, segmented, card, stats, brandVar } from "../ui.js";
 import { LineChart, BarChart } from "../charts.js";
 import { FloorView, LOOK_NAMES } from "../floor-view.js";
 import { Inspector } from "../inspector.js";
+import { ViewSwitch } from "../view-switch.js";
+import { loadStore3D } from "../three-loader.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const OUTCOMES = ["paid", "nothing appealed", "too expensive", "not in my size", "left the fitting-room queue", "didn't fit or like it", "walked out of the till queue"];
@@ -42,15 +44,37 @@ export class StoreTab {
 
     const top = el("div", { class: "grid store-top" });
     // The floor, heat map or flow.
-    this.viewCard = card("Floor", { sub: "" });
+    // The floor in 2D (FloorView) or 3D (Store3DView, made on first use): the
+    // same installed layout, the same frames, the same clicks.
+    const onClick = (x, y) => app.action("inspect_at", { store: this.store, x, y });
     this.floorWrap = el("div", { class: "canvas-wrap floor-wrap" });
+    this.floor3dWrap = el("div", { class: "canvas-wrap floor-wrap view3d-wrap", hidden: true });
+    this.shown = { agents: null, heat: null, follow: null, inspect: null, caption: "" };
+    this.dims = new ViewSwitch({ app, what: "Floor", load: loadStore3D,
+      create: ({ THREE, Store3DView }) => {
+        const v = new Store3DView(this.floor3dWrap, THREE, { onClick });
+        this.#plan3d(v);
+        const s = this.shown;
+        v.setMode(this.mode === "heat" ? "heat" : "floor");
+        if (s.heat) v.setHeat(s.heat);
+        v.setFollow(s.follow); v.setInspect(s.inspect);
+        if (s.agents) v.setAgents(s.agents);
+        v.setCaption(s.caption);
+        return v;
+      },
+      apply: () => {
+        this.#showViews();
+        // Back in 2D: the floor catches up with everyone in the store.
+        if (!this.dims.is3d && this.shown.agents) this.floor.setAgents(this.shown.agents);
+      } });
+    this.viewCard = card("Floor", { sub: "", right: this.dims.root });
     this.flowBox = el("div", { class: "chart flow-svg", hidden: true });
     this.floorLegend = el("div", { class: "map-legend" },
       ...LOOK_NAMES.map((n, i) => el("span", {}, el("i", { class: "legend-swatch", vars: { "--c": `var(--look-${i + 1})` } }), n)),
       el("span", {}, el("i", { class: "legend-swatch square", vars: { "--c": "var(--ink)" } }), "cashier"),
       el("span", {}, el("i", { class: "legend-swatch square", vars: { "--c": "var(--accent)" } }), "assistant (filled: busy)"));
-    this.viewCard.body.append(this.floorWrap, this.flowBox, this.floorLegend);
-    this.floor = new FloorView(this.floorWrap, { onClick: (x, y) => app.action("inspect_at", { store: this.store, x, y }) });
+    this.viewCard.body.append(this.floorWrap, this.floor3dWrap, this.flowBox, this.floorLegend);
+    this.floor = new FloorView(this.floorWrap, { onClick });
 
     // The inspector, KPIs and the followed shopper.
     const right = el("div", { class: "grid" });
@@ -99,11 +123,40 @@ export class StoreTab {
 
   #setMode(mode) {
     this.mode = mode;
-    this.floorWrap.hidden = mode === "flow"; this.floorLegend.hidden = mode === "flow";
+    this.floorLegend.hidden = mode === "flow";
     this.flowBox.hidden = mode !== "flow";
     this.floor.setMode(mode === "heat" ? "heat" : "floor");
+    this.dims.view?.setMode(mode === "heat" ? "heat" : "floor");
+    this.#showViews();
     this.viewCard.root.querySelector("h2").textContent = { floor: "Floor", heat: "Heat map", flow: "Flow" }[mode];
     this.app.view({ heat: mode === "heat" });
+  }
+
+  // The 2D floor, the 3D floor, or neither (the flow).
+  #showViews() {
+    const flow = this.mode === "flow"; const is3d = this.dims.is3d;
+    this.floorWrap.hidden = flow || is3d;
+    this.floor3dWrap.hidden = flow || !is3d;
+    this.dims.root.hidden = flow;
+    this.dims.view?.setActive(is3d && !flow);
+  }
+
+  // The selected store's plan, in 3D: plan_geometry()'s, with the installed
+  // layout's rows (the world R is running, not the Setup tab's draft).
+  #plan3d(v = this.dims.view) {
+    const g = this.app.geometry; if (!v || !g) return;
+    const st = g.stores[this.store - 1]; if (!st) return;
+    const plan = this.app.plans.find((p) => p.format === st.format);
+    const rows = this.app.world.installed?.layouts?.find((L) => L.id === st.format)?.rows ?? null;
+    v.setPlan(plan ?? null, rows, this.app.categories.map((c) => c.key));
+    v.setSells(g.brands[st.brand - 1]?.sells ?? null);
+    v.setAgents(null);
+  }
+
+  #caption(text) {
+    this.floor.setCaption(text);
+    this.shown.caption = text;
+    this.dims.view?.setCaption(text);
   }
 
   // Stores grouped by the area they stand in (the last group: outside every area).
@@ -131,6 +184,8 @@ export class StoreTab {
       this.floor.setPlan(plan);
       this.floor.setSells(g.brands[st.brand - 1]?.sells ?? null);
       this.floor.setAgents(null);
+      this.shown.agents = null;
+      this.#plan3d();
       this.inspector.update(null);
     }
     if (this.app.tab === "store") this.app.view({ store: id });
@@ -147,8 +202,10 @@ export class StoreTab {
   onFrame(frame) {
     const f = frame.floor;
     if (f.n === 0 && f.staffN === 0) return;
-    this.floor.setAgents(f);
-    this.floor.setCaption(`${fmt.int(f.inStore)} inside · ${fmt.int(f.frQ)} waiting for fitting rooms · ${fmt.int(f.tillQ)} at the tills`);
+    this.shown.agents = f;
+    if (this.dims.is3d) this.dims.view.setAgents(f);
+    else this.floor.setAgents(f);
+    this.#caption(`${fmt.int(f.inStore)} inside · ${fmt.int(f.frQ)} waiting for fitting rooms · ${fmt.int(f.tillQ)} at the tills`);
   }
 
   update(r) {
@@ -164,10 +221,14 @@ export class StoreTab {
       upr: fmt.num2(k.units_per_receipt), fr_wait: fmt.mins(k.fr_wait), till_wait: fmt.mins(k.till_wait),
       lost_fr: fmt.int(k.lost_fr), lost_till: fmt.int(k.lost_till), staff: fmt.money(k.staff_cost),
     });
-    if (!r.live) this.floor.setCaption(this.app.header?.pace === "watch" ? "" : "The fastest speed doesn't draw the floor: pick a slower one to watch it");
-    if (r.heat) this.floor.setHeat(r.heat);
+    if (!r.live) this.#caption(this.app.header?.pace === "watch" ? "" : "The fastest speed doesn't draw the floor: pick a slower one to watch it");
+    if (r.heat) { this.floor.setHeat(r.heat); this.shown.heat = r.heat; this.dims.view?.setHeat(r.heat); }
+    const inspect = r.inspect ? { kind: r.inspect.kind, visit: r.inspect.visit, server: r.inspect.server } : null;
     this.floor.setFollow(r.follow?.visit ?? null);
-    this.floor.setInspect(r.inspect ? { kind: r.inspect.kind, visit: r.inspect.visit, server: r.inspect.server } : null);
+    this.floor.setInspect(inspect);
+    Object.assign(this.shown, { follow: r.follow?.visit ?? null, inspect });
+    this.dims.view?.setFollow(this.shown.follow);
+    this.dims.view?.setInspect(inspect);
     this.inspector.update(r.inspect);
     this.#story(r.follow);
     if (this.mode === "flow") this.#flow(r);

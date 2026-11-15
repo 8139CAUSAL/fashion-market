@@ -99,6 +99,18 @@ online stores in its reach, the offers it holds) and its ledger: every item
 it has bought this season, where and for how much, and what it returned,
 with gross, refunds and net by brand.
 
+**2D or 3D.** The switch over the map shows the same market in 3D: the
+world drawn on the Setup tab and installed by Setup, as low-poly scenery
+(the ground in each tile's colour, roads, highways and footpaths, bridges,
+houses by density in their area's colour, buildings, woodland, parks,
+garages' see-through decks, each mall's plan with its roof off), the
+stores in their brand's colours with today's visits as a halo, the
+households in the colours the map is set to, and everyone outdoors where
+the simulation has them. Drag to turn the view, right-drag (or Shift-drag)
+to move it, scroll to zoom; **Reset view** goes back to the starting angle.
+A click works as on the 2D map: a store opens its floor, anywhere else
+picks the household nearest the point. See [The 3D views](#how-it-works).
+
 ### Store
 
 ![The Store tab on a Saturday: the flagship's floor, and a shopper in a fitting room with four items and the thoughts behind them](screenshots/store.png)
@@ -113,6 +125,15 @@ straight to the tills. Click a cashier or an assistant to see their work
 (a cashier's includes the returns they took back), or follow a random
 shopper through their visit. The store's sales are shown gross and net of
 the day's refunds.
+
+The floor and its heat map can also be shown in 3D (the switch over the
+floor): the installed layout's walls cut away low, its entrances, racks in
+their category's colour, the stockroom and its door, the till counter and
+the cashiers' places, the fitting cubicles (lit when in use, grey when
+closed) and the queues, with everyone in the store where the simulation
+has them, shoppers coloured by what they're doing and staff filled when
+busy. A click on a shopper or a worker in 3D opens the inspector as a
+click on the 2D floor does.
 
 ### Strategy
 
@@ -788,6 +809,71 @@ stores they could afford). Every sentence names the brand's own products.
 </details>
 
 <details>
+<summary><b>The 3D views</b>: the installed world and its agents, drawn with Three.js (<code>js/fashion/spatial.js</code>, <code>scene-adapter.js</code>, <code>market-3d.js</code>, <code>store-3d.js</code>)</summary>
+
+The Market and Store tabs' 3D views draw what the 2D views draw, from the
+same messages: GEOMETRY (`city_geometry()`, `plan_geometry()`, the
+households and the installed world file) and each FRAME (`frame_pack()`).
+NetLogoR is the only simulation. The 3D views move no agent, route no trip,
+draw no random number and send nothing to the worker; switching between 2D
+and 3D leaves the season, its random numbers, its agents' paths, its
+reports and its exports exactly as they would have been
+(`tools/test-browser-3d.mjs` runs the same ticks watched in 2D and in 3D
+and compares).
+
+**Coordinates** (`js/fashion/spatial.js`). Three.js has Y up; north is −Z
+and east +X. A point x metres east and y metres north of the map's
+south-west corner is X = x, Z = −y. The tile in row r (painted rows run
+from the north edge) and column c, NetLogoR's patch pxcor = c,
+pycor = H − 1 − r, has its middle at X = (c + 0.5) p, Z = −(H − r − 0.5) p,
+p the patch size and H the map's height in tiles. A floor's cells are 0.5 m:
+an agent at patch coordinates (x, y) stands at X = (x + 0.5) × 0.5,
+Z = −(y + 0.5) × 0.5, and the cell in row r, column c has its middle at
+X = (c + 0.5) × 0.5, Z = −(H − r − 0.5) × 0.5. Every position the 3D views
+draw goes through these functions; `tools/test-scene-3d.mjs` checks them
+against `tools/fixtures/spatial-contract.json` and the 2D views' pixels,
+and `tools/test-browser-3d.mjs` against R's own stores, travellers and
+shoppers.
+
+**The adapter** (`js/fashion/scene-adapter.js`) reads the geometry into
+what's drawn: the tiles by kind, the road links (diagonals only where the
+router may cut a corner, as the 2D map draws them), houses on the home
+tiles by density (up to four a tile, at most 60,000 on any map), trees,
+bridges, garages' decks, each mall's plan on its block with its
+storefronts in their stores' colours (from the installed world's
+`storefronts`), and each frame's travellers, shoppers and staff.
+`plan_geometry()` gives a cashier's place and the counter behind it one
+code, the stockroom and its door another, and the queues' heads and lines
+a third; the 3D floor reads the installed layout's own rows to draw them
+apart, but only when those rows give exactly the plan's codes, and from
+the codes alone otherwise. Its variety (a building's height, where a tree
+stands in its tile) comes from a hash of the tile, so a world always looks
+the same.
+
+**Drawing** (`js/fashion/view-3d.js`). Each kind of thing is one
+instanced mesh or one merged geometry, so the default world's 19,000
+houses, 24,000 households and every road are about 20 draw calls. The
+scenery is built when GEOMETRY brings a newly installed world (after a
+Setup that installs one; a draft edit or a refused Setup changes nothing),
+and the agents are moved in place on each frame. A frame is acknowledged
+as it always was, whether or not 3D is drawing, and the 3D view draws only
+when something changed, at most once an animation frame, and not at all
+while it's hidden (another tab, or 2D). At the market's scale the agents
+are drawn bigger than life, as the 2D map's dots keep their size at any
+zoom. Rebuilding or closing a view lets go of its geometry, materials,
+textures, listeners and WebGL context.
+
+**Loading.** Three.js 0.170.0 (pinned in `package.json`) is bundled with
+its orbit controls into `vendor/three.js` (`npm run build:three`), a
+same-origin static file like `vendor/codemirror.js`, so it loads on GitHub
+Pages and under the COOP/COEP headers webR needs. It's fetched the first
+time a 3D view is asked for, not before. Without WebGL the 3D switch is
+turned off with the reason, and if a 3D view can't start or loses its
+WebGL context the tab goes back to 2D.
+
+</details>
+
+<details>
 <summary><b>One clock</b>: the same seed gives the same season at any speed</summary>
 
 A shopper spends 10–40 minutes in a store, and a season in the default world
@@ -873,6 +959,15 @@ of mouth, and about 0.4 s an evening for 24 brands on 24 × 18 patches. The
 rest of NetLogoR's work is at Setup: building the map's world takes about
 20 ms, and the households, turtles and all, about 0.15 s.
 
+The 3D views, measured by `tools/test-browser-3d.mjs` in headless Chromium
+with WebGL in software (SwiftShader, no GPU): the default market is 19 draw
+calls and about 490,000 triangles (19,400 houses, 24,000 households), and a
+frame of it took 0.4–1.1 ms to submit across runs. At watch pace (600×)
+the season ran at 531–545 store seconds a second with the 2D map showing
+and 577–591 with the 3D one, over 8 seconds each: the worker doesn't wait
+for the page to draw, so 3D doesn't slow the simulation. The scenery is
+built once per installed world; a frame only moves the agents.
+
 Two measurements shaped the code. With NetLogoR's dependencies loaded,
 `nrow()` and `ncol()` become S4 generics, and dispatch costs more than the
 work, so the hot code uses `dim()`. Per-step overhead dominates in webR, so
@@ -896,7 +991,8 @@ headers that let webR use its fastest channel.
 The app is static files. Everything of its own (scripts, the worker, styles,
 the model, worlds, layouts and the NetLogoR image) is loaded by a relative
 path, so it runs from any subpath, such as `username.github.io/repository/`;
-only webR comes from its CDN. GitHub Pages can't send the COOP/COEP headers,
+only webR comes from its CDN. Three.js, for the 3D views, is one of its own
+files (`vendor/three.js`). GitHub Pages can't send the COOP/COEP headers,
 so `coi-serviceworker.js`, the first script `index.html` loads, installs a
 service worker that adds them, and reloads the page once. `.nojekyll` makes
 Pages serve every file as it is.
@@ -955,6 +1051,33 @@ venue, installs the world with Setup, runs a day, and reads back from R
 what the simulation did with the new lot and where everyone outdoors is.
 `node tools/test-browser.mjs --webr=<dir>` serves webR from the `dist/` of
 its npm package where its CDN can't be reached.
+
+`tools/test-scene-3d.mjs` (in `npm test`) checks the 3D views' page side
+against the same stand-in, with the real Three.js bundle and a renderer
+that only counts: the transformation from map tiles, floor cells and
+agents to the scene against the coordinate contract and the 2D views'
+pixels; the ground texture's tiles; the default world read as scenery (each
+tile drawn as what it is, the mall's plan on its block, its storefronts in
+their own stores' colours); a floor read from the installed rows only when
+they are the picture R read; frames moving agents and nothing else, one
+render however many frames arrive, none while hidden; a new installed
+world rebuilding the scenery and freeing the old; clicks picking the store,
+household, shopper or worker the 2D views would; and the 2D/3D switch
+sending nothing to the simulation and staying in 2D without WebGL.
+
+`npm run test:browser:3d` (`tools/test-browser-3d.mjs`, `--webr=<dir>` as
+above) runs the 3D views in headless Chromium with WebGL (SwiftShader) and
+the real model in webR: without WebGL the page stays in 2D and never loads
+Three.js; with it, the stores stand at R's `STORES$x`, `STORES$y`, the
+houses on NetLogoR's home patches, everyone outdoors at R's
+`travellers_at(clock)`, and every shopper at R's floor position on open
+floor; ticks never rebuild the scenery, and a hidden view draws nothing;
+clicking a store, a shopper and a cashier in 3D does what it does in 2D; 40
+ticks watched in 3D and in 2D from the same Setup end in the same random
+number state, clock, legs, visits and takings; the season's pace at 600×
+is measured with the 2D and the 3D map; and a draft edit leaves the 3D
+market alone, a Setup that installs it rebuilds it once, and a Setup R
+refuses leaves it as it was.
 
 `tools/test-grid-editor.mjs` runs the canvas against a stand-in for the
 browser (`tools/fake-dom.mjs`): brush footprints and their edges, strokes
@@ -1109,6 +1232,7 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
   layout-editor.js the micro world           ◀─   REPORT    JSON for the visible tab, 1–4 times a second
   inspector.js    inside a head              ◀─   HOMES     household colours, when they change
   city-view.js, floor-view.js, charts.js     ─▶   SET / ACTION / VIEW / SETUP / RUN / PAUSE
+  market-3d.js, store-3d.js (3D, Three.js)   ◀─   the same GEOMETRY and FRAME; nothing sent back
                                              ─▶   CHECK_WORLD / PREVIEW_MACRO / CHECK_LAYOUT
 ```
 
@@ -1134,11 +1258,15 @@ page (js/fashion/)                              worker (workers/sim.worker.js)
 | `vfs/` | the pre-built NetLogoR library image for webR (`tools/build-vfs.R`) |
 | `tools/shims/` | stand-ins for the parts of `terra`, `quickPlot` and `SpaDES.tools` NetLogoR calls, in plain R (`tools/test-shims.R` tests them) |
 | `vendor/codemirror.js` | the R code drawer's viewer (`tools/build-editor.mjs` bundles it) |
+| `vendor/three.js` | Three.js 0.170.0 and its orbit controls, for the 3D views (`tools/build-three.mjs` bundles it from `tools/three-entry.js`) |
+| `js/fashion/spatial.js`, `js/fashion/scene-adapter.js` | the 3D views' coordinates (simulation to scene) and the reading of R's geometry and frames into what they draw |
+| `js/fashion/view-3d.js`, `market-3d.js`, `store-3d.js`, `view-switch.js`, `three-loader.js` | the 3D views, the 2D/3D switch, and loading Three.js on demand |
 | `tools/serve.R` | the local server |
 | `tools/build-default-world.R` | how the default world was made from the city the model used to generate |
 | `tools/build-transport.mjs` | the parking, venues and the tiles they need, built by hand into the default and strip-mall worlds |
 | `tools/test-transport.R`, `tools/transport-worlds.R` | getting about: the networks, parking, venues, outings and their accounting, and two outings end to end |
 | `tools/test-browser.mjs` | the world builder and a day of the simulation in headless Chromium, the real model in webR |
+| `tools/test-scene-3d.mjs`, `tools/test-browser-3d.mjs` | the 3D views: coordinates, scenery, frames, clicks and the 2D/3D switch, under node and in headless Chromium with the real model |
 | `tools/test-fashion.R` | the headless test, with its older worlds in `tools/fixtures/` |
 | `tools/test-sw.mjs` | the service worker's test |
 | `tools/test-grid-editor.mjs`, `tools/fake-dom.mjs` | the editors' canvas, tested against a stand-in for the browser |

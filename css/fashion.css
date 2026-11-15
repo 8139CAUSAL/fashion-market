@@ -233,6 +233,23 @@ input[type="range"] { accent-color: var(--accent); height: 18px; margin: 0; }
 .view-caption { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: var(--ink-2);
   background: color-mix(in srgb, var(--surface) 80%, transparent); padding: 2px 7px; border-radius: 5px; pointer-events: none; }
 
+/* The 3D views (js/fashion/market-3d.js, store-3d.js): a WebGL canvas with names over it. */
+.view3d-wrap { aspect-ratio: 16 / 10; min-height: 320px; background: var(--surface-2); }
+.map-wrap.view3d-wrap { aspect-ratio: 4 / 3; }
+.view3d-wrap canvas { cursor: grab; outline: none; }
+.view3d-wrap canvas:active { cursor: grabbing; }
+.view3d-wrap canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.view3d-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.view3d-label { position: absolute; left: 0; top: 0; white-space: nowrap; font: 600 11px/1.2 var(--font); color: var(--map-label);
+  text-shadow: 0 0 3px var(--map-land), 0 0 3px var(--map-land), 0 0 2px var(--map-land); will-change: transform; }
+.view3d-label.area { font-size: 13px; font-weight: 650; letter-spacing: 0.14em; opacity: 0.85; }
+.view3d-label.parking { color: #fff; background: #3b6bb5; border-radius: 3px; padding: 0 4px; font-weight: 700; text-shadow: none; }
+.view3d-label.parking.garage { background: var(--map-garage); }
+.view3d-label.fixture, .view3d-label.door, .view3d-label.receipts { color: var(--ink); text-shadow: 0 0 3px var(--floor-bg), 0 0 3px var(--floor-bg), 0 0 2px var(--floor-bg); }
+.view3d-label.receipts { font-weight: 700; font-size: 12px; }
+.view-switch .seg button { height: 26px; padding: 0 10px; }
+.view-switch .seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+
 /* ---- Charts ---------------------------------------------------------------------- */
 
 .chart { position: relative; width: 100%; }
