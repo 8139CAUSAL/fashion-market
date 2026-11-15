@@ -249,6 +249,32 @@ input[type="range"] { accent-color: var(--accent); height: 18px; margin: 0; }
 .view3d-label.receipts { font-weight: 700; font-size: 12px; }
 .view-switch .seg button { height: 26px; padding: 0 10px; }
 .view-switch .seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+/* The compass, top right over a 3D view: N points where north is on screen. */
+.view3d-compass { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--hairline); background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--ink); }
+.view3d-compass:hover { background: var(--surface); }
+.view3d-compass:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.view3d-compass .needle { position: absolute; inset: 3px; display: block; transition: none; }
+.view3d-compass .needle b { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font: 700 10px/1 var(--font); color: var(--critical); }
+.view3d-compass .needle::after { content: ""; position: absolute; left: 50%; top: 11px; width: 0; height: 0; transform: translateX(-50%);
+  border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 9px solid var(--critical); }
+/* The camera controls over a 3D view (js/fashion/camera-bar.js). */
+.camera-bar { display: grid; gap: 4px; margin-bottom: 8px; font-size: 12px; }
+.camera-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.camera-presets button { height: 26px; padding: 0 10px; }
+.camera-action { display: inline-flex; }
+.camera-bar button.is-disabled { opacity: 0.45; cursor: not-allowed; }
+.camera-targets { display: inline-flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.camera-field { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); }
+.camera-field select { height: 26px; max-width: 13rem; }
+.camera-status { color: var(--ink-2); }
+.camera-status.tracking { color: var(--ink); font-weight: 600; }
+.camera-status.tracking::before { content: "● "; color: var(--critical); }
+.camera-note { margin: 0; color: var(--ink-2); font-size: 11px; }
+@media (max-width: 640px) {
+  .camera-field select { max-width: 9.5rem; }
+  .camera-presets button { padding: 0 7px; }
+}
 
 /* ---- Charts ---------------------------------------------------------------------- */
 

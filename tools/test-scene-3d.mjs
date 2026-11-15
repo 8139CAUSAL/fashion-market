@@ -48,6 +48,7 @@ const { Market3DView } = await import("../js/fashion/market-3d.js");
 const { Store3DView } = await import("../js/fashion/store-3d.js");
 const { ViewSwitch } = await import("../js/fashion/view-switch.js");
 const { tileCentre, tileAt } = await import("../js/fashion/world-store.js");
+const { pointer } = await import("./fake-dom.mjs");
 
 const json = (p) => JSON.parse(readFileSync(new URL(`../${p}`, import.meta.url), "utf8"));
 const contract = json("tools/fixtures/spatial-contract.json");
@@ -107,8 +108,11 @@ function planOf(L, keys) {
     const xs = block.map((q) => q[0]); const ys = block.map((q) => q[1]);
     boxes.push([Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs) + 1, Math.max(...ys) - Math.min(...ys) + 1]);
   }
+  // The queues' heads: one each (model/floors.R refuses a layout with more), as a pair.
+  const head = (ch) => { const h = cells((x) => x === ch); return h.length ? xy(...h[0]) : undefined; };
   return { format: L.id, name: L.name, width: W, height: H, cell_m: 0.5, codes: adapter.rowsToCodes(rows, keys),
-    labels: [], cubicle_boxes: boxes, tills: cells((ch) => ch === "c").map(([r, c]) => xy(r, c)), doors: cells((ch) => ch === "=").map(([r, c]) => xy(r, c)) };
+    labels: [], cubicle_boxes: boxes, tills: cells((ch) => ch === "c").map(([r, c]) => xy(r, c)), doors: cells((ch) => ch === "=").map(([r, c]) => xy(r, c)),
+    fr_head: head("W"), till_head: head("Q") };
 }
 
 const flagship = json("layouts/flagship.layout.json");
@@ -508,4 +512,515 @@ test("the 2D/3D switch sends nothing to the simulation; without WebGL it stays i
   assert.ok(!off.is3d && off.view === null && off.seg.root.children[1].disabled);
   assert.equal(banners.at(-1), "3D isn't available in this browser");
   assert.deepEqual(sent, []);
+});
+
+// ---- The camera: presets, moves, the compass, Focus --------------------------------------------------
+//
+//   - every preset's pose is worked out from what's installed and picked:
+//     an area's tiles, a store's point in cityModel(), the floor's size,
+//     the tills plan_geometry() places, a shopper where the live frame has
+//     them by their visit's id; and in different worlds and floors
+//   - with nothing picked (or nothing to frame) a preset is unavailable and
+//     says why; wrong data is a CameraTargetError, thrown before the camera
+//     moves, so it keeps its last valid pose
+//   - a move eases over ~700 ms, drawn frame by frame and then no more;
+//     grabbing the camera stops it where it is, another action replaces it;
+//     hidden, it ends at once; disposed, nothing more is drawn
+//   - the compass shows where north (−Z) is on screen and turns the view
+//     to face it, keeping target, distance and height; Reset goes back to
+//     the Overview; every move stays inside the controls' limits
+//   - camera actions call nothing that reaches the simulation
+
+const { CameraTargetError, View3D, TRANSITION_MS, easeInOut } = await import("../js/fashion/view-3d.js");
+const { CameraBar, targetSelect } = await import("../js/fashion/camera-bar.js");
+const strip = json("worlds/strip_mall.world.json");
+
+// A view with a clock the test turns: run(ms) moves it on and draws the frames asked for.
+function camView(View, opts = {}, size = [800, 600]) {
+  const made = makeView(View, size, opts);
+  let now = 1000;
+  made.view.clock = () => now;
+  made.run = (ms, step = 16) => { for (let t = 0; t < ms; t += step) { now += step; dom.frames(); } };
+  return made;
+}
+const poseNear = (a, b, eps = 1e-6) => near(a.target.X, b.target.X, eps) && near(a.target.Y, b.target.Y, eps) && near(a.target.Z, b.target.Z, eps)
+  && near(a.distance, b.distance, eps * Math.max(1, b.distance)) && near(a.polar, b.polar, eps) && near(Math.cos(a.azimuth - b.azimuth), 1, eps);
+const onScreen = (view, X, Y, Z) => { const s = view.toScreen(X, Y, Z); return s.on && s.x >= -1 && s.y >= -1 && s.x <= view.wrap.clientWidth + 1 && s.y <= view.wrap.clientHeight + 1; };
+// An area's tiles, counted from the world file itself (not the adapter).
+function areaTilesOf(W, key) {
+  const out = []; W.macro.area_tiles.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === key) out.push({ r, c }); }));
+  return out;
+}
+
+test("Market camera: Neighborhood frames the box round an area's own tiles, in worlds of different sizes; Street sits low round a store's cityModel() point", () => {
+  for (const W of [world, strip]) {
+    const g = geometryOf(W);
+    const { view, run } = camView(Market3DView);
+    view.setGeometry(g, new Int32Array(0), W); view.setActive(true); dom.frames();
+    W.macro.areas.forEach((a, i) => {
+      const tiles = areaTilesOf(W, a.key);
+      const r = view.presetTarget("neighborhood", { area: i + 1 });
+      if (!tiles.length) { assert.equal(r.ok, false); return; }
+      const p = W.macro.patch_m; const ny = W.macro.tiles.length;
+      const X0 = Math.min(...tiles.map((t) => t.c)) * p; const X1 = (Math.max(...tiles.map((t) => t.c)) + 1) * p;
+      const Z0 = -(ny - Math.min(...tiles.map((t) => t.r))) * p; const Z1 = -(ny - Math.max(...tiles.map((t) => t.r)) - 1) * p;
+      assert.ok(r.ok && near(r.pose.target.X, (X0 + X1) / 2) && near(r.pose.target.Z, (Z0 + Z1) / 2), `${W.name} ${a.name}`);
+      assert.equal(r.label, `Neighborhood · ${a.name}`);
+      view.goPreset("neighborhood", { area: i + 1 }); run(TRANSITION_MS + 100);
+      assert.ok(poseNear(view.currentPose(), view.constrain(r.pose), 1e-4));
+      // Every corner of the area's ground is on the canvas.
+      for (const [X, Z] of [[X0, Z0], [X1, Z0], [X0, Z1], [X1, Z1]]) assert.ok(onScreen(view, X, 0, Z), `${W.name} ${a.name} corner ${X},${Z}`);
+      assert.equal(view.cameraState.mode, "neighborhood");
+    });
+    // Street: round each store's own point, low, from the side the camera was already on.
+    const before = view.currentPose().azimuth;
+    view.model.stores.forEach((s, i) => {
+      const r = view.presetTarget("street", { store: i + 1 });
+      assert.ok(r.ok && r.pose.target.X === g.stores[i].x && r.pose.target.Z === -g.stores[i].y);
+      assert.ok(near(Math.cos(r.pose.azimuth - before), 1, 1e-9));
+      assert.ok(Math.PI / 2 - r.pose.polar < 0.45, "low: under 26° above the ground");
+    });
+    view.goPreset("street", { store: 2 }); run(TRANSITION_MS + 100);
+    const s = view.model.stores[1];
+    assert.ok(onScreen(view, s.X, s.height / 2, s.Z) && view.cameraState.label === `Street · ${g.stores[1].name}`);
+    // Each Street distance is inside the controls' limits.
+    assert.ok(view.distance >= view.controls.minDistance - 1e-9 && view.distance <= view.controls.maxDistance + 1e-9);
+    view.dispose();
+  }
+});
+
+test("Market camera: with nothing picked, Neighborhood and Street are unavailable and say why; wrong targets throw and leave the camera where it was", () => {
+  const { view, run } = camView(Market3DView);
+  // Nothing installed.
+  assert.equal(view.presetTarget("overview").ok, false);
+  assert.match(view.presetTarget("street", { store: 1 }).reason, /isn't installed/);
+  view.setGeometry(geo, homesXY, world); view.setActive(true); dom.frames();
+  for (const [name, args, re] of [["neighborhood", {}, /Pick an area/], ["street", {}, /Pick a store/], ["neighborhood", { area: null }, /Pick an area/]]) {
+    const r = view.presetTarget(name, args);
+    assert.ok(!r.ok && !r.defect && re.test(r.reason), `${name}: ${r.reason}`);
+    const pose = view.currentPose();
+    const out = view.goPreset(name, args);
+    assert.ok(!out.ok && poseNear(view.currentPose(), pose) && !view.transition, "the camera doesn't move, nothing is substituted");
+  }
+  // An area with no tiles: listed, not pickable, and says so.
+  const g = structuredClone(geo); g.areas.push({ id: "empty", name: "Nowhere", colour: "#000000", x: NaN, y: NaN });
+  view.setGeometry(g, homesXY, world); dom.frames();
+  const t = view.cameraTargets();
+  assert.deepEqual(t.areas.map((a) => a.ok), g.areas.map((_, i) => i < g.areas.length - 1));
+  const empty = view.presetTarget("neighborhood", { area: g.areas.length });
+  assert.ok(!empty.ok && !empty.defect && /no tiles/.test(empty.reason));
+  // No such area or store: a defect, thrown, the camera untouched.
+  view.goPreset("street", { store: 3 }); run(TRANSITION_MS + 50);
+  const last = view.currentPose();
+  assert.throws(() => view.goPreset("neighborhood", { area: 99 }), (e) => e instanceof CameraTargetError && /no area 99/.test(e.message));
+  assert.throws(() => view.goPreset("street", { store: 0 }), CameraTargetError);
+  // A store not at a real point (corrupt geometry): thrown before any move.
+  view.model.stores[4].X = NaN;
+  assert.throws(() => view.goPreset("street", { store: 5 }), (e) => e instanceof CameraTargetError && /not a point/.test(e.message));
+  assert.throws(() => view.animateTo({ target: { X: 1, Y: 0, Z: Infinity }, distance: 10, polar: 1, azimuth: 0 }), (e) => e instanceof CameraTargetError && /target Z = Infinity/.test(e.message));
+  assert.throws(() => view.animateTo({ target: { X: 1, Y: 0, Z: 1 }, distance: 0, polar: 1, azimuth: 0 }), CameraTargetError);
+  assert.ok(poseNear(view.currentPose(), last) && !view.transition && view.cameraState.mode === "street");
+  // A geometry layer that isn't the map's size: a defect, not an empty area.
+  const bad = structuredClone(geo); bad.area = bad.area.slice(1);
+  view.setGeometry(bad, homesXY, world); dom.frames();
+  const d = view.presetTarget("neighborhood", { area: 1 });
+  assert.ok(d.defect && /area layer has/.test(d.reason));
+  // runAction shows a defect (onCameraError) and logs it; it doesn't swallow it.
+  const errors = []; view.onCameraError = (e) => errors.push(e);
+  const quiet = console.error; console.error = () => {};
+  try { view.runAction(() => view.goPreset("neighborhood", { area: 1 })); } finally { console.error = quiet; }
+  assert.ok(errors.length === 1 && errors[0] instanceof CameraTargetError && /failed/.test(view.cameraState.note));
+  view.onCameraError = null;
+  assert.throws(() => { console.error = () => {}; try { view.runAction(() => view.goPreset("neighborhood", { area: 1 })); } finally { console.error = quiet; } }, CameraTargetError);
+  view.dispose();
+});
+
+test("camera moves: eased over ~700 ms, drawn each frame and then not at all; a drag stops one where it is; another action replaces it", () => {
+  const { view, run, renderer } = camView(Market3DView);
+  view.setGeometry(geo, homesXY, world); view.setActive(true); dom.frames();
+  const home = view.currentPose();
+  const target = view.presetTarget("street", { store: 3 }).pose;
+  view.goPreset("street", { store: 3 });
+  assert.ok(view.transition && view.raf, "a move asks for a frame");
+  // The first steps are near the start (slow in), the middle between, the end exact.
+  run(48);
+  const early = view.currentPose();
+  assert.ok(early.distance < home.distance && early.distance > target.distance);
+  assert.ok(Math.abs(early.target.X - home.target.X) < 0.05 * Math.abs(target.target.X - home.target.X));
+  const calls = renderer.calls;
+  run(TRANSITION_MS / 2 - 48);
+  const mid = view.currentPose();
+  assert.ok(renderer.calls > calls, "drawn while moving");
+  assert.ok(Math.abs(mid.target.X - home.target.X) > 0.3 * Math.abs(target.target.X - home.target.X));
+  // Labels are placed again each frame of the move.
+  const placed = () => view.labels.filter((l) => !l.node.hidden).map((l) => [l, l.node.style.transform]);
+  const before = placed();
+  run(64);
+  assert.ok(before.length && before.every(([l, t]) => l.node.style.transform !== t), "names move with the camera");
+  run(TRANSITION_MS);
+  assert.ok(poseNear(view.currentPose(), view.constrain(target), 1e-6) && !view.transition && view.raf === 0, "ended: no more frames asked for");
+  const done = renderer.calls; run(500); assert.equal(renderer.calls, done, "nothing drawn once still");
+  // Clip planes follow the distance through the move.
+  assert.ok(view.camera.near <= view.distance / 100 && view.camera.far > view.distance);
+
+  // A drag in the middle of a move: the move stops there and the camera is the user's.
+  view.goPreset("overview"); run(TRANSITION_MS / 3);
+  const r = view.canvas.getBoundingClientRect(); const x = r.left + 400; const y = r.top + 300;
+  view.canvas.dispatch("pointerdown", pointer(x, y));
+  assert.equal(view.transition, null);
+  const grabbed = view.currentPose();
+  run(TRANSITION_MS);
+  assert.ok(poseNear(view.currentPose(), grabbed), "not dragged on to the Overview after the user took the camera");
+  view.canvas.dispatch("pointermove", pointer(x + 60, y + 10));
+  view.canvas.dispatch("pointerup", pointer(x + 60, y + 10, { buttons: 0 }));
+  run(50);
+  assert.equal(view.cameraState.mode, "manual");
+  // The wheel and the arrow keys stop a move too.
+  view.goPreset("overview"); run(100);
+  view.canvas.dispatch("wheel", { deltaY: 100, deltaMode: 0, clientX: x, clientY: y, preventDefault() {}, ctrlKey: false });
+  assert.equal(view.transition, null);
+  view.goPreset("street", { store: 1 }); run(100);
+  view.canvas.dispatch("keydown", { code: "ArrowLeft", key: "ArrowLeft", preventDefault() {} });
+  assert.equal(view.transition, null);
+  // Another action mid-move: the new move starts from where the camera is.
+  view.goPreset("overview"); run(200);
+  const at = view.currentPose();
+  view.goPreset("street", { store: 5 });
+  assert.ok(poseNear(view.transition.from, at), "replaced, from the camera's place");
+  run(TRANSITION_MS + 50);
+  assert.ok(poseNear(view.currentPose(), view.constrain(view.presetTarget("street", { store: 5 }).pose), 1e-6));
+  assert.equal(view.cameraState.mode, "street");
+  view.dispose();
+});
+
+test("camera moves: hidden mid-move, the camera ends where it was going and no frame is asked for; disposed mid-move, nothing more happens; out of the controls' limits, held to them", () => {
+  const { view, run, renderer } = camView(Market3DView);
+  view.setGeometry(geo, homesXY, world); view.setActive(true); dom.frames();
+  view.goPreset("street", { store: 2 }); run(100);
+  view.setActive(false);
+  assert.ok(!view.transition && poseNear(view.currentPose(), view.constrain(view.presetTarget("street", { store: 2 }).pose), 1e-6));
+  const calls = renderer.calls; run(300); assert.equal(renderer.calls, calls);
+  // While hidden, an action goes there at once.
+  view.goPreset("overview");
+  assert.ok(!view.transition && poseNear(view.currentPose(), view.home.pose, 1e-6));
+  // A tab with no size: the move waits, and ends on the first frame drawn after the time is up.
+  view.setActive(true); dom.frames();
+  view.goPreset("street", { store: 4 }); dom.resize(view.wrap, 0, 0); run(TRANSITION_MS * 2);
+  dom.resize(view.wrap, 800, 600); run(16);
+  assert.ok(!view.transition && poseNear(view.currentPose(), view.constrain(view.presetTarget("street", { store: 4 }).pose), 1e-6));
+  // Limits: nearer than allowed, or under the lowest angle, is held to them.
+  const p = view.currentPose();
+  view.animateTo({ ...p, distance: view.controls.minDistance / 10, polar: 1.55 }, { duration: 0 });
+  assert.ok(near(view.distance, view.controls.minDistance, 1e-6) && near(view.currentPose().polar, view.controls.maxPolarAngle, 1e-6));
+  view.animateTo({ ...p, distance: view.controls.maxDistance * 10, polar: 0 }, { duration: 0 });
+  assert.ok(near(view.distance, view.controls.maxDistance, 1e-3) && near(view.currentPose().polar, view.controls.minPolarAngle, 1e-6));
+  // Disposed mid-move.
+  view.goPreset("street", { store: 1 }); run(50);
+  view.dispose();
+  assert.ok(!view.transition && view.raf === 0);
+  const after = renderer.calls; run(500); assert.equal(renderer.calls, after);
+  assert.ok(!view.wrap.children.includes(view.compass));
+});
+
+test("the compass: N points where north (−Z) is on screen, from any side and from overhead; a click turns the view to face north, keeping target, distance and height; Reset goes to the Overview", () => {
+  const { view, run } = camView(Store3DView);
+  const plan = planOf(flagship, keys);
+  view.setPlan(plan, flagship.rows, keys); view.setActive(true); dom.frames();
+  assert.equal(view.compass.hidden, false);
+  const t = view.home.pose.target;
+  // Where north is on screen: from the target a step toward −Z, clockwise from up.
+  const northOnScreen = () => {
+    const a = view.toScreen(t.X, t.Y, t.Z); const b = view.toScreen(t.X, t.Y, t.Z - 0.01);
+    return ((Math.atan2(b.x - a.x, -(b.y - a.y)) * 180 / Math.PI) + 360) % 360;
+  };
+  const apart = (x, y) => Math.abs(((x - y + 540) % 360) - 180);
+  for (const polar of [view.controls.minPolarAngle, 0.6, 1.2]) {
+    for (const az of [0, 0.7, Math.PI / 2, 2.5, Math.PI, -2, -Math.PI / 2]) {
+      view.animateTo({ target: { ...t }, distance: 20, polar, azimuth: az }, { duration: 0 });
+      const screen = northOnScreen(); const needle = view.compassHeading;
+      assert.equal(view.needle.style.transform, `rotate(${needle >= 359.95 ? "0.0" : needle.toFixed(1)}deg)`);
+      // The heading: exactly where north is from overhead, and facing north, east, south or west.
+      const cardinal = [0, Math.PI / 2, Math.PI, -Math.PI / 2].some((c) => near(Math.cos(az - c), 1, 1e-12));
+      if (polar === view.controls.minPolarAngle) assert.ok(apart(screen, needle) < 0.2, `overhead, azimuth ${az}: north at ${screen.toFixed(2)}°, needle ${needle.toFixed(2)}°`);
+      else if (cardinal) assert.ok(apart(screen, needle) < 0.01, `polar ${polar} azimuth ${az}: north at ${screen.toFixed(2)}°, needle ${needle.toFixed(2)}°`);
+      // Otherwise the same quarter of the dial (the ground's slant leans it toward the nearest of those).
+      else assert.ok(Math.floor(screen / 90) === Math.floor(needle / 90) && apart(screen, needle) < 45, `polar ${polar} azimuth ${az}: north at ${screen.toFixed(1)}°, needle ${needle.toFixed(1)}°`);
+      assert.ok(near(needle, ((az * 180 / Math.PI) + 360) % 360, 1e-9));
+    }
+  }
+  // Facing east, then the compass: facing north, the rest kept, through a move.
+  view.animateTo({ target: { X: 5, Y: 0.85, Z: -6 }, distance: 9, polar: 0.9, azimuth: -Math.PI / 2 }, { duration: 0 });
+  view.compass.dispatch("click");
+  assert.ok(view.transition);
+  run(TRANSITION_MS / 2);
+  const mid = view.currentPose();
+  assert.ok(near(mid.distance, 9, 1e-6) && near(mid.polar, 0.9, 1e-6) && near(mid.target.X, 5) && near(mid.target.Z, -6), "turns round the target, at the same distance and height");
+  run(TRANSITION_MS);
+  const n = view.currentPose();
+  assert.ok(near(n.azimuth, 0, 1e-9) && near(n.distance, 9, 1e-6) && near(n.polar, 0.9, 1e-9) && near(n.target.Y, 0.85));
+  assert.ok(near(view.compassHeading % 360, 0, 1e-6) && view.cameraState.mode === "north");
+  // North of the target is straight up the screen now.
+  const a = view.toScreen(5, 0, -6); const b = view.toScreen(5, 0, -10);
+  assert.ok(Math.abs(b.x - a.x) < 1e-6 && b.y < a.y);
+  assert.ok(view.faceNorth().already && /Already facing north/.test(view.cameraState.note));
+  // Reset (the 2D/3D switch's button): back to the Overview, by a move.
+  const sw = new ViewSwitch({ app: { banner() {} }, what: "Floor", load: async () => ({}), supported: () => true, apply() {}, create: () => view });
+  sw.view = view;
+  sw.reset.click();
+  assert.ok(view.transition);
+  run(TRANSITION_MS + 50);
+  assert.ok(poseNear(view.currentPose(), view.home.pose, 1e-6) && view.cameraState.mode === "overview");
+  view.dispose();
+});
+
+// A floor drawn for a test: rows of the layout characters, read as plan_geometry() reads them.
+const floorOf = (rows) => planOf({ id: "test", name: "Test", rows }, keys);
+const wall = (w) => "#".repeat(w);
+const pad = (s, w) => `#${s}${".".repeat(w - 2 - s.length)}#`;
+
+test("Store camera: Top-down shows the whole floor from overhead, north up, on floors of different sizes; Overview is where the view opened", () => {
+  for (const L of ["flagship", "standard", "small", "intimates"].map((id) => json(`layouts/${id}.layout.json`))) {
+    for (const size of [[800, 600], [420, 640]]) {
+      const plan = planOf(L, keys);
+      const { view, run } = camView(Store3DView, {}, size);
+      view.setPlan(plan, L.rows, keys); view.setActive(true); dom.frames();
+      const r = view.goPreset("topdown"); run(TRANSITION_MS + 50);
+      const p = view.currentPose(); const f = view.model.frame;
+      assert.ok(r.ok && near(p.polar, view.controls.minPolarAngle, 1e-9) && near(p.azimuth, 0, 1e-9) && near(p.target.X, f.width / 2) && near(p.target.Z, -f.depth / 2));
+      for (const [X, Z] of [[0, 0], [f.width, 0], [0, -f.depth], [f.width, -f.depth]]) assert.ok(onScreen(view, X, 0, Z), `${L.id} ${size}: corner ${X},${Z}`);
+      // Every fixture and agent standing on the floor is under it, so in view.
+      for (const c of view.model.cells.counter) assert.ok(onScreen(view, c.X, 1, c.Z));
+      view.goPreset("overview"); run(TRANSITION_MS + 50);
+      assert.ok(poseNear(view.currentPose(), view.home.pose, 1e-6));
+      view.dispose();
+    }
+  }
+});
+
+test("Store camera: Shopper looks low at the inspector's shopper, found by visit id in the live frame — unavailable when not selected, not live, or not there; a defect when the frame contradicts itself", () => {
+  const plan = planOf(flagship, keys);
+  const { view, run } = camView(Store3DView);
+  view.setPlan(plan, flagship.rows, keys); view.setActive(true); dom.frames();
+  const sel = { kind: "shopper", visit: 202 };
+  const frame = (xs, visits) => ({ n: xs.length, x: xs.map((p) => p[0]), y: xs.map((p) => p[1]), look: xs.map(() => 1), visit: visits,
+    staffN: 1, staffX: [60], staffY: [12], staffRole: [1], staffId: [1], staffBusy: [0], cubBusy: [], cubOpen: [] });
+  assert.match(view.presetTarget("shopper", {}).reason, /Select a shopper/);
+  assert.match(view.presetTarget("shopper", { selection: { kind: "cashier", server: 1 } }).reason, /Select a shopper/);
+  view.setAgents(frame([[10, 5], [20, 7]], [201, 202]));
+  assert.match(view.presetTarget("shopper", { selection: sel }).reason, /isn't drawn live/);
+  view.setLive(true);
+  const r = view.presetTarget("shopper", { selection: sel });
+  const f = view.model.frame;
+  assert.ok(r.ok && near(r.pose.target.X, spatial.floorToScene(f, 20, 7).X) && near(r.pose.target.Z, spatial.floorToScene(f, 20, 7).Z));
+  assert.ok(r.pose.distance < 8 && Math.PI / 2 - r.pose.polar < 0.5);
+  // By visit, never by place: the same visit first in the next frame.
+  view.setAgents(frame([[30, 9], [10, 5]], [202, 201]));
+  const r2 = view.presetTarget("shopper", { selection: sel });
+  assert.ok(near(r2.pose.target.X, spatial.floorToScene(f, 30, 9).X));
+  view.goPreset("shopper", { selection: sel }); run(TRANSITION_MS + 50);
+  assert.ok(onScreen(view, r2.pose.target.X, 1, r2.pose.target.Z) && view.cameraState.label === "Shopper · visit #202");
+  // Not in the frame: a normal state, said plainly.
+  view.setAgents(frame([[10, 5]], [201]));
+  const gone = view.presetTarget("shopper", { selection: sel });
+  assert.ok(!gone.ok && !gone.defect && /isn't on this floor/.test(gone.reason));
+  // In it twice, or at no real point: the frame is wrong.
+  view.setAgents(frame([[10, 5], [11, 5]], [202, 202]));
+  assert.ok(view.presetTarget("shopper", { selection: sel }).defect);
+  view.setAgents(frame([[NaN, 5]], [202]));
+  const nan = view.presetTarget("shopper", { selection: sel });
+  assert.ok(nan.defect && /not a point/.test(nan.reason));
+  const pose = view.currentPose();
+  assert.throws(() => view.goPreset("shopper", { selection: sel }), CameraTargetError);
+  assert.ok(poseNear(view.currentPose(), pose));
+  // No frame since the store changed.
+  view.setAgents(null);
+  assert.match(view.presetTarget("shopper", { selection: sel }).reason, /No live frame/);
+  view.dispose();
+});
+
+test("Store camera: Checkout frames the tills plan_geometry() places, their counters and the till queue (its line only from the installed rows); several till zones together or one by one; none is unavailable; a till off any till cell is a defect", () => {
+  const plan = planOf(flagship, keys);
+  const { view, run } = camView(Store3DView);
+  view.setPlan(plan, flagship.rows, keys); view.setActive(true); dom.frames();
+  const g = view.checkout;
+  assert.equal(g.problem, null);
+  assert.equal(g.zones.length, 1);
+  assert.deepEqual(g.zones[0].tills, plan.tills.map((_, i) => i + 1));
+  const n = (re) => flagship.rows.join("").split("").filter((ch) => re.test(ch)).length;
+  assert.equal(g.zones[0].cells, n(/[$:c]/));
+  assert.equal(g.queue.line.length, n(/[qQ]/));
+  const r = view.goPreset("checkout"); run(TRANSITION_MS + 50);
+  assert.ok(r.ok && r.label === "Checkout" && !r.note);
+  const f = view.model.frame;
+  for (const [x, y] of plan.tills) { const p = spatial.floorToScene(f, x, y); assert.ok(onScreen(view, p.X, 1, p.Z), `till at ${x},${y}`); }
+  for (const q of [...view.model.cells.tillLine, ...view.model.cells.tillHead]) assert.ok(onScreen(view, q.X, 0, q.Z), `queue cell ${q.r},${q.c}`);
+  // Tighter than the whole floor.
+  assert.ok(view.distance < view.home.pose.distance);
+  // Without the installed rows: the head only, and it says so; the shared queue code isn't read as the till queue's line.
+  const { view: v2 } = camView(Store3DView);
+  v2.setPlan(plan, null, keys); v2.setActive(true); dom.frames();
+  assert.ok(v2.checkout.queue.head && v2.checkout.queue.line === null);
+  const r2 = v2.presetTarget("checkout");
+  assert.ok(r2.ok && /head/.test(r2.note));
+  // Framed from what is known: every till and the queue's head on the canvas.
+  v2.goPreset("checkout"); v2.animateTo(r2.pose, { duration: 0 });
+  const hb = v2.checkout.queue.head;
+  assert.ok(onScreen(v2, (hb.X0 + hb.X1) / 2, 0, (hb.Z0 + hb.Z1) / 2), "the queue's head");
+  for (const [x, y] of plan.tills) { const p = spatial.floorToScene(v2.model.frame, x, y); assert.ok(onScreen(v2, p.X, 1, p.Z), `till at ${x},${y}`); }
+  // No queue head in the data at all: the tills alone, and it says so.
+  const noHead = { ...plan }; delete noHead.till_head;
+  v2.setPlan(noHead, null, keys);
+  assert.match(v2.presetTarget("checkout").note, /no place for the till queue/);
+  v2.dispose();
+
+  // Two counters close together: one framing for both, Every till.
+  const W = 40;
+  const close = floorOf([wall(W), pad("$:c:#$:c:", W), pad("$:::#$:::", W), pad("", W), pad(".....qqQ", W), pad("", W), "#".repeat(18) + "==" + "#".repeat(20)]);
+  view.setPlan(close, null, keys);
+  const ch = view.checkoutChoices();
+  assert.ok(ch.zones.length === 2 && ch.together);
+  assert.deepEqual(ch.zones.map((z) => z.label), ["Till 1", "Till 2"]);
+  const both = view.presetTarget("checkout");
+  assert.ok(both.ok && both.label === "Checkout · every till");
+  const one = view.presetTarget("checkout", { zone: 2 });
+  assert.ok(one.ok && one.label === "Checkout · Till 2" && /every till together/.test(one.note));
+  assert.ok(one.pose.target.X > both.pose.target.X, "zone 2 is the eastern counter");
+  // Far apart: no framing of both at once, so one must be picked.
+  const far = floorOf([wall(70), pad(`$:c:${".".repeat(58)}$:c:`, 70), pad(`$:::${".".repeat(58)}$:::`, 70), pad("", 70), pad(".".repeat(30) + "qqQ", 70), pad("", 70), "#".repeat(30) + "==" + "#".repeat(38)]);
+  view.setPlan(far, null, keys);
+  assert.ok(!view.checkoutChoices().together);
+  const pick = view.presetTarget("checkout");
+  assert.ok(!pick.ok && !pick.defect && /pick a till zone/.test(pick.reason));
+  const west = view.presetTarget("checkout", { zone: 1 });
+  assert.ok(west.ok && west.pose.target.X < view.model.frame.width / 4);
+  assert.ok(view.presetTarget("checkout", { zone: 3 }).defect);
+  // No till at all: unavailable, and why.
+  const none = floorOf([wall(20), pad("", 20), pad("", 20), "#".repeat(8) + "==" + "#".repeat(10)]);
+  view.setPlan(none, null, keys);
+  const nt = view.presetTarget("checkout");
+  assert.ok(!nt.ok && !nt.defect && /no till/.test(nt.reason));
+  assert.deepEqual(view.checkoutChoices(), { zones: [], together: false });
+  // A till plan_geometry() puts on a cell that isn't a cashier's place: the data contradicts itself.
+  const bad = { ...planOf(flagship, keys), tills: [[1, 1]] };
+  const quiet = console.error; console.error = () => {};
+  try { view.setPlan(bad, null, keys); } finally { console.error = quiet; }
+  const d = view.presetTarget("checkout");
+  assert.ok(d.defect && /not a cashier's place/.test(d.reason));
+  assert.throws(() => view.goPreset("checkout"), CameraTargetError);
+  const badHead = { ...planOf(flagship, keys), till_head: [1.5, "x"] };
+  console.error = () => {};
+  try { view.setPlan(badHead, null, keys); } finally { console.error = quiet; }
+  assert.ok(view.presetTarget("checkout").defect);
+  view.dispose();
+});
+
+test("Focus turns to the selection keeping the camera's direction and height, changes no selection, and calls nothing; with several targets it aims at the one selected", () => {
+  const calls = [];
+  const { view, run } = camView(Market3DView, { onStore: (...a) => calls.push(["store", a]), onHome: (...a) => calls.push(["home", a]) });
+  view.setGeometry(geo, homesXY, world); view.setActive(true); dom.frames();
+  view.animateTo({ ...view.currentPose(), azimuth: 1.1, polar: 0.8 }, { duration: 0 });
+  assert.match(view.focusTarget(null).reason, /Select an area, a store or a household/);
+  assert.match(view.focusTarget({ kind: "household" }).reason, /No household is picked/);
+  const s = geo.stores[6];
+  view.focus({ kind: "store", store: 7 }); run(TRANSITION_MS + 50);
+  let p = view.currentPose();
+  assert.ok(near(p.target.X, s.x) && near(p.target.Z, -s.y) && near(p.azimuth, 1.1, 1e-9) && near(p.polar, 0.8, 1e-9));
+  view.setSelected({ x: 1234, y: 2345 });
+  view.focus({ kind: "household", id: 9 }); run(TRANSITION_MS + 50);
+  p = view.currentPose();
+  assert.ok(near(p.target.X, 1234) && near(p.target.Z, -2345) && near(p.azimuth, 1.1, 1e-9) && view.cameraState.label === "Focus · household #9");
+  view.focus({ kind: "area", area: 2 }); run(TRANSITION_MS + 50);
+  const box = adapter.areaExtent(geo, 2).box;
+  for (const [X, Z] of [[box.X0, box.Z0], [box.X1, box.Z1]]) assert.ok(onScreen(view, X, 0, Z));
+  assert.deepEqual(view.selected, { x: 1234, y: 2345 }, "the household picked stays picked");
+  view.setSelected({ x: NaN, y: 3 });
+  assert.ok(view.focusTarget({ kind: "household" }).defect);
+  assert.deepEqual(calls, []);
+  view.dispose();
+
+  // On a floor: the shopper or the worker in the inspector, where the live frame has them.
+  const plan = planOf(flagship, keys);
+  const st = camView(Store3DView, { onClick: (...a) => calls.push(["click", a]) });
+  st.view.setPlan(plan, flagship.rows, keys); st.view.setActive(true); st.view.setLive(true);
+  st.view.setAgents({ n: 1, x: [20], y: [8], look: [1], visit: [7], staffN: 2, staffX: [44, 50], staffY: [16, 4], staffRole: [1, 2], staffId: [1, 1], staffBusy: [0, 1], cubBusy: [], cubOpen: [] });
+  dom.frames();
+  st.view.animateTo({ ...st.view.currentPose(), azimuth: -0.4, polar: 1.0 }, { duration: 0 });
+  st.view.focus({ kind: "assistant", server: 1 }); st.run(TRANSITION_MS + 50);
+  const a = spatial.floorToScene(st.view.model.frame, 50, 4);
+  p = st.view.currentPose();
+  assert.ok(near(p.target.X, a.X) && near(p.target.Z, a.Z) && near(p.azimuth, -0.4, 1e-9) && near(p.polar, 1.0, 1e-9));
+  assert.ok(!st.view.focusTarget({ kind: "cashier", server: 2 }).ok);
+  assert.deepEqual(calls, []);
+  st.view.dispose();
+});
+
+test("after camera moves, clicks still pick what's under the pointer; a new world or floor puts the camera back at the Overview", () => {
+  const picked = [];
+  const { view, run } = camView(Market3DView, { onStore: (id) => picked.push(id) });
+  view.setGeometry(geo, homesXY, world); view.setActive(true); dom.frames();
+  view.goPreset("street", { store: 5 }); run(TRANSITION_MS + 50);
+  const s = view.model.stores[4];
+  click(view, at(view, s.X, s.height, s.Z));
+  assert.deepEqual(picked, [5]);
+  // A new installed world mid-move: no move left over, the new world's Overview.
+  view.goPreset("street", { store: 2 }); run(100);
+  const next = structuredClone(geo); next.stores = next.stores.slice(0, 4);
+  view.setGeometry(next, homesXY, world);
+  assert.ok(!view.transition && view.cameraState.mode === "overview" && poseNear(view.currentPose(), view.home.pose, 1e-6));
+  view.dispose();
+  const plan = planOf(flagship, keys);
+  const st = camView(Store3DView);
+  st.view.setPlan(plan, flagship.rows, keys); st.view.setActive(true); dom.frames();
+  st.view.goPreset("topdown"); st.run(100);
+  const small = json("layouts/small.layout.json");
+  st.view.setPlan(planOf(small, keys), small.rows, keys);
+  assert.ok(!st.view.transition && st.view.cameraState.mode === "overview" && near(st.view.currentPose().target.X, st.view.model.frame.width / 2));
+  st.view.dispose();
+});
+
+test("the camera bar: an unavailable action stays focusable, says why (title, read-out, under the bar) and doesn't run; the preset showing is pressed", () => {
+  const ran = [];
+  const bar = new CameraBar({ label: "Test camera", presets: [{ id: "overview", label: "Overview", title: "o" }, { id: "street", label: "Street", title: "s" }],
+    onPreset: (id) => ran.push(id), onFocus: () => ran.push("focus"), onStop: () => ran.push("stop") });
+  const button = (label) => bar.root.find((n) => n.tagName === "BUTTON" && n.textContent === label);
+  bar.setAvailable("street", { ok: false, reason: "Pick a store for the street view." });
+  const b = button("Street");
+  assert.equal(b.getAttribute("aria-disabled"), "true");
+  assert.equal(b.title, "Pick a store for the street view.");
+  assert.equal(b.disabled, false, "still focusable");
+  const why = bar.root.find((n) => n.attributes?.get("id") === b.getAttribute("aria-describedby"));
+  assert.match(why.textContent, /Unavailable: Pick a store/);
+  assert.match(bar.note.textContent, /Street: Pick a store/);
+  bar.setState({ mode: "overview", label: "Overview", note: "" });
+  b.click();
+  assert.deepEqual(ran, []);
+  assert.equal(bar.status.textContent, "Camera: Overview — Pick a store for the street view.");
+  // Refreshed each frame with the same state: the reason stays up.
+  for (let i = 0; i < 3; i++) bar.setState({ mode: "overview", label: "Overview", note: "" });
+  assert.match(bar.status.textContent, /Pick a store/);
+  bar.setAvailable("street", { ok: true });
+  b.click(); button("Overview").click(); button("Focus").click();
+  assert.deepEqual(ran, ["street", "overview", "focus"]);
+  assert.equal(bar.note.hidden, true);
+  bar.setState({ mode: "street", label: "Street · Shop", note: "" });
+  assert.deepEqual([button("Overview").getAttribute("aria-pressed"), b.getAttribute("aria-pressed")], ["false", "true"]);
+  assert.equal(bar.status.textContent, "Camera: Street · Shop");
+  bar.setState({ mode: "manual", label: "Moved by hand", note: "" });
+  assert.equal(b.getAttribute("aria-pressed"), "false");
+  // A target picker: nothing picked at first; an unpickable choice can't be kept.
+  const changes = [];
+  const sel = targetSelect({ label: "Area", placeholder: "Pick an area…", onChange: (v) => changes.push(v) });
+  assert.equal(sel.setOptions([{ value: 1, label: "A" }, { value: 2, label: "B", disabled: true }], 2), null);
+  assert.equal(sel.setOptions([{ value: 1, label: "A" }, { value: 2, label: "B" }], 2), 2);
+  assert.equal(sel.setOptions([{ value: 1, label: "A" }], 2), null, "gone from the new world: nothing picked");
+  sel.node.value = "1"; sel.node.dispatch("change");
+  sel.node.value = ""; sel.node.dispatch("change");
+  assert.deepEqual(changes, [1, null]);
+});
+
+test("easing and steps: slow in and out, a pose half-way is between, the short way round", () => {
+  assert.ok(near(View3D.lerpPose({ target: { X: 0, Y: 0, Z: 0 }, distance: 10, polar: 1, azimuth: 3 }, { target: { X: 10, Y: 0, Z: 0 }, distance: 1000, polar: 0.5, azimuth: -3 }, 0.5).distance, 100));
+  const half = View3D.lerpPose({ target: { X: 0, Y: 0, Z: 0 }, distance: 10, polar: 1, azimuth: 3 }, { target: { X: 10, Y: 0, Z: 0 }, distance: 10, polar: 0.5, azimuth: -3 }, 0.5);
+  assert.ok(near(half.target.X, 5) && near(half.polar, 0.75) && Math.abs(Math.sin(half.azimuth)) < 1e-9 && Math.cos(half.azimuth) < 0, "through south-west-ish π, not round through 0");
+  assert.ok(easeInOut(0) === 0 && easeInOut(1) === 1 && near(easeInOut(0.5), 0.5) && easeInOut(0.1) < 0.1 && easeInOut(0.9) > 0.9);
 });

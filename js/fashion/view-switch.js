@@ -19,7 +19,8 @@ export class ViewSwitch {
       { value: "2d", label: "2D", title: `The ${what.toLowerCase()} as a plan` },
       { value: "3d", label: "3D", title: `The ${what.toLowerCase()} in 3D: drag to turn it, right-drag (or Shift-drag) to move, scroll to zoom` }],
     onChange: (v) => this.set(v) });
-    this.reset = el("button", { type: "button", class: "btn small", text: "Reset view", hidden: true, title: "Back to the starting angle", onclick: () => this.view?.reset() });
+    // Reset: back to the Overview, the starting angle (a camera move: see view-3d.js).
+    this.reset = el("button", { type: "button", class: "btn small", text: "Reset view", hidden: true, title: "Back to the starting angle", onclick: () => this.view?.runAction(() => this.view.goPreset("overview")) });
     this.root = el("span", { class: "row view-switch" }, this.seg.root, this.reset);
   }
 

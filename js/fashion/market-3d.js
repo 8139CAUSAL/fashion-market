@@ -13,9 +13,17 @@
 // what it does on a click: a store opens its floor (onStore), anywhere else
 // picks the household nearest the point (onHome).
 
+//
+// Its camera presets: Overview (the whole map, as it opens), Neighborhood
+// (the box round an area's tiles, for the area picked in the camera
+// controls) and Street (low, round the store picked there, at its point in
+// cityModel()); Focus turns to the area, store or household selected.
+// Nothing is picked for the user: with no area or store picked, the preset
+// that needs one says so.
+
 import * as spatial from "./spatial.js";
-import { cityModel, homesOf, travellersOf } from "./scene-adapter.js";
-import { View3D, placeMatrix, carGeometry, personGeometry, houseGeometry, treeGeometry, ribbonGeometry, groundPlane, overlayMaterial } from "./view-3d.js";
+import { cityModel, homesOf, travellersOf, areaExtent } from "./scene-adapter.js";
+import { View3D, placeMatrix, carGeometry, personGeometry, houseGeometry, treeGeometry, ribbonGeometry, groundPlane, overlayMaterial, unavailable, defect } from "./view-3d.js";
 import { cssVar, fmt } from "./ui.js";
 import { tooltip } from "./charts.js";
 import { mix } from "./city-view.js";
@@ -27,6 +35,8 @@ const LAND_VARS = ["--map-land", "--map-water", "--map-park", null, "--map-plaza
 const CAR_M = 4.6;           // a car's length, metres
 const PERSON_M = 1.8;        // a walker's height
 const LEVEL_M = 3.2;         // a garage's floor to floor
+const STREET_POLAR = 1.2;    // the Street preset: 0.37 rad (21°) above the ground
+const NEIGHBOURHOOD_ELEVATION = 0.9;
 const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
 
 export class Market3DView extends View3D {
@@ -341,6 +351,83 @@ export class Market3DView extends View3D {
       default: return [cssVar("--brand-0", r), ...g.brands.map((b) => b.colour)];
     }
   }
+
+  // ---- Camera targets ----------------------------------------------------------------------
+
+  // The areas and stores the camera can be aimed at: the installed world's
+  // own, by their 1-based numbers, each with whether it can be framed.
+  cameraTargets() {
+    if (!this.model) return { areas: [], stores: [] };
+    const g = this.geo;
+    const areas = (g.areas ?? []).map((a, i) => {
+      const ext = areaExtent(g, i + 1);
+      return { index: i + 1, name: a.name, ok: !!ext, reason: ext ? "" : `${a.name} has no tiles on the map` };
+    });
+    const stores = this.model.stores.map((s, i) => ({ index: i + 1, name: g.stores[i]?.name ?? `Store ${i + 1}`, area: g.stores[i]?.area ?? 0,
+      ok: Number.isFinite(s.X) && Number.isFinite(s.Z) }));
+    return { areas, stores };
+  }
+
+  // Overview; Neighborhood { area }: an area by number; Street { store }: a store by number.
+  presetTarget(name, { area = null, store = null } = {}) {
+    if (!this.model) return unavailable("The market isn't installed yet.");
+    if (name === "neighborhood") {
+      const a = this.#area(area); if (!a.ok) return a;
+      const pose = this.poseForBox(a.box, { azimuth: this.currentPose().azimuth, elevation: NEIGHBOURHOOD_ELEVATION, fill: 1.1 });
+      return { ok: true, pose, label: `Neighborhood · ${a.name}` };
+    }
+    if (name === "street") {
+      const s = this.#store(store); if (!s.ok) return s;
+      return { ok: true, pose: { target: { X: s.X, Y: 0, Z: s.Z }, distance: this.#streetDistance(s.st), polar: STREET_POLAR, azimuth: this.currentPose().azimuth }, label: `Street · ${s.name}` };
+    }
+    return super.presetTarget(name);
+  }
+
+  // Focus: { kind: "area", area } | { kind: "store", store } | { kind: "household" } (the one picked on the map).
+  focusTarget(sel) {
+    if (!this.model) return unavailable("The market isn't installed yet.");
+    if (!sel) return unavailable("Select an area, a store or a household to focus on.");
+    if (sel.kind === "area") {
+      const a = this.#area(sel.area); if (!a.ok) return a;
+      return { ok: true, point: { X: (a.box.X0 + a.box.X1) / 2, Y: 0, Z: (a.box.Z0 + a.box.Z1) / 2 }, box: a.box, label: `Focus · ${a.name}` };
+    }
+    if (sel.kind === "store") {
+      const s = this.#store(sel.store); if (!s.ok) return s;
+      return { ok: true, point: { X: s.X, Y: 0, Z: s.Z }, distance: this.#streetDistance(s.st), label: `Focus · ${s.name}` };
+    }
+    if (sel.kind === "household") {
+      const h = this.selected;
+      if (!h) return unavailable("No household is picked: click a home on the map, or pick a random household.");
+      if (!Number.isFinite(h.x) || !Number.isFinite(h.y) || h.x < 0 || h.y < 0 || h.x > this.geo.width || h.y > this.geo.height) {
+        return defect(`The picked household is at (${h.x}, ${h.y}), not on the ${this.geo.width} × ${this.geo.height} m map`, { household: h });
+      }
+      const at = spatial.macroToScene(h.x, h.y);
+      return { ok: true, point: { X: at.X, Y: 0, Z: at.Z }, distance: this.model.frame.patch * 5, label: `Focus · household${sel.id ? ` #${sel.id}` : ""}` };
+    }
+    return defect(`Focus can't aim at "${sel.kind}" on the map`, { sel });
+  }
+
+  #area(k) {
+    if (k === null || k === undefined || k === "") return unavailable("Pick an area to frame its neighborhood.");
+    const g = this.geo; const a = g.areas?.[k - 1];
+    if (!Number.isInteger(k) || !a) return defect(`There is no area ${k} in the installed world (it has ${g.areas?.length ?? 0})`, { area: k });
+    let ext;
+    try { ext = areaExtent(g, k); } catch (err) { return defect(`The map's areas can't be read: ${err.message}`, { area: k }); }
+    if (!ext) return unavailable(`${a.name} has no tiles on the map to frame.`);
+    return { ok: true, name: a.name, box: ext.box };
+  }
+
+  #store(k) {
+    if (k === null || k === undefined || k === "") return unavailable("Pick a store for the street view.");
+    const st = this.model.stores[k - 1];
+    if (!Number.isInteger(k) || !st) return defect(`There is no store ${k} in the installed world (it has ${this.model.stores.length})`, { store: k });
+    if (!Number.isFinite(st.X) || !Number.isFinite(st.Z)) return defect(`Store ${k} is at (${st.X}, ${st.Z}), not a point on the map`, { store: k });
+    return { ok: true, st, X: st.X, Z: st.Z, name: this.geo.stores[k - 1]?.name ?? `Store ${k}` };
+  }
+
+  // Near enough to see the storefront and its streets: the store ten times
+  // over, and at least three tiles.
+  #streetDistance(st) { return Math.max(10 * st.half, 3 * this.model.frame.patch); }
 
   // ---- The pointer -----------------------------------------------------------------------
 

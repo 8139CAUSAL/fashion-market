@@ -13,11 +13,40 @@
 //
 // THREE is passed in (three-loader.js loads it on demand); so is the
 // renderer, for the tests, which run the views under node without WebGL.
+//
+// Camera actions (presets, Focus, the compass, Reset) move the camera to a
+// pose the view works out from what is installed or selected: Market and
+// Store say where (presetTarget(), focusTarget()), this layer says how. A
+// pose is OrbitControls' own: the point looked at (target), and the
+// camera's distance, polar angle (from straight above) and azimuth (round
+// from the south, toward the east) about it. A move eases the target and
+// those three from where the camera is to the pose over ~700 ms, drawn on
+// demand: a frame is asked for only while a move runs, none once it ends,
+// the view is hidden or disposed. Grabbing the camera (pointer, wheel,
+// keys) stops a move where it is; another action replaces it. A target
+// that can't be computed is either unavailable ({ ok: false, reason }: the
+// action says why and the camera stays) or a defect (CameraTargetError,
+// thrown before the camera is touched, so it keeps its last valid pose).
 
 import { el, cssVar } from "./ui.js";
 import { tooltip } from "./charts.js";
 
 const CLICK_PX = 5;          // a press that moves less than this is a click, not a drag
+export const TRANSITION_MS = 700;
+const ARROWS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
+// Slow in, slow out.
+export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+// A camera target that is wrong, not merely missing: bad numbers, data
+// that contradicts itself. `context` carries what was being computed.
+export class CameraTargetError extends Error {
+  constructor(message, context = {}) { super(message); this.name = "CameraTargetError"; this.context = context; }
+}
+// What presetTarget() and focusTarget() give when there's nothing to aim at
+// (a legitimate state: nothing selected yet), and when the data is wrong.
+export const unavailable = (reason) => ({ ok: false, reason });
+export const defect = (reason, context = {}) => ({ ok: false, defect: true, reason, context });
 
 export class View3D {
   constructor(wrap, THREE, { createRenderer, label = "3D view", background = "--surface-2" } = {}) {
@@ -29,7 +58,12 @@ export class View3D {
     this.canvas.setAttribute?.("tabindex", "0");
     this.labelLayer = el("div", { class: "view3d-labels", "aria-hidden": "true" });
     this.caption = el("div", { class: "view-caption" });
-    wrap.append(this.canvas, this.labelLayer, this.caption);
+    // The compass: where north is on screen; a click turns the view to face it.
+    this.needle = el("span", { class: "needle", "aria-hidden": "true" }, el("b", { text: "N" }));
+    this.compass = el("button", { type: "button", class: "view3d-compass", hidden: true, title: "North (−Z on the map): click to turn the view to face north",
+      "aria-label": "Turn the view to face north" }, this.needle);
+    this.compass.addEventListener("click", () => this.runAction(() => this.faceNorth()));
+    wrap.append(this.canvas, this.labelLayer, this.caption, this.compass);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(32, 4 / 3, 1, 1e5);
@@ -42,8 +76,19 @@ export class View3D {
 
     this.controls = new THREE.OrbitControls(this.camera, this.canvas);
     Object.assign(this.controls, { enableDamping: false, screenSpacePanning: false, zoomToCursor: true, maxPolarAngle: 1.38, minPolarAngle: 0.05 });
+    // Keys: heard before the controls act on them, so a key that turns or
+    // moves the camera stops a move and counts as moving it by hand.
+    this.onKeyDown = (ev) => this.keyDown(ev);
+    this.canvas.addEventListener("keydown", this.onKeyDown);
     this.controls.listenToKeyEvents?.(this.canvas);
-    this.controls.addEventListener("change", () => { this.cameraChanged(); this.invalidate(); });
+    this.controls.addEventListener("change", () => {
+      this.cameraChanged();
+      if (!this.stepping) this.invalidate();
+      if ((this.driving || this.keyDriving) && !this.applying) this.movedByHand();
+    });
+    // A drag, a pinch or the wheel: the user has the camera.
+    this.controls.addEventListener("start", () => { this.driving = true; this.cancelTransition(); });
+    this.controls.addEventListener("end", () => { this.driving = false; });
 
     this.raycaster = new THREE.Raycaster();
     this.home = null;                 // where reset() puts the camera
@@ -51,6 +96,13 @@ export class View3D {
     this.active = false; this.visible = false; this.disposed = false;
     this.raf = 0; this.renders = 0; this.staticBuilds = 0;
     this.onLost = null;
+    // The camera's moves: the one running, and what the camera shows now.
+    this.clock = () => performance.now();
+    this.transition = null;
+    this.driving = false; this.keyDriving = false; this.stepping = false; this.applying = 0;
+    this.cameraState = { mode: "overview", label: "Overview", note: "" };
+    this.onCameraState = null;        // (state) => …, when what the camera shows changes
+    this.onCameraError = null;        // (error) => …, a camera action that went wrong
 
     this.resizeObserver = new ResizeObserver(() => this.#resize());
     this.resizeObserver.observe(wrap);
@@ -78,25 +130,41 @@ export class View3D {
 
   buildStatic() {}            // the scenery, when the installed world (or the theme) changed
   updateDynamic() {}          // the agents, after a frame
-  cameraChanged() { this.#clipPlanes(); }
+  cameraChanged() { this.#clipPlanes(); this.#pointCompass(); }
   themeChanged() { this.staticDirty = true; }
   click() {}
   hover() {}
+  // Where a camera action aims: { ok: true, pose, label, note } or
+  // unavailable(reason) / defect(reason). Subclasses add their presets.
+  presetTarget(name) {
+    if (name !== "overview") return defect(`There is no camera preset called "${name}" in this view`, { name });
+    return this.home ? { ok: true, pose: this.home.pose, label: "Overview" } : unavailable("Nothing is installed to look at yet.");
+  }
+  // What Focus frames for a selection: { ok: true, point: {X, Y, Z}, distance | box, label }.
+  focusTarget() { return unavailable("Nothing is selected to focus on."); }
 
   // ---- Lifecycle -----------------------------------------------------------------------
 
-  // Shown (the 3D view picked, its tab open) or not: hidden, it draws nothing.
+  // Shown (the 3D view picked, its tab open) or not: hidden, it draws
+  // nothing, and a move under way ends where it was going.
   setActive(on) {
     this.active = on;
-    if (on) { this.#resize(); this.invalidate(); } else tooltip.hide();
+    if (on) { this.#resize(); this.invalidate(); } else { this.#finishTransition(); tooltip.hide(); }
   }
 
   setCaption(text) { this.caption.textContent = text; this.caption.hidden = !text; }
 
-  // A render on the next animation frame, if it'll be seen.
+  // A render on the next animation frame, if it'll be seen; while the
+  // camera is moving, the move's next step first, and then another frame.
   invalidate() {
     if (this.raf || !this.active || !this.visible || this.disposed) return;
-    this.raf = requestAnimationFrame(() => { this.raf = 0; this.render(); });
+    this.raf = requestAnimationFrame(() => {
+      this.raf = 0;
+      if (!this.active || !this.visible || this.disposed) return;     // hidden since it was asked for
+      if (this.transition) this.#step();
+      this.render();
+      if (this.transition) this.invalidate();
+    });
   }
 
   render() {
@@ -121,14 +189,17 @@ export class View3D {
     if (this.disposed) return;
     this.disposed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0; this.transition = null;
     this.resizeObserver.disconnect();
     this.media.removeEventListener?.("change", this.onThemeChange);
     for (const [type, fn] of Object.entries(this.handlers)) this.canvas.removeEventListener?.(type, fn);
+    this.canvas.removeEventListener?.("keydown", this.onKeyDown);
     this.controls.dispose();
     View3D.disposeTree(this.scene);
     this.renderer.dispose();
     this.renderer.forceContextLoss?.();
-    this.canvas.remove(); this.labelLayer.remove(); this.caption.remove();
+    this.canvas.remove(); this.labelLayer.remove(); this.caption.remove(); this.compass.remove();
+    this.onCameraState = null; this.onCameraError = null;
     tooltip.hide();
   }
 
@@ -155,34 +226,238 @@ export class View3D {
 
   // Looks at a box of the ground (scene X0..X1, Z0..Z1) from an angle:
   // `azimuth` round from the south (radians, toward the east), `elevation`
-  // above the ground. This is the view reset() goes back to.
-  frame({ X0, X1, Z0, Z1 }, { azimuth = 0.45, elevation = 0.95, fill = 1.05 } = {}) {
+  // above the ground. This is the view reset() goes back to: the Overview.
+  frame(box, { azimuth = 0.45, elevation = 0.95, fill = 1.05 } = {}) {
     const THREE = this.THREE;
-    const target = new THREE.Vector3((X0 + X1) / 2, 0, (Z0 + Z1) / 2);
-    const span = Math.max(X1 - X0, Z1 - Z0);
-    const half = THREE.MathUtils.degToRad(this.camera.fov / 2);
-    const dist = (fill * span / 2) / Math.tan(half) * Math.max(1, 1 / Math.max(0.5, this.camera.aspect));
-    const pos = new THREE.Vector3(
-      target.x + dist * Math.cos(elevation) * Math.sin(azimuth),
-      dist * Math.sin(elevation),
-      target.z + dist * Math.cos(elevation) * Math.cos(azimuth));
-    this.home = { target, pos, span };
+    // The distance as the 3D views have always opened (the box's span at the field of view).
+    const pose = { target: { X: (box.X0 + box.X1) / 2, Y: 0, Z: (box.Z0 + box.Z1) / 2 },
+      distance: this.fitDistance(Math.max(box.X1 - box.X0, box.Z1 - box.Z0), fill), polar: Math.PI / 2 - elevation, azimuth };
+    this.checkPose(pose, "Overview");
+    const t = pose.target;
+    const target = new THREE.Vector3(t.X, t.Y, t.Z);
+    const pos = target.clone().add(new THREE.Vector3().setFromSphericalCoords(pose.distance, pose.polar, pose.azimuth));
+    const span = Math.max(box.X1 - box.X0, box.Z1 - box.Z0);
+    this.home = { target, pos, span, pose };
     this.controls.minDistance = Math.max(0.5, span / 400);
-    this.controls.maxDistance = dist * 3;
+    this.controls.maxDistance = pose.distance * 3;
+    this.compass.hidden = false;
     this.reset();
   }
 
+  // Straight back to the Overview, with no move (a new world or floor).
   reset() {
     if (!this.home) return;
-    this.controls.target.copy(this.home.target);
-    this.camera.position.copy(this.home.pos);
-    this.camera.lookAt(this.home.target);
-    this.controls.update();
-    this.cameraChanged();
+    this.transition = null;
+    this.#apply(this.home.pose);
+    this.setCameraState({ mode: "overview", label: "Overview", note: "" });
     this.invalidate();
   }
 
   get distance() { return this.camera.position.distanceTo(this.controls.target); }
+
+  // ---- Camera poses and moves ------------------------------------------------------------------
+
+  // Where the camera is, as a pose.
+  currentPose() {
+    const t = this.controls.target; const o = this.camera.position.clone().sub(t);
+    // As THREE.Spherical reads an offset (that class isn't in the vendored bundle).
+    const r = o.length();
+    return { target: { X: t.x, Y: t.y, Z: t.z }, distance: r, polar: r ? Math.acos(Math.min(1, Math.max(-1, o.y / r))) : 0, azimuth: r ? Math.atan2(o.x, o.z) : 0 };
+  }
+
+  // How far away the camera must be to show a box of the ground `span`
+  // across from an angle, filling the canvas by `fill` (as frame() always has).
+  fitDistance(span, fill = 1.05) {
+    const half = this.THREE.MathUtils.degToRad(this.camera.fov / 2);
+    return (fill * span / 2) / Math.tan(half) * Math.max(1, 1 / Math.max(0.5, this.camera.aspect));
+  }
+
+  // A pose looking at a box of the ground from a direction (azimuth, and
+  // elevation or polar): its middle, from the nearest distance that puts
+  // all four corners on the canvas, `fill` the margin. At least `minSpan`
+  // across (a box of a few cells isn't filled to the edges).
+  poseForBox({ X0, X1, Z0, Z1 }, { azimuth = 0.45, elevation = 0.95, polar, fill = 1.05, Y = 0, minSpan = 0 } = {}) {
+    const grow = Math.max(0, minSpan - (X1 - X0)) / 2; const growZ = Math.max(0, minSpan - (Z1 - Z0)) / 2;
+    const box = { X0: X0 - grow, X1: X1 + grow, Z0: Z0 - growZ, Z1: Z1 + growZ };
+    const target = { X: (box.X0 + box.X1) / 2, Y, Z: (box.Z0 + box.Z1) / 2 };
+    const p = polar ?? Math.PI / 2 - elevation;
+    const corners = [[box.X0, box.Z0], [box.X1, box.Z0], [box.X0, box.Z1], [box.X1, box.Z1]].map(([X, Z]) => ({ X, Y: 0, Z }));
+    return { target, distance: this.distanceToShow(corners, target, p, azimuth, fill), polar: p, azimuth };
+  }
+
+  // A pose looking down on a box from as near overhead as the controls
+  // allow, north at the top: the whole box on the canvas, whatever its shape.
+  poseOverhead(box, { fill = 1.06 } = {}) {
+    return this.poseForBox(box, { polar: this.controls.minPolarAngle, azimuth: 0, fill });
+  }
+
+  // The nearest distance from `target`, looking from (polar, azimuth), at
+  // which every point is on the canvas with `fill` to spare: for each point,
+  // its depth in front of the camera must cover its offset across and up
+  // the screen at the camera's field of view (and so its aspect).
+  distanceToShow(points, target, polar, azimuth, fill = 1.05) {
+    const u = { x: Math.sin(polar) * Math.sin(azimuth), y: Math.cos(polar), z: Math.sin(polar) * Math.cos(azimuth) };    // target → camera
+    const right = { x: Math.cos(azimuth), y: 0, z: -Math.sin(azimuth) };                                              // up × u, normalised
+    const up = { x: -Math.cos(polar) * Math.sin(azimuth), y: Math.sin(polar), z: -Math.cos(polar) * Math.cos(azimuth) }; // u × right
+    const tanV = Math.tan(this.THREE.MathUtils.degToRad(this.camera.fov / 2)) / fill;
+    const tanH = tanV * Math.max(0.1, this.camera.aspect);
+    let d = 0;
+    for (const P of points) {
+      const q = { x: P.X - target.X, y: P.Y - target.Y, z: P.Z - target.Z };
+      const dot = (a) => a.x * q.x + a.y * q.y + a.z * q.z;
+      d = Math.max(d, dot(u) + Math.abs(dot(right)) / tanH, dot(u) + Math.abs(dot(up)) / tanV);
+    }
+    return d;
+  }
+
+  // A pose must be numbers, and a real distance away. A defect if not.
+  checkPose(pose, what = "camera action") {
+    const bad = [];
+    for (const k of ["X", "Y", "Z"]) if (!Number.isFinite(pose?.target?.[k])) bad.push(`target ${k} = ${pose?.target?.[k]}`);
+    for (const k of ["distance", "polar", "azimuth"]) if (!Number.isFinite(pose?.[k])) bad.push(`${k} = ${pose?.[k]}`);
+    if (Number.isFinite(pose?.distance) && pose.distance <= 0) bad.push(`distance = ${pose.distance} (not in front of the target)`);
+    if (bad.length) throw new CameraTargetError(`${what}: the camera target isn't a valid pose (${bad.join(", ")})`, { what, pose });
+  }
+
+  // The pose within the controls' limits: no nearer or farther than they
+  // allow, no lower or more overhead.
+  constrain(pose) {
+    const c = this.controls; const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    return { target: { ...pose.target }, distance: clamp(pose.distance, c.minDistance, c.maxDistance), polar: clamp(pose.polar, c.minPolarAngle, c.maxPolarAngle), azimuth: pose.azimuth };
+  }
+
+  // Moves the camera to `pose`, easing there over `duration` ms (at once
+  // while the view isn't shown). Checked first: an invalid pose throws and
+  // the camera stays as it was. Replaces a move under way.
+  animateTo(pose, { mode = "manual", label = "", note = "", duration = TRANSITION_MS } = {}) {
+    this.checkPose(pose, label || mode);
+    const to = this.constrain(pose);
+    this.transition = null;
+    this.setCameraState({ mode, label, note });
+    if (!this.active || !this.visible || this.disposed || duration <= 0) { this.#apply(to); this.invalidate(); return; }
+    this.transition = { from: this.currentPose(), to, t0: this.clock(), duration };
+    this.invalidate();
+  }
+
+  // Stops a move where it is.
+  cancelTransition() { this.transition = null; }
+
+  // A step between two poses: the target and the distance (by ratio, so a
+  // long zoom is even), the polar angle and the azimuth (the short way round).
+  static lerpPose(a, b, t) {
+    const L = (x, y) => x + (y - x) * t;
+    const dAz = Math.atan2(Math.sin(b.azimuth - a.azimuth), Math.cos(b.azimuth - a.azimuth));
+    return { target: { X: L(a.target.X, b.target.X), Y: L(a.target.Y, b.target.Y), Z: L(a.target.Z, b.target.Z) },
+      distance: a.distance * (b.distance / a.distance) ** t, polar: L(a.polar, b.polar), azimuth: a.azimuth + dAz * t };
+  }
+
+  #step() {
+    const tr = this.transition;
+    const t = Math.min(1, Math.max(0, (this.clock() - tr.t0) / tr.duration));
+    this.stepping = true;
+    try { this.#apply(t >= 1 ? tr.to : View3D.lerpPose(tr.from, tr.to, easeInOut(t))); } finally { this.stepping = false; }
+    if (t >= 1) this.transition = null;
+  }
+
+  #finishTransition() {
+    const tr = this.transition; if (!tr) return;
+    this.transition = null;
+    this.#apply(tr.to);
+  }
+
+  // Puts the camera at a pose now: the controls hold it to their limits.
+  #apply(pose) {
+    const t = pose.target;
+    this.controls.target.set(t.X, t.Y, t.Z);
+    const off = new this.THREE.Vector3().setFromSphericalCoords(pose.distance, pose.polar, pose.azimuth);
+    this.camera.position.set(t.X + off.x, t.Y + off.y, t.Z + off.z);
+    this.camera.lookAt(this.controls.target);
+    this.applying++;
+    try { this.controls.update(); } finally { this.applying--; }
+    this.cameraChanged();
+  }
+
+  // ---- Camera actions --------------------------------------------------------------------------
+
+  // A camera preset: the view works out its pose (presetTarget()), then the
+  // camera moves there. Unavailable: the camera stays, and the result says
+  // why. A defect: thrown, the camera untouched.
+  goPreset(name, args = {}) {
+    const r = this.presetTarget(name, args);
+    if (!r.ok) { if (r.defect) throw new CameraTargetError(r.reason, { action: name, ...r.context }); return r; }
+    this.animateTo(r.pose, { mode: name, label: r.label, note: r.note ?? "" });
+    return r;
+  }
+
+  // Focus: the camera turns to the selection and comes to the distance
+  // that frames it, looking from the same direction and height as before
+  // (as far as the controls' limits allow).
+  focus(selection) {
+    const r = this.focusTarget(selection);
+    if (!r.ok) { if (r.defect) throw new CameraTargetError(r.reason, { action: "focus", ...r.context }); return r; }
+    const cur = this.currentPose();
+    const distance = r.box ? this.fitDistance(Math.max(r.minSpan ?? 0, r.box.X1 - r.box.X0, r.box.Z1 - r.box.Z0), 1.15) : r.distance;
+    this.animateTo({ target: { ...r.point }, distance, polar: cur.polar, azimuth: cur.azimuth }, { mode: "focus", label: r.label, note: r.note ?? "" });
+    return r;
+  }
+
+  // The compass: turns the camera round its target until it faces north
+  // (−Z: the top of the 2D views), keeping its distance and height.
+  faceNorth() {
+    if (!this.home) return unavailable("Nothing is installed to look at yet.");
+    const p = this.currentPose();
+    if (Math.abs(Math.atan2(Math.sin(p.azimuth), Math.cos(p.azimuth))) < 1e-6) {
+      this.setCameraState({ note: "Already facing north." });
+      return { ok: true, already: true };
+    }
+    this.animateTo({ ...p, azimuth: 0 }, { mode: "north", label: "Facing north" });
+    return { ok: true };
+  }
+
+  // Runs a camera action from a button: a defect is shown (onCameraError)
+  // and logged, never swallowed; the camera keeps its last valid pose.
+  runAction(fn) {
+    try {
+      const r = fn();
+      if (r && r.ok === false && !r.defect) this.setCameraState({ note: r.reason });
+      return r;
+    } catch (err) {
+      console.error("[fashion] camera action failed:", err, err?.context ?? "");
+      this.setCameraState({ note: `That camera action failed: ${err?.message ?? err}` });
+      if (this.onCameraError) this.onCameraError(err); else throw err;
+      return { ok: false, defect: true, reason: err?.message ?? String(err) };
+    }
+  }
+
+  // What the camera shows now (a preset, Focus, moved by hand), for the controls.
+  setCameraState(partial) {
+    this.cameraState = { ...this.cameraState, ...partial };
+    this.onCameraState?.(this.cameraState);
+  }
+
+  // The user moved the camera: it shows no preset now.
+  movedByHand() {
+    if (this.cameraState.mode !== "manual" || this.cameraState.note) this.setCameraState({ mode: "manual", label: "Moved by hand", note: "" });
+  }
+
+  keyDown(ev) {
+    if (!ARROWS.has(ev.code ?? ev.key)) return;
+    this.cancelTransition();
+    this.keyDriving = true;
+    queueMicrotask(() => { this.keyDriving = false; });
+  }
+
+  // The needle shows the camera's heading, as a map's compass does: north's
+  // bearing, clockwise from straight up the screen. It's exactly where
+  // north lies on screen from overhead and when facing north, east, south
+  // or west; between those, the ground's slant toward the camera makes the
+  // on-screen direction lean toward the nearest of them.
+  #pointCompass() {
+    const az = this.currentPose().azimuth;
+    const deg = ((az * 180 / Math.PI) % 360 + 360) % 360;
+    this.compassHeading = deg;
+    this.needle.style.transform = `rotate(${deg >= 359.95 ? "0.0" : deg.toFixed(1)}deg)`;
+  }
 
   #clipPlanes() {
     const d = this.distance; const span = this.home?.span ?? d;

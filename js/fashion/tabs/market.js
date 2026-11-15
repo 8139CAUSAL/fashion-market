@@ -13,6 +13,13 @@ import { possessive } from "../entry-text.js";
 import { ledgerView } from "../ledger-view.js";
 import { ViewSwitch } from "../view-switch.js";
 import { loadMarket3D } from "../three-loader.js";
+import { CameraBar, targetSelect } from "../camera-bar.js";
+
+const CAMERA_PRESETS = [
+  { id: "overview", label: "Overview", title: "The whole market from above, as the 3D view opens" },
+  { id: "neighborhood", label: "Neighborhood", title: "The area picked beside these buttons: its roads, stores, households and everyone out in it" },
+  { id: "street", label: "Street", title: "Low, round the store picked beside these buttons: its storefront, streets, cars and walkers" },
+];
 
 const MODES = [
   { value: "brand", label: "Brand last bought from" },
@@ -55,17 +62,32 @@ export class MarketTab {
         if (s.selected) v.setSelected(s.selected);
         if (s.travellers) v.setTravellers(s.travellers);
         v.setCaption(s.caption);
+        v.onCameraState = () => this.#camera();
+        v.onCameraError = (err) => app.error("The 3D camera couldn't do that", err);
+        this.#cameraTargets(v);
         return v;
       },
       apply: (is3d) => {
         wrap.hidden = is3d; wrap3d.hidden = !is3d;
+        this.camBar.root.hidden = !is3d;
+        if (is3d) this.#camera();
         // Back in 2D: the map catches up with everyone outdoors.
         if (!is3d && this.shown.travellers) this.map.setTravellers(this.shown.travellers);
       } });
+    // The 3D camera: presets, Focus, and what they aim at. Nothing is picked
+    // for the user; Focus aims at what was selected last (an area or store
+    // picked here, or a household picked on the map), and says so.
+    this.cam = { area: null, store: null, active: null, household: null, reported: new Set() };
+    this.camBar = new CameraBar({ label: "Map camera", presets: CAMERA_PRESETS,
+      onPreset: (id) => this.dims.view?.runAction(() => this.dims.view.goPreset(id, { area: this.cam.area, store: this.cam.store })),
+      onFocus: () => this.dims.view?.runAction(() => this.dims.view.focus(this.cam.active)) });
+    this.areaSel = targetSelect({ label: "Area", placeholder: "Pick an area…", onChange: (v) => this.#pick("area", v) });
+    this.storeSel = targetSelect({ label: "Store", placeholder: "Pick a store…", onChange: (v) => this.#pick("store", v) });
+    this.camBar.targets.append(this.areaSel.root, this.storeSel.root);
     const mapCard = card("The market", { sub: "click a store to open its floor · click a home to see that household",
       right: el("span", { class: "row" }, modeSel.root, this.offerSel.root, this.dims.root) });
     this.legendBox = el("div", { class: "map-legend" });
-    mapCard.body.append(wrap, wrap3d, this.legendBox);
+    mapCard.body.append(this.camBar.root, wrap, wrap3d, this.legendBox);
     this.map = new CityView(wrap, { onStore, onHome });
     // One household, beside the map it's picked from.
     const shopper = card("One household", {
@@ -102,6 +124,45 @@ export class MarketTab {
     root.append(top, this.ledgerCard.root, bottom, this.travelCard.root);
   }
 
+  // ---- The 3D camera ------------------------------------------------------------------------
+
+  // An area or store picked in the camera controls (null: none).
+  #pick(kind, value) {
+    this.cam[kind] = value;
+    if (value !== null) this.cam.active = kind === "area" ? { kind, area: value } : { kind, store: value };
+    else if (this.cam.active?.kind === kind) this.cam.active = null;
+    this.#camera();
+  }
+
+  // The pickers' choices: the installed world's areas and stores (an area
+  // with no tiles listed, but not pickable).
+  #cameraTargets(v = this.dims.view) {
+    if (!v) return;
+    const t = v.cameraTargets();
+    this.cam.area = this.areaSel.setOptions(t.areas.map((a) => ({ value: a.index, label: a.ok ? a.name : `${a.name} (no tiles)`, disabled: !a.ok, title: a.reason || undefined })), this.cam.area);
+    const groups = [...(this.app.geometry?.areas ?? []).map((a, k) => ({ name: a.name, k: k + 1 })), { name: "Outside every area", k: 0 }];
+    this.cam.store = this.storeSel.setOptions(groups.map((g) => ({ group: g.name, options: t.stores.filter((s) => s.area === g.k).map((s) => ({ value: s.index, label: s.name, disabled: !s.ok })) }))
+      .filter((g) => g.options.length), this.cam.store);
+    if (this.cam.active?.kind === "area" && this.cam.area === null) this.cam.active = null;
+    if (this.cam.active?.kind === "store" && this.cam.store === null) this.cam.active = null;
+    this.#camera();
+  }
+
+  // Which camera actions can run now, and what the camera shows.
+  #camera() {
+    const v = this.dims.view; if (!v || this.camBar.root.hidden) return;
+    const avail = (id, r) => {
+      if (r.defect && !this.cam.reported.has(r.reason)) { this.cam.reported.add(r.reason); this.app.error("A 3D camera target is wrong", new Error(r.reason)); }
+      this.camBar.setAvailable(id, r.ok ? { ok: true } : { ok: false, reason: r.defect ? `Error: ${r.reason}` : r.reason });
+    };
+    const args = { area: this.cam.area, store: this.cam.store };
+    for (const id of ["overview", "neighborhood", "street"]) avail(id, v.presetTarget(id, args));
+    const f = v.focusTarget(this.cam.active);
+    avail("focus", f);
+    if (f.ok) this.camBar.setFocusTitle(`Turn the camera to ${f.label.replace(/^Focus · /, "")}, the last thing selected`);
+    this.camBar.setState(v.cameraState);
+  }
+
   #modeChanged() {
     this.offerSel.root.hidden = this.mode !== "offer";
     this.#legend();
@@ -133,6 +194,9 @@ export class MarketTab {
     this.map.setGeometry(geo, homes);
     Object.assign(this.shown, { geo, homes, codes: null, stores: null, selected: null, travellers: null });
     this.dims.view?.setGeometry(geo, homes, this.app.world.installed);
+    // A new world: nothing picked for the camera in it yet.
+    Object.assign(this.cam, { area: null, store: null, active: null, household: null });
+    this.#cameraTargets();
     this.intro.textContent = `${n} brand${n === 1 ? "" : "s"} run ${geo.stores.length} stores across a market of ${fmt.int(geo.homes.n)} households${geo.areas.length ? ` in ${geo.areas.length} areas` : ""}. Every dot is a household, in the colour of the brand it last bought from. Press Go to play the season and watch shoppers drive to the stores, and back to return things. Online shoppers don't drive, so they aren't on the map.`;
     this.#legend();
   }
@@ -225,6 +289,8 @@ export class MarketTab {
     this.map.setSelected({ x: s.x, y: s.y });
     this.shown.selected = { x: s.x, y: s.y };
     this.dims.view?.setSelected(this.shown.selected);
+    // Another household picked: it's what Focus aims at now.
+    if (s.id !== this.cam.household) { this.cam.household = s.id; this.cam.active = { kind: "household", id: s.id }; this.#camera(); }
     const box = this.shopperBox;
     const order = this.app.brandOrder;
     const inReach = order.filter((b) => s.brands[b.index - 1].in_reach);

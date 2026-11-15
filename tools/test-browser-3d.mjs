@@ -37,7 +37,7 @@ await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
 const base = `http://127.0.0.1:${server.address().port}/`;
 
 let failures = 0;
-const check = (ok, what) => { console.log(`  ${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) failures++; };
+const check = (ok, what, detail) => { console.log(`  ${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) { failures++; if (detail !== undefined) console.log(`       measured: ${JSON.stringify(detail)}`); } };
 
 // SwiftShader: WebGL without a GPU, as on a CI machine.
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
@@ -162,6 +162,123 @@ const timing = await page.evaluate(() => {
 });
 console.log(`    (the whole default market in 3D: ${timing.calls} draw calls, ${timing.tris.toLocaleString()} triangles, ${timing.ms.toFixed(1)} ms a frame in SwiftShader)`);
 
+// ---- The 3D camera on the Market tab -----------------------------------------------------------------------
+
+console.log("Market 3D camera");
+const camPose = (tab) => page.evaluate((t) => { const v = window.fashion.tabs[t].dims.view;
+  return { ...v.currentPose(), mode: v.cameraState.mode, label: v.cameraState.label, note: v.cameraState.note, moving: !!v.transition, raf: v.raf }; }, tab);
+const settled = (tab) => page.waitForFunction((t) => { const v = window.fashion.tabs[t].dims.view; return !v.transition && !v.raf; }, tab, { timeout: 10_000 });
+const btn = (tab, label) => `#tab-${tab} .camera-bar button:text-is("${label}")`;
+const attr = (sel, name) => page.getAttribute(sel, name);
+// Every message the page sends the simulation from here on, to show that camera actions send none.
+await page.evaluate(() => {
+  const c = window.fashion.client; window.__sent = [];
+  const request = c.request.bind(c); const post = c.post.bind(c);
+  c.request = (type, payload) => { window.__sent.push(type); return request(type, payload); };
+  c.post = (type, payload) => { window.__sent.push(type); return post(type, payload); };
+});
+const sentSince = async () => page.evaluate(() => window.__sent.splice(0));
+await sentSince();
+const bar = await page.evaluate(() => ({ shown: !document.querySelector("#tab-market .camera-bar").hidden, status: document.querySelector("#tab-market .camera-status").textContent,
+  compass: !document.querySelector("#tab-market .view3d-compass").hidden }));
+check(bar.shown && bar.compass && /Camera: Overview/.test(bar.status), `in 3D the camera controls and the compass are over the map ("${bar.status}")`);
+const nb = { disabled: await attr(btn("market", "Neighborhood"), "aria-disabled"), title: await attr(btn("market", "Neighborhood"), "title"),
+  st: await attr(btn("market", "Street"), "aria-disabled"), note: await page.textContent("#tab-market .camera-note") };
+const p0 = await camPose("market");
+await page.click(btn("market", "Neighborhood"), { force: true });     // pressed anyway: Playwright won't press an aria-disabled button by itself
+await page.waitForTimeout(300);
+const p1 = await camPose("market");
+const said = await page.textContent("#tab-market .camera-status");
+check(nb.disabled === "true" && nb.st === "true" && /Pick an area/.test(nb.title) && /Neighborhood: Pick an area/.test(nb.note) && /Pick an area/.test(said)
+  && !p1.moving && Math.abs(p1.distance - p0.distance) < 1e-6 && p1.mode === "overview",
+  `with no area or store picked, Neighborhood and Street are unavailable, say why ("${nb.title}"), and pressing one moves nothing`);
+// Pick an area: Neighborhood frames its own tiles.
+const areaPick = await page.evaluate(() => {
+  const g = window.fashion.geometry; const k = g.areas.findIndex((a) => a.name) + 2;     // the second area
+  let r0 = 1e9, r1 = -1, c0 = 1e9, c1 = -1;
+  g.area.forEach((v, i) => { if (v !== k) return; const r = Math.floor(i / g.nx); const c = i % g.nx; r0 = Math.min(r0, r); r1 = Math.max(r1, r); c0 = Math.min(c0, c); c1 = Math.max(c1, c); });
+  const p = g.patch; return { k, name: g.areas[k - 1].name, X0: c0 * p, X1: (c1 + 1) * p, Z0: -(g.ny - r0) * p, Z1: -(g.ny - r1 - 1) * p };
+});
+await page.selectOption('#tab-market .camera-bar select[aria-label="Area"]', String(areaPick.k));
+await page.click(btn("market", "Neighborhood"));
+const mid = await camPose("market");
+await settled("market");
+const nbh = await page.evaluate((a) => { const v = window.fashion.tabs.market.dims.view; const t = v.controls.target;
+  const on = [[a.X0, a.Z0], [a.X1, a.Z0], [a.X0, a.Z1], [a.X1, a.Z1]].every(([X, Z]) => v.toScreen(X, 0, Z).on);
+  return { X: t.x, Z: t.z, on, mode: v.cameraState.mode, pressed: document.querySelector('#tab-market .camera-bar button[aria-pressed="true"]')?.textContent }; }, areaPick);
+check(mid.moving && Math.abs(nbh.X - (areaPick.X0 + areaPick.X1) / 2) < 1e-6 && Math.abs(nbh.Z - (areaPick.Z0 + areaPick.Z1) / 2) < 1e-6 && nbh.on && nbh.pressed === "Neighborhood",
+  `Neighborhood moves (eased) to ${areaPick.name}: the middle of the box round its own tiles, all four corners of it on the canvas, the button pressed`);
+// Street: round a picked store's point, low.
+const storePick = await page.evaluate(() => { const s = window.fashion.geometry.stores[5]; return { id: s.id, x: s.x, y: s.y, name: s.name }; });
+await page.selectOption('#tab-market .camera-bar select[aria-label="Store"]', String(storePick.id));
+await page.click(btn("market", "Street"));
+await settled("market");
+const street = await camPose("market");
+const shownStore = await page.evaluate((id) => { const v = window.fashion.tabs.market.dims.view; const s = v.model.stores[id - 1]; return v.toScreen(s.X, s.height / 2, s.Z).on; }, storePick.id);
+check(Math.abs(street.target.X - storePick.x) < 1e-6 && Math.abs(street.target.Z + storePick.y) < 1e-6 && Math.PI / 2 - street.polar < 0.45 && shownStore && street.label === `Street · ${storePick.name}`,
+  `Street sits low (${((Math.PI / 2 - street.polar) * 180 / Math.PI).toFixed(0)}° up) round ${storePick.name} at R's STORES$x, STORES$y, the store on the canvas`);
+// A drag in the middle of a move takes the camera: the move stops where it is.
+// (A long move, so the real mouse lands in the middle of it however slowly SwiftShader draws the whole market.)
+await page.evaluate(() => { const v = window.fashion.tabs.market.dims.view; v.animateTo(v.home.pose, { mode: "overview", label: "Overview", duration: 4000 }); });
+await page.waitForTimeout(300);
+const box = await page.evaluate(() => { const r = window.fashion.tabs.market.dims.view.canvas.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+await page.evaluate(() => { const v = window.fashion.tabs.market.dims.view; v.canvas.addEventListener("pointerdown", () => { window.__movingAtGrab = !!v.transition; }, { capture: true, once: true }); });
+await page.mouse.move(box.x, box.y); await page.mouse.down();
+const grabbed = await camPose("market");
+await page.mouse.move(box.x + 80, box.y + 20, { steps: 4 }); await page.mouse.up();
+await page.waitForTimeout(1000);
+const dragged = await camPose("market");
+const homeDist = await page.evaluate(() => window.fashion.tabs.market.dims.view.home.pose.distance);
+const wasMoving = await page.evaluate(() => window.__movingAtGrab);
+check(wasMoving && !grabbed.moving && !dragged.moving && dragged.mode === "manual" && Math.abs(dragged.distance - homeDist) > 1 && Math.abs(dragged.distance - grabbed.distance) < 1e-6,
+  "a mouse drag in the middle of a move stops it where it is: the camera is the user's (moved by hand), not carried on to the Overview", { grabbed, dragged, homeDist });
+// A move replaced by another: from where the camera is.
+await page.click(btn("market", "Neighborhood")); await page.waitForTimeout(200);
+await page.click(btn("market", "Street")); await settled("market");
+const replaced = await camPose("market");
+check(replaced.mode === "street" && Math.abs(replaced.target.X - storePick.x) < 1e-6, "Street pressed while Neighborhood is moving replaces the move and ends at the store");
+// The compass: facing north, keeping target, distance and height.
+await page.evaluate(() => { const v = window.fashion.tabs.market.dims.view; v.animateTo({ ...v.currentPose(), azimuth: 2.2 }, { duration: 0 }); });
+const beforeN = await camPose("market");
+await page.click("#tab-market .view3d-compass");
+await settled("market");
+const north = await camPose("market");
+const needle = await page.evaluate(() => document.querySelector("#tab-market .view3d-compass .needle").style.transform);
+const up = await page.evaluate(() => { const v = window.fashion.tabs.market.dims.view; const t = v.controls.target; const a = v.toScreen(t.x, 0, t.z); const b = v.toScreen(t.x, 0, t.z - 10); return Math.abs(b.x - a.x) < 0.5 && b.y < a.y; });
+check(Math.abs(north.azimuth) < 1e-9 && Math.abs(north.distance - beforeN.distance) < 1e-6 && Math.abs(north.polar - beforeN.polar) < 1e-9 && Math.abs(north.target.X - beforeN.target.X) < 1e-6 && /^rotate\(0(\.0)?deg\)$/.test(needle) && up,
+  "the compass turns the view to face north (−Z straight up the screen), keeping its target, distance and height; the needle points up", { beforeN, north, needle, up });
+// Focus: on the household picked last (the Market tab's own pick).
+await page.click('#tab-market button:text-is("Pick a random household")');
+await page.waitForFunction(() => window.fashion.tabs.market.dims.view.selected, null, { timeout: 30_000 });
+await sentSince();
+const hh = await page.evaluate(() => window.fashion.tabs.market.dims.view.selected);
+const focusTitle = await attr(btn("market", "Focus"), "title");
+await page.click(btn("market", "Focus"));
+await settled("market");
+const focused = await camPose("market");
+check(/household/.test(focusTitle) && Math.abs(focused.target.X - hh.x) < 1e-6 && Math.abs(focused.target.Z + hh.y) < 1e-6 && Math.abs(focused.azimuth) < 1e-9 && Math.abs(focused.polar - north.polar) < 1e-9 && focused.mode === "focus",
+  `Focus turns to the household picked last (${focusTitle}), keeping the camera's direction and height`, { hh, focused, north });
+// Reset: the Overview.
+await page.click('#tab-market .view-switch button:text-is("Reset view")');
+await settled("market");
+const reset = await page.evaluate(() => { const v = window.fashion.tabs.market.dims.view; const p = v.currentPose(); const h = v.home.pose;
+  return Math.abs(p.distance - h.distance) < 1e-6 && Math.abs(p.azimuth - h.azimuth) < 1e-9 && Math.abs(p.target.X - h.target.X) < 1e-6 && v.cameraState.mode === "overview"; });
+check(reset, "Reset view moves back to the Overview the 3D map opened with");
+// Selection still works: a click on the ground picks the household nearest it.
+const clicked = await page.evaluate(() => { const v = window.fashion.tabs.market.dims.view; const s = v.model.stores[2];
+  const sp = v.toScreen(s.X + 300, 0, s.Z + 300); const r = v.canvas.getBoundingClientRect(); return { x: r.left + sp.x, y: r.top + sp.y }; });
+await page.mouse.click(clicked.x, clicked.y);
+await page.waitForTimeout(300);
+const camSent = await sentSince();
+check(camSent.length === 1 && camSent[0] === "ACTION", `after the camera moves, a click on the ground still asks R for the household there (the page sent ${JSON.stringify(camSent)}); the camera actions sent nothing`);
+// 2D and back: the camera controls only in 3D.
+await page.click('#tab-market .view-switch button:text-is("2D")');
+const bar2d = await page.evaluate(() => document.querySelector("#tab-market .camera-bar").hidden);
+await page.click('#tab-market .view-switch button:text-is("3D")');
+await page.waitForTimeout(300);
+const bar3d = await page.evaluate(() => !document.querySelector("#tab-market .camera-bar").hidden && window.fashion.tabs.market.dims.view.active);
+check(bar2d && bar3d, "the camera controls are hidden in 2D and back with the 3D view");
+
 // A click on a store in 3D opens its floor, as on the 2D map.
 const target = await page.evaluate(() => {
   const v = window.fashion.tabs.market.dims.view; const s = v.model.stores[2];
@@ -228,6 +345,51 @@ const panel2 = await page.evaluate(() => window.fashion.tabs.store.inspector.roo
 check(ring && panel2.includes(worker.role), `a click on a ${worker.role} in 3D opens their work in the inspector, and rings them on the 3D floor`);
 check(floor.builds === 1, "the floor's fixtures were built once for the store, whatever the frames did");
 
+// ---- The 3D camera on the Store tab ---------------------------------------------------------------------------
+
+console.log("Store 3D camera");
+await sentSince();
+// The worker is in the inspector: Shopper needs a shopper; Focus aims at the worker.
+const shopperOff = { aria: await attr(btn("store", "Shopper"), "aria-disabled"), title: await attr(btn("store", "Shopper"), "title") };
+check(shopperOff.aria === "true" && /Select a shopper/.test(shopperOff.title), `with a worker in the inspector, Shopper is unavailable and says why ("${shopperOff.title}")`);
+await page.click(btn("store", "Focus"));
+await settled("store");
+const wf = await page.evaluate(() => { const tab = window.fashion.tabs.store; const v = tab.dims.view; const a = v.agents; const ins = tab.shown.inspect;
+  const role = ins.kind === "cashier" ? 1 : 2; let i = -1; for (let k = 0; k < a.staffN; k++) if (a.staffRole[k] === role && a.staffId[k] === ins.server) i = k;
+  const t = v.controls.target; return { ok: i >= 0 && Math.abs(t.x - (a.staffX[i] + 0.5) * 0.5) < 1e-6 && Math.abs(t.z + (a.staffY[i] + 0.5) * 0.5) < 1e-6, label: v.cameraState.label }; });
+check(wf.ok, `Focus turns to the ${worker.role} in the inspector, where the current frame has them (${wf.label})`);
+// Top-down: the whole floor from overhead, north up.
+await page.click(btn("store", "Top-down"));
+await settled("store");
+const td = await page.evaluate(() => { const v = window.fashion.tabs.store.dims.view; const f = v.model.frame; const p = v.currentPose();
+  return { corners: [[0, 0], [f.width, 0], [0, -f.depth], [f.width, -f.depth]].every(([X, Z]) => v.toScreen(X, 0, Z).on), polar: p.polar, az: p.azimuth, min: v.controls.minPolarAngle, w: f.width, d: f.depth }; });
+check(td.corners && Math.abs(td.polar - td.min) < 1e-9 && Math.abs(td.az) < 1e-9, `Top-down looks straight down (as near as the controls allow), north up, the whole ${td.w} × ${td.d} m floor on the canvas`);
+// Checkout: the tills plan_geometry() places, and the till queue's cells from the installed rows.
+await page.click(btn("store", "Checkout"));
+await settled("store");
+const co = await page.evaluate(() => { const v = window.fashion.tabs.store.dims.view; const f = v.model.frame;
+  const tills = v.plan.tills.map(([x, y]) => v.toScreen((x + 0.5) * 0.5, 1, -(y + 0.5) * 0.5).on);
+  const queue = [...v.model.cells.tillLine, ...v.model.cells.tillHead].map((q) => v.toScreen(q.X, 0, q.Z).on);
+  return { tills, queue, zones: v.checkout.zones.length, line: v.checkout.queue.line?.length ?? null, dist: v.distance, home: v.home.pose.distance, label: v.cameraState.label, note: v.cameraState.note }; });
+check(co.tills.length > 0 && co.tills.every(Boolean) && co.line > 0 && co.queue.every(Boolean) && co.dist < co.home,
+  `Checkout frames the ${co.tills.length} till(s) of plan_geometry() and the till queue's ${co.line} cells from the installed rows, closer than the Overview (${co.label})`);
+// Shopper: the one in the inspector, by visit id, in the live frame.
+const pick = await page.evaluate(() => { const tab = window.fashion.tabs.store; const v = tab.dims.view; const a = tab.shown.agents;
+  const i = a.n - 1; const X = (a.x[i] + 0.5) * 0.5; const Z = -(a.y[i] + 0.5) * 0.5;
+  v.animateTo({ target: { X, Y: 0, Z }, distance: 9, polar: 0.9, azimuth: 0.4 }, { duration: 0 }); v.render();
+  const sp = v.toScreen(X, 1.2, Z); const r = v.canvas.getBoundingClientRect(); return { x: r.left + sp.x, y: r.top + sp.y, visit: a.visit[i] }; });
+await page.mouse.click(pick.x, pick.y);
+await page.waitForFunction((visit) => window.fashion.tabs.store.shown.inspect?.visit === visit, pick.visit, { timeout: 30_000 }).catch(() => {});
+await page.waitForFunction(() => [...document.querySelectorAll("#tab-store .camera-bar button")].find((b) => b.textContent === "Shopper")?.getAttribute("aria-disabled") === "false", null, { timeout: 30_000 }).catch(() => {});
+await page.click(btn("store", "Shopper"));
+await settled("store");
+const sp = await page.evaluate(() => { const tab = window.fashion.tabs.store; const v = tab.dims.view; const a = v.agents; const visit = tab.shown.inspect?.visit;
+  const i = Array.from(a.visit.subarray(0, a.n)).indexOf(visit); const t = v.controls.target; const p = v.currentPose();
+  return { visit, i, ok: i >= 0 && Math.abs(t.x - (a.x[i] + 0.5) * 0.5) < 1e-6 && Math.abs(t.z + (a.y[i] + 0.5) * 0.5) < 1e-6, low: Math.PI / 2 - p.polar, d: p.distance, label: v.cameraState.label }; });
+check(sp.visit === pick.visit && sp.ok && sp.low < 0.5 && sp.d < 8, `Shopper looks low (${(sp.low * 180 / Math.PI).toFixed(0)}° up, ${sp.d.toFixed(1)} m) at visit #${sp.visit}, where the live frame has that visit (${sp.label})`);
+const storeSent = await sentSince();
+check(storeSent.length === 1 && storeSent[0] === "ACTION", `the store's camera actions sent the simulation nothing (only the click on the shopper asked R to inspect: ${JSON.stringify(storeSent)})`);
+
 // ---- Same season in 2D and 3D --------------------------------------------------------------------------------
 
 console.log("2D and 3D leave the season as it is");
@@ -290,6 +452,11 @@ await page.waitForFunction((b) => window.fashion.tabs.market.dims.view.staticBui
 const after = await page.evaluate(({ r, c }) => { const v = window.fashion.tabs.market.dims.view; const M = v.model; const X = (c + 0.5) * M.frame.patch; const Z = -(M.frame.ny - r - 0.5) * M.frame.patch;
   return { builds: v.staticBuilds, building: M.buildings.some((b) => b.X === X && b.Z === Z) }; }, spot);
 check(after.builds === b0 + 1 && after.building, "Setup installs it: the 3D market is rebuilt once, with a building on that tile");
+const camAfter = await page.evaluate(() => { const tab = window.fashion.tabs.market; const v = tab.dims.view; const p = v.currentPose(); const h = v.home.pose;
+  return { mode: v.cameraState.mode, home: Math.abs(p.distance - h.distance) < 1e-6 && p.target.X === h.target.X, area: tab.cam.area, store: tab.cam.store, active: tab.cam.active,
+    areaSel: document.querySelector('#tab-market .camera-bar select[aria-label="Area"]').value, nbh: [...document.querySelectorAll("#tab-market .camera-bar button")].find((b) => b.textContent === "Neighborhood").getAttribute("aria-disabled") }; });
+check(camAfter.mode === "overview" && camAfter.home && camAfter.area === null && camAfter.store === null && camAfter.areaSel === "" && camAfter.nbh === "true",
+  "a Setup that installs a world puts the 3D camera back at the new world's Overview and clears what was picked for it: nothing in the old world is aimed at in the new one");
 // A world R refuses: the 3D market stays the installed one.
 await page.evaluate(() => window.fashion.world.edit((d) => { d.stores[0].layout = "no_such_layout"; }));
 await page.evaluate(() => window.fashion.setupSeason());
