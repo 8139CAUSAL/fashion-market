@@ -234,6 +234,37 @@ await page.click("#tab-btn-market");
 await page.waitForTimeout(1500);
 const card = await page.evaluate(() => window.fashion.tabs.market.travelBox?.textContent ?? "");
 check(/Outings home/.test(card) && /Store visits/.test(card) && /Found it full/.test(card), "the Market tab's Getting about card shows the outings, store visits and parking from the simulation");
+// ---- Importing from a file -------------------------------------------------------------------------
+
+console.log("File pickers");
+// Import layout (Setup → Micro world) and Import world → From file…, by the real controls: the
+// browser's file chooser opens, the file picked is read, and no file input is left in the page.
+const fileInputs = () => page.evaluate(() => document.querySelectorAll('input[type="file"]').length);
+await page.evaluate(() => { window.fashion.selectTab("setup"); window.fashion.tabs.setup.open("micro"); });
+await page.waitForTimeout(500);
+const layoutsBefore = await page.evaluate(() => window.fashion.world.draft.layouts.length);
+const [layoutChooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 15_000 }), page.click('#tab-setup button:text-is("Import layout")')]);
+const inPage = await fileInputs();
+await layoutChooser.setFiles(join(root, "layouts/small.layout.json"));
+await page.waitForFunction((n) => window.fashion.world.draft.layouts.length === n + 1, layoutsBefore, { timeout: 15_000 }).catch(() => {});
+const layoutsAfter = await page.evaluate(() => window.fashion.world.draft.layouts.length);
+check(layoutChooser.isMultiple() === false && inPage === 1 && layoutsAfter === layoutsBefore + 1 && await fileInputs() === 0,
+  `Import layout opens the file chooser (its input in the page while it's open), reads the layout picked into the draft (${layoutsBefore} → ${layoutsAfter} layouts), and leaves no file input behind`);
+// Import world → From file… (if the draft has changes Setup hasn't installed, through its Replace the draft button).
+const chooserFor = async (act) => { const [c] = await Promise.all([page.waitForEvent("filechooser", { timeout: 15_000 }), act()]); return c; };
+let worldChooser;
+const pendingNow = await page.evaluate(() => window.fashion.world.pending);
+if (pendingNow) {
+  await page.selectOption('#tab-setup select[aria-label="Import world"]', "file");
+  worldChooser = await chooserFor(() => page.click('#tab-setup button:text-is("Replace the draft")'));
+} else worldChooser = await chooserFor(() => page.selectOption('#tab-setup select[aria-label="Import world"]', "file"));
+const strip = JSON.parse(await readFile(join(root, "worlds/strip_mall.world.json"), "utf8"));
+await worldChooser.setFiles(join(root, "worlds/strip_mall.world.json"));
+await page.waitForFunction((name) => window.fashion.world.draft.name === name, strip.name, { timeout: 60_000 }).catch(() => {});
+const imported = await page.evaluate(() => ({ name: window.fashion.world.draft.name, banner: document.querySelector(".banner")?.textContent ?? "" }));
+check(imported.name === strip.name && /Imported/.test(imported.banner) && await fileInputs() === 0,
+  `Import world → From file… opens the file chooser${pendingNow ? " (after Replace the draft)" : ""}, imports the world picked into the draft ("${imported.name}"), and leaves no file input behind`);
+
 check(!errors.length, errors.length ? `no errors in the page: ${errors.slice(0, 3).join(" | ")}` : "no errors in the page");
 
 await browser.close();

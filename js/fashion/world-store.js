@@ -268,15 +268,24 @@ export function download(name, text, type = "application/json") {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-// A file the user picks, as text.
+// A file the user picks, as text (null if they cancel). The input is in the
+// page, out of sight, until then: Safari may never report the file picked
+// to an input that isn't in the page.
 export function pickFile(accept = ".json,application/json") {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file"; input.accept = accept;
-    input.addEventListener("change", async () => {
+    input.tabIndex = -1; input.setAttribute("aria-hidden", "true");
+    Object.assign(input.style, { position: "fixed", left: "-10000px", top: "0", width: "1px", height: "1px", opacity: "0" });
+    let done = false;
+    const finish = (fn) => { if (done) return; done = true; input.remove(); fn(); };
+    input.addEventListener("change", () => {
       const file = input.files?.[0];
-      resolve(file ? { name: file.name, text: await file.text() } : null);
+      if (!file) return finish(() => resolve(null));
+      file.text().then((text) => finish(() => resolve({ name: file.name, text })), (err) => finish(() => reject(err)));
     });
+    input.addEventListener("cancel", () => finish(() => resolve(null)));
+    document.body.append(input);
     input.click();
   });
 }
