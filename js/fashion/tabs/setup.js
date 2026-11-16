@@ -72,8 +72,12 @@ export class SetupTab {
     // The world: its name, import and export, and what waits for Setup.
     this.nameField = textField({ label: "World", value: "", onChange: (v) => this.world.edit((d) => { d.name = v; }) });
     this.importSel = select({ label: "Import world", hideLabel: true, value: "", options: [
-      { value: "", label: "Import world…" }, { value: "default", label: "Default world" }, { value: "file", label: "From file…" }],
+      { value: "", label: "Import world…" }, { value: "default", label: "Default world" }],
     onChange: (v) => { this.importSel.set(""); if (v) this.#import(v); } });
+    // A button, not a choice in the menu above: Safari opens a file picker
+    // only for a click, and a menu's choice isn't one.
+    const importFileBtn = el("button", { type: "button", class: "btn", text: "Import from file…", title: "Replace the draft with a world from a .world.json file",
+      onclick: () => this.#import("file") });
     const exportBtn = el("button", { type: "button", class: "btn", text: "Export world", onclick: () => download(`${slug(this.world.draft?.name ?? "world")}.world.json`, this.world.text()) });
     this.pendingBox = el("span", { class: "pending" });
     this.problemsBox = el("div", { class: "problems-panel", hidden: true });
@@ -89,7 +93,7 @@ export class SetupTab {
         })))));
     this.stageGuide = el("div", { class: "stage-guide" });
     this.askBox = el("div", { class: "world-ask", hidden: true });
-    root.append(el("div", { class: "world-bar" }, this.nameField.root, this.importSel.root, exportBtn, this.pendingBox), this.askBox, this.problemsBox,
+    root.append(el("div", { class: "world-bar" }, this.nameField.root, this.importSel.root, importFileBtn, exportBtn, this.pendingBox), this.askBox, this.problemsBox,
       this.stageStrip, this.stageGuide);
 
     this.panels = {};

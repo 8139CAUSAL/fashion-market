@@ -115,7 +115,7 @@ button shows the files that are running, and the world they run in.
    wrong, it lists every problem where it is, and the season carries on in
    the world set up before.
 8. **Export world** saves the whole market as one JSON file, to share or
-   import later.
+   import later with **Import from file…**.
 
 ---
 
